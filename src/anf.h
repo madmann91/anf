@@ -36,25 +36,19 @@ struct use_s {
 struct node_s {
     uint32_t tag;
     uint32_t nops;
-    union {
-        void* ptr;
-        box_t box;
-    } data;
-    node_t*  ops;
-    type_t*  type;
-    use_t*   uses;
+    const type_t* type;
+    use_t* uses;
 };
 
 struct type_s {
     uint32_t tag;
     uint32_t nops;
-    type_t*  ops;
 };
 
 struct mod_s {
-    mpool_t  pool;
-    htable_t nodes;
-    htable_t types;
+    mpool_t*  pool;
+    htable_t* nodes;
+    htable_t* types;
 };
 
 enum prim_e {
@@ -71,7 +65,7 @@ enum prim_e {
     PRIM_F64
 };
 
-enum arithop_e {
+enum binop_e {
     BINOP_ADD,
     BINOP_SUB,
     BINOP_MUL,
@@ -81,20 +75,20 @@ enum arithop_e {
     BINOP_OR,
     BINOP_XOR,
     BINOP_LSHFT,
-    BINOP_RSHFT
-};
-
-enum cmpop_e {
-    CMP_LT,
-    CMP_GT,
-    CMP_LE,
-    CMP_GE,
-    CMP_EQ
+    BINOP_RSHFT,
+    BINOP_CMPLT,
+    BINOP_CMPGT,
+    BINOP_CMPLE,
+    BINOP_CMPGE,
+    BINOP_CMPEQ
 };
 
 bool is_undef(const node_t*);
 bool is_zero(const node_t*);
 bool is_one(const node_t*);
+
+const node_t* node_ops(const node_t*);
+const type_t* type_ops(const type_t*);
 
 // Module
 mod_t* mod_create();
@@ -106,18 +100,19 @@ const type_t* type_tuple(mod_t*, ...);
 const type_t* type_record(mod_t*, uint32_t, ...);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
-// Value
+// Values
 const node_t* node_undef(mod_t*, const type_t*);
 const node_t* node_literal(mod_t*, uint32_t, box_t);
 
 // Aggregates
 const node_t* node_tuple(mod_t*, ...);
-const node_t* node_record(mod_t*, uint32_t, ...);
-const node_t* node_extract(mod_t*, const node_t*, uint32_t);
-const node_t* node_insert(mod_t*, const node_t*, uint32_t, const node_t*);
+const node_t* node_record(mod_t*, const type_t*, ...);
+const node_t* node_extract(mod_t*, const node_t*, const node_t*);
+const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*);
+const node_t* node_extract_const(mod_t*, const node_t*, uint32_t);
+const node_t* node_insert_const(mod_t*, const node_t*, uint32_t, const node_t*);
 
 // Operations
-const node_t* node_arithop(mod_t*, uint32_t, const node_t*, const node_t*);
-const node_t* node_cmpop(mod_t*, uint32_t, const node_t*, const node_t*);
+const node_t* node_binop(mod_t*, uint32_t, const node_t*, const node_t*);
 
 #endif // ANF_H
