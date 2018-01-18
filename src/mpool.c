@@ -27,11 +27,13 @@ void mpool_destroy(mpool_t* pool) {
 }
 
 void* mpool_alloc(mpool_t** root, size_t size) {
+    const size_t align = 8;
     mpool_t* pool = *root;
     while (true) {
         if (pool->cap - pool->size >= size) {
-            void* ptr = mpool_ptr(pool);
-            pool->size += size;
+            void*  ptr = mpool_ptr(pool);
+            size_t pad = size % align;
+            pool->size += size + (pad == 0 ? 0 : align - pad);
             return ptr;
         }
 

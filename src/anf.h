@@ -28,21 +28,21 @@ union box_u {
 };
 
 struct use_s {
-    uint32_t id;
+    uint32_t index;
     node_t*  node;
     use_t*   next;
 };
 
 struct node_s {
     uint32_t tag;
-    uint32_t nops;
+    size_t   nops;
+    use_t*   uses;
     const type_t* type;
-    use_t* uses;
 };
 
 struct type_s {
     uint32_t tag;
-    uint32_t nops;
+    size_t   nops;
 };
 
 struct mod_s {
@@ -83,15 +83,32 @@ enum binop_e {
     BINOP_CMPEQ
 };
 
+enum type_tag_e {
+    TYPE_PRIM,
+    TYPE_TUPLE,
+    TYPE_RECORD,
+    TYPE_FN
+};
+
+enum node_tag_e {
+    NODE_UNDEF,
+    NODE_LITERAL,
+    NODE_TUPLE,
+    NODE_RECORD,
+    NODE_EXTRACT,
+    NODE_INSERT,
+    NODE_BINOP
+};
+
 bool is_undef(const node_t*);
 bool is_zero(const node_t*);
 bool is_one(const node_t*);
 
-const node_t* node_ops(const node_t*);
-const type_t* type_ops(const type_t*);
+const node_t** node_ops(const node_t*);
+const type_t** type_ops(const type_t*);
 
 // Module
-mod_t* mod_create();
+mod_t* mod_create(void);
 void mod_destroy(mod_t*);
 
 // Types
