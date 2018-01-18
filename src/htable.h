@@ -24,7 +24,7 @@ struct htable_s {
 };
 
 htable_t* htable_create(size_t, size_t, cmpfn_t, hashfn_t);
-void httable_destroy(htable_t*);
+void htable_destroy(htable_t*);
 void htable_rehash(htable_t*, size_t);
 bool htable_insert(htable_t*, const void*);
 bool htable_remove(htable_t*, const void*);

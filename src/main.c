@@ -38,8 +38,8 @@ int main(int argc, char** argv) {
     }
     assert(table1->nelems == N / 2);
     assert(table2->nelems == N / 2);
-    httable_destroy(table1);
-    httable_destroy(table2);
+    htable_destroy(table1);
+    htable_destroy(table2);
     free(values);
     return 0;
 }

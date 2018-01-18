@@ -9,7 +9,7 @@ static inline void* htable_elem(void* elems, size_t index, size_t esize) {
 }
 
 static inline size_t htable_index(uint32_t hash, size_t cap) {
-    return hash % cap;
+    return hash & (cap - 1);
 }
 
 static inline size_t htable_dib(size_t index, size_t expected_index, size_t cap) {
@@ -23,8 +23,8 @@ static inline bool htable_insert_internal(const void* restrict elem, uint32_t ha
     size_t index  = htable_index(hash, cap);
     size_t dib    = 0;
 
-    void* tmp_elem = alloca(esize);
-    void* cur_elem = alloca(esize);
+    uint8_t tmp_elem[esize];
+    uint8_t cur_elem[esize];
     memcpy(cur_elem, elem, esize);
 
     while (true) {
@@ -58,6 +58,7 @@ static inline bool htable_insert_internal(const void* restrict elem, uint32_t ha
 }
 
 htable_t* htable_create(size_t esize, size_t cap, cmpfn_t cmp_fn, hashfn_t hash_fn) {
+    assert((cap & (cap - 1)) == 0);
     htable_t* table = malloc(sizeof(htable_t));
     table->esize   = esize;
     table->cap     = cap;
@@ -70,13 +71,14 @@ htable_t* htable_create(size_t esize, size_t cap, cmpfn_t cmp_fn, hashfn_t hash_
     return table;
 }
 
-void httable_destroy(htable_t* table) {
+void htable_destroy(htable_t* table) {
     free(table->elems);
     free(table->hashes);
     free(table);
 }
 
 void htable_rehash(htable_t* table, size_t new_cap) {
+    assert((new_cap & (new_cap - 1)) == 0);
     void*     new_elems  = malloc(table->esize * new_cap);
     uint32_t* new_hashes = malloc(sizeof(uint32_t) * new_cap);
     memset(new_hashes, 0, sizeof(uint32_t) * new_cap);
@@ -113,7 +115,7 @@ bool htable_insert(htable_t* table, const void* elem) {
     // Test if the number of elements reaches 80% of the capacity
     const size_t max_load_factor = 80;
     if (table->nelems * 100 > max_load_factor * table->cap)
-        htable_rehash(table, table->cap * 2 + 1);
+        htable_rehash(table, table->cap * 2);
     return true;
 }
 
