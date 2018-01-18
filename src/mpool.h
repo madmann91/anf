@@ -17,4 +17,3 @@ void mpool_destroy(mpool_t*);
 void* mpool_alloc(mpool_t**, size_t);
 
 #endif // MPOOL_H
-

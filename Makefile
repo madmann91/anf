@@ -1,13 +1,30 @@
-DEPS=src/main.c src/anf.c src/anf.h src/mpool.c src/mpool.h src/htable.c src/htable.h src/hash.h
-OBJS=main.o anf.o mpool.o htable.o
-CFLAGS=-pedantic -std=c11 -O3 -march=native -Wall -Wextra
-all: anf
+OBJS=build/anf.o build/mpool.o build/htable.o
+CFLAGS=-pedantic -std=c99 -Wall -Wextra
 
-anf: ${OBJS}
-	${CC} ${LDFLAGS} ${OBJS} -o anf
+ifdef RELEASE
+	CFLAGS += -DNDEBUG -O3 -march=native
+else
+	CFLAGS += -g
+endif
 
-%.o: src/%.c ${DEPS}
+all: build/libanf.a
+
+build/.timestamp:
+	mkdir -p build && touch $@
+
+build/libanf.a: ${OBJS}
+	${AR} rcs build/libanf.a ${OBJS}
+
+build/%.o: src/%.c build/.timestamp
 	${CC} ${CFLAGS} -c $< -o $@
 
+build/test: test/main.c build/libanf.a
+	${CC} ${CFLAGS} -Isrc -Lbuild $< -o $@ -lanf
+
+test: build/test
+	@build/test
+
 clean:
-	${RM} *.o
+	${RM} -r build
+
+.PHONY: all test clean
