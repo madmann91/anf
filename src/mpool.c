@@ -37,7 +37,7 @@ void* mpool_alloc(mpool_t** root, size_t size) {
             return ptr;
         }
 
-        mpool_t* next = mpool_create(size > pool->cap ? pool->cap : size);
+        mpool_t* next = mpool_create(size > pool->cap ? size : pool->cap);
         next->next = pool;
         *root = next;
         pool  = next;

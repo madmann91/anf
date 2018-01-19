@@ -4,6 +4,7 @@
 #include <setjmp.h>
 
 #include "htable.h"
+#include "mpool.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -62,7 +63,24 @@ cleanup:
 }
 
 bool test_mpool(void) {
-    return true;
+    mpool_t* pool = mpool_create(1024 * 1024);
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    for (size_t i = 0; i < 1024; ++i)
+        mpool_alloc(&pool, 1024);
+    CHECK(pool->next == NULL);
+    CHECK(pool->cap == pool->size);
+    mpool_alloc(&pool, 1024 * 1024 * 2);
+    CHECK(pool->cap == 1024 * 1024 * 2);
+    CHECK(pool->next != NULL);
+
+cleanup:
+    mpool_destroy(pool);
+    return status == 0;
 }
 
 typedef struct {
