@@ -115,6 +115,18 @@ bool test_types(void) {
     CHECK(type_tuple(mod, 2, ops) == type_tuple(mod, 2, ops));
     CHECK(type_tuple(mod, 3, ops) == type_tuple(mod, 3, ops));
 
+    CHECK(type_bitwidth(type_i(mod, 1))  == 1);
+    CHECK(type_bitwidth(type_i(mod, 8))  == 8);
+    CHECK(type_bitwidth(type_i(mod, 16)) == 16);
+    CHECK(type_bitwidth(type_i(mod, 32)) == 32);
+    CHECK(type_bitwidth(type_i(mod, 64)) == 64);
+    CHECK(type_bitwidth(type_u(mod, 8))  == 8);
+    CHECK(type_bitwidth(type_u(mod, 16)) == 16);
+    CHECK(type_bitwidth(type_u(mod, 32)) == 32);
+    CHECK(type_bitwidth(type_u(mod, 64)) == 64);
+    CHECK(type_bitwidth(type_f(mod, 32)) == 32);
+    CHECK(type_bitwidth(type_f(mod, 64)) == 64);
+
 cleanup:
     mod_destroy(mod);
     return status == 0;
@@ -147,7 +159,7 @@ int main(int argc, char** argv) {
     test_t tests[] = {
         {"htable", test_htable},
         {"mpool",  test_mpool},
-        {"types",  test_mpool}
+        {"types",  test_types}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

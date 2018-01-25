@@ -104,17 +104,25 @@ bool type_is_prim(const type_t* type) {
 
 static inline const type_t* make_type(mod_t* mod, uint32_t tag, uint32_t name, size_t nops, const type_t** ops) {
     type_t type = {
-        .tag = tag,
+        .tag  = tag,
         .nops = nops,
         .name = name,
         .ops  = ops
     };
+    type_t* lookup_ptr = &type;
 
-    size_t index = htable_lookup(mod->types, &type);
+    size_t index = htable_lookup(mod->types, &lookup_ptr);
     if (index != INVALID_INDEX)
         return ((const type_t**)mod->types->elems)[index];
+
     type_t* type_ptr = mpool_alloc(&mod->pool, sizeof(type_t));
-    *type_ptr = type;
+    const type_t** type_ops = mpool_alloc(&mod->pool, sizeof(type_t*) * nops);
+    for (size_t i = 0; i < nops; ++i) type_ops[i] = ops[i];
+    type_ptr->tag  = tag;
+    type_ptr->nops = nops;
+    type_ptr->name = name;
+    type_ptr->ops  = type_ops;
+
     bool success = htable_insert(mod->types, &type_ptr);
     assert(success), (void)success;
     return type_ptr;
