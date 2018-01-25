@@ -86,6 +86,7 @@ cleanup:
 
 bool test_types(void) {
     mod_t* mod = mod_create();
+    const type_t* ops[3];
 
     jmp_buf env;
     int status = setjmp(env);
@@ -103,6 +104,16 @@ bool test_types(void) {
     CHECK(type_u(mod, 64) == type_u(mod, 64));
     CHECK(type_f(mod, 32) == type_f(mod, 32));
     CHECK(type_f(mod, 64) == type_f(mod, 64));
+    CHECK(type_fn(mod, type_i(mod, 32), type_f(mod, 32)) ==
+          type_fn(mod, type_i(mod, 32), type_f(mod, 32)));
+    ops[0] = type_i(mod, 64);
+    ops[1] = type_i(mod, 32);
+    ops[2] = type_i(mod, 16);
+    CHECK(type_tuple(mod, 1, ops) == ops[0]);
+    CHECK(type_tuple(mod, 0, ops) == type_tuple(mod, 0, ops));
+    CHECK(type_tuple(mod, 1, ops) == type_tuple(mod, 1, ops));
+    CHECK(type_tuple(mod, 2, ops) == type_tuple(mod, 2, ops));
+    CHECK(type_tuple(mod, 3, ops) == type_tuple(mod, 3, ops));
 
 cleanup:
     mod_destroy(mod);

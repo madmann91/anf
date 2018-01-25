@@ -24,9 +24,6 @@ uint32_t node_hash(const void* ptr) {
     h = hash_uint32(h, node->tag);
     for (size_t i = 0; i < node->nops; ++i)
         h = hash_ptr(h, node->ops[i]);
-    switch (node->tag) {
-        default: break;
-    }
     return h;
 }
 
