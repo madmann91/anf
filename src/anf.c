@@ -119,7 +119,7 @@ static inline const type_t* make_type(mod_t* mod, uint32_t tag, uint32_t name, s
     type_t* type_ptr = mpool_alloc(&mod->pool, sizeof(type_t));
     *type_ptr = type;
     bool success = htable_insert(mod->types, &type_ptr);
-    assert(success);
+    assert(success), (void)success;
     return type_ptr;
 }
 
