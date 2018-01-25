@@ -127,6 +127,67 @@ bool test_types(void) {
     CHECK(type_bitwidth(type_f(mod, 32)) == 32);
     CHECK(type_bitwidth(type_f(mod, 64)) == 64);
 
+    CHECK(type_is_prim(type_i(mod, 1)));
+    CHECK(type_is_prim(type_i(mod, 8)));
+    CHECK(type_is_prim(type_i(mod, 16)));
+    CHECK(type_is_prim(type_i(mod, 32)));
+    CHECK(type_is_prim(type_i(mod, 64)));
+    CHECK(type_is_prim(type_u(mod, 8)));
+    CHECK(type_is_prim(type_u(mod, 16)));
+    CHECK(type_is_prim(type_u(mod, 32)));
+    CHECK(type_is_prim(type_u(mod, 64)));
+    CHECK(type_is_prim(type_f(mod, 32)));
+    CHECK(type_is_prim(type_f(mod, 64)));
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_nodes(void) {
+    mod_t* mod = mod_create();
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    CHECK(node_literal(mod, type_i(mod, 1), (box_t) { .i1 = true }) ==
+          node_literal(mod, type_i(mod, 1), (box_t) { .i1 = true }));
+    CHECK(node_literal(mod, type_i(mod, 1), (box_t) { .i1 = false }) ==
+          node_literal(mod, type_i(mod, 1), (box_t) { .i1 = false }));
+    for (uint8_t i = 0;; ++i) {
+        CHECK(node_literal(mod, type_u(mod, 8), (box_t) { .u8 = i }) ==
+              node_literal(mod, type_u(mod, 8), (box_t) { .u8 = i }));
+        CHECK(node_literal(mod, type_u(mod, 8), (box_t) { .i8 = (int8_t)i }) ==
+              node_literal(mod, type_u(mod, 8), (box_t) { .i8 = (int8_t)i }));
+        if (i == 255) break;
+    }
+
+    CHECK(node_literal(mod, type_i(mod, 16), (box_t) { .u32 = 0xFFFF }) ==
+          node_literal(mod, type_i(mod, 16), (box_t) { .u16 = 0xFFFF }));
+    CHECK(node_literal(mod, type_i(mod, 16), (box_t) { .i8  = 0 }) ==
+          node_literal(mod, type_i(mod, 16), (box_t) { .i16 = 0 }));
+
+    CHECK(node_literal(mod, type_i(mod, 32), (box_t) { .u32 = 0xFFFF }) ==
+          node_literal(mod, type_i(mod, 32), (box_t) { .u16 = 0xFFFF }));
+    CHECK(node_literal(mod, type_i(mod, 32), (box_t) { .i8  = 0 }) ==
+          node_literal(mod, type_i(mod, 32), (box_t) { .i16 = 0 }));
+
+    CHECK(node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 1.0f }) ==
+          node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 1.0f }));
+    CHECK(node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 0.0f }) ==
+          node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 0.0f }));
+    CHECK(node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 0.0f }) !=
+          node_literal(mod, type_f(mod, 32), (box_t) { .f32 = -0.0f }));
+
+    CHECK(node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 1.0f }) ==
+          node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 1.0f }));
+    CHECK(node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 0.0f }) ==
+          node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 0.0f }));
+    CHECK(node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 0.0f }) !=
+          node_literal(mod, type_f(mod, 64), (box_t) { .f64 = -0.0f }));
+
 cleanup:
     mod_destroy(mod);
     return status == 0;
@@ -159,7 +220,8 @@ int main(int argc, char** argv) {
     test_t tests[] = {
         {"htable", test_htable},
         {"mpool",  test_mpool},
-        {"types",  test_types}
+        {"types",  test_types},
+        {"nodes",  test_nodes}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

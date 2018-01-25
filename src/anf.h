@@ -46,14 +46,16 @@ struct node_s {
     uint32_t tag;
     size_t   nops;
     use_t*   uses;
-    const loc_t*  loc;
-    const node_t** ops;
+    union {
+        const node_t** ops;
+        box_t box;
+    };
     const type_t* type;
+    const loc_t*  loc;
 };
 
 struct type_s {
     uint32_t tag;
-    uint32_t name;
     size_t   nops;
     const type_t** ops;
 };
@@ -68,10 +70,19 @@ enum node_tag_e {
     NODE_UNDEF,
     NODE_LITERAL,
     NODE_TUPLE,
-    NODE_RECORD,
     NODE_EXTRACT,
     NODE_INSERT,
-    NODE_BINOP
+    NODE_SELECT,
+    NODE_ADD,
+    NODE_SUB,
+    NODE_MUL,
+    NODE_DIV,
+    NODE_MOD,
+    NODE_AND,
+    NODE_OR,
+    NODE_XOR,
+    NODE_LSHFT,
+    NODE_RSHFT
 };
 
 enum type_tag_e {
@@ -111,13 +122,21 @@ bool node_is_one(const node_t*);
 const node_t* node_undef(mod_t*, const type_t*);
 const node_t* node_literal(mod_t*, const type_t*, box_t);
 
-// Aggregates
+// Operations
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const loc_t*);
 const node_t* node_record(mod_t*, const type_t*, size_t, const node_t**, const loc_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
-
-// Operations
-const node_t* node_binop(mod_t*, uint32_t, const node_t*, const node_t*, const loc_t*);
+const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_add(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_sub(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_mul(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_div(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_mod(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_and(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_or(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_xor(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const loc_t*);
 
 #endif // ANF_H
