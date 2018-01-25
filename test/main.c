@@ -5,6 +5,7 @@
 
 #include "htable.h"
 #include "mpool.h"
+#include "anf.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -83,6 +84,31 @@ cleanup:
     return status == 0;
 }
 
+bool test_types(void) {
+    mod_t* mod = mod_create();
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    CHECK(type_i(mod, 1)  == type_i(mod, 1));
+    CHECK(type_i(mod, 8)  == type_i(mod, 8));
+    CHECK(type_i(mod, 16) == type_i(mod, 16));
+    CHECK(type_i(mod, 32) == type_i(mod, 32));
+    CHECK(type_i(mod, 64) == type_i(mod, 64));
+    CHECK(type_u(mod, 8)  == type_u(mod, 8));
+    CHECK(type_u(mod, 16) == type_u(mod, 16));
+    CHECK(type_u(mod, 32) == type_u(mod, 32));
+    CHECK(type_u(mod, 64) == type_u(mod, 64));
+    CHECK(type_f(mod, 32) == type_f(mod, 32));
+    CHECK(type_f(mod, 64) == type_f(mod, 64));
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
 typedef struct {
     const char* name;
     bool (*test_fn)(void);
@@ -109,7 +135,8 @@ void run_test(const test_t* test) {
 int main(int argc, char** argv) {
     test_t tests[] = {
         {"htable", test_htable},
-        {"mpool",  test_mpool}
+        {"mpool",  test_mpool},
+        {"types",  test_mpool}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

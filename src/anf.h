@@ -8,6 +8,7 @@
 #include "htable.h"
 
 typedef union  box_u  box_t;
+typedef struct loc_s  loc_t;
 typedef struct node_s node_t;
 typedef struct type_s type_t;
 typedef struct use_s  use_t;
@@ -27,6 +28,14 @@ union box_u {
     double   f64;
 };
 
+struct loc_s {
+    const char* file;
+    size_t brow;
+    size_t bcol;
+    size_t erow;
+    size_t ecol;
+};
+
 struct use_s {
     uint32_t index;
     node_t*  node;
@@ -37,57 +46,22 @@ struct node_s {
     uint32_t tag;
     size_t   nops;
     use_t*   uses;
+    const loc_t*  loc;
+    const node_t** ops;
     const type_t* type;
 };
 
 struct type_s {
     uint32_t tag;
+    uint32_t name;
     size_t   nops;
+    const type_t** ops;
 };
 
 struct mod_s {
     mpool_t*  pool;
     htable_t* nodes;
     htable_t* types;
-};
-
-enum prim_e {
-    PRIM_I1,
-    PRIM_I8,
-    PRIM_I16,
-    PRIM_I32,
-    PRIM_I64,
-    PRIM_U8,
-    PRIM_U16,
-    PRIM_U32,
-    PRIM_U64,
-    PRIM_F32,
-    PRIM_F64
-};
-
-enum binop_e {
-    BINOP_ADD,
-    BINOP_SUB,
-    BINOP_MUL,
-    BINOP_DIV,
-    BINOP_MOD,
-    BINOP_AND,
-    BINOP_OR,
-    BINOP_XOR,
-    BINOP_LSHFT,
-    BINOP_RSHFT,
-    BINOP_CMPLT,
-    BINOP_CMPGT,
-    BINOP_CMPLE,
-    BINOP_CMPGE,
-    BINOP_CMPEQ
-};
-
-enum type_tag_e {
-    TYPE_PRIM,
-    TYPE_TUPLE,
-    TYPE_RECORD,
-    TYPE_FN
 };
 
 enum node_tag_e {
@@ -100,36 +74,50 @@ enum node_tag_e {
     NODE_BINOP
 };
 
-bool is_undef(const node_t*);
-bool is_zero(const node_t*);
-bool is_one(const node_t*);
-
-const node_t** node_ops(const node_t*);
-const type_t** type_ops(const type_t*);
+enum type_tag_e {
+    TYPE_I1,
+    TYPE_I8,
+    TYPE_I16,
+    TYPE_I32,
+    TYPE_I64,
+    TYPE_U8,
+    TYPE_U16,
+    TYPE_U32,
+    TYPE_U64,
+    TYPE_F32,
+    TYPE_F64,
+    TYPE_TUPLE,
+    TYPE_FN
+};
 
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
 
 // Types
-const type_t* type_prim(mod_t*, uint32_t);
-const type_t* type_tuple(mod_t*, ...);
-const type_t* type_record(mod_t*, uint32_t, ...);
+size_t type_bitwidth(const type_t*);
+bool type_is_prim(const type_t*);
+const type_t* type_i(mod_t*, size_t);
+const type_t* type_u(mod_t*, size_t);
+const type_t* type_f(mod_t*, size_t);
+const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
 // Values
+bool node_is_undef(const node_t*);
+bool node_is_zero(const node_t*);
+bool node_is_one(const node_t*);
+
 const node_t* node_undef(mod_t*, const type_t*);
-const node_t* node_literal(mod_t*, uint32_t, box_t);
+const node_t* node_literal(mod_t*, const type_t*, box_t);
 
 // Aggregates
-const node_t* node_tuple(mod_t*, ...);
-const node_t* node_record(mod_t*, const type_t*, ...);
-const node_t* node_extract(mod_t*, const node_t*, const node_t*);
-const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*);
-const node_t* node_extract_const(mod_t*, const node_t*, uint32_t);
-const node_t* node_insert_const(mod_t*, const node_t*, uint32_t, const node_t*);
+const node_t* node_tuple(mod_t*, size_t, const node_t**, const loc_t*);
+const node_t* node_record(mod_t*, const type_t*, size_t, const node_t**, const loc_t*);
+const node_t* node_extract(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
 
 // Operations
-const node_t* node_binop(mod_t*, uint32_t, const node_t*, const node_t*);
+const node_t* node_binop(mod_t*, uint32_t, const node_t*, const node_t*, const loc_t*);
 
 #endif // ANF_H
