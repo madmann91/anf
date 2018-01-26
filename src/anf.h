@@ -46,10 +46,8 @@ struct node_s {
     uint32_t tag;
     size_t   nops;
     use_t*   uses;
-    union {
-        const node_t** ops;
-        box_t box;
-    };
+    box_t    box;
+    const node_t** ops;
     const type_t* type;
     const loc_t*  loc;
 };
@@ -73,6 +71,7 @@ enum node_tag_e {
     NODE_EXTRACT,
     NODE_INSERT,
     NODE_SELECT,
+    NODE_BITCAST,
     NODE_ADD,
     NODE_SUB,
     NODE_MUL,
@@ -108,26 +107,43 @@ void mod_destroy(mod_t*);
 // Types
 size_t type_bitwidth(const type_t*);
 bool type_is_prim(const type_t*);
-const type_t* type_i(mod_t*, size_t);
-const type_t* type_u(mod_t*, size_t);
-const type_t* type_f(mod_t*, size_t);
+bool type_is_i(const type_t*);
+bool type_is_u(const type_t*);
+bool type_is_f(const type_t*);
+const type_t* type_i1(mod_t*);
+const type_t* type_i8(mod_t*);
+const type_t* type_i16(mod_t*);
+const type_t* type_i32(mod_t*);
+const type_t* type_i64(mod_t*);
+const type_t* type_u8(mod_t*);
+const type_t* type_u16(mod_t*);
+const type_t* type_u32(mod_t*);
+const type_t* type_u64(mod_t*);
+const type_t* type_f32(mod_t*);
+const type_t* type_f64(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
 // Values
-bool node_is_undef(const node_t*);
-bool node_is_zero(const node_t*);
-bool node_is_one(const node_t*);
-
 const node_t* node_undef(mod_t*, const type_t*);
-const node_t* node_literal(mod_t*, const type_t*, box_t);
+const node_t* node_i1(mod_t*, bool);
+const node_t* node_i8(mod_t*, int8_t);
+const node_t* node_i16(mod_t*, int16_t);
+const node_t* node_i32(mod_t*, int32_t);
+const node_t* node_i64(mod_t*, int64_t);
+const node_t* node_u8(mod_t*, uint8_t);
+const node_t* node_u16(mod_t*, uint16_t);
+const node_t* node_u32(mod_t*, uint32_t);
+const node_t* node_u64(mod_t*, uint64_t);
+const node_t* node_f32(mod_t*, float);
+const node_t* node_f64(mod_t*, double);
 
 // Operations
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const loc_t*);
-const node_t* node_record(mod_t*, const type_t*, size_t, const node_t**, const loc_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const loc_t*);
 const node_t* node_add(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_sub(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_mul(mod_t*, const node_t*, const node_t*, const loc_t*);

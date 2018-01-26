@@ -1,5 +1,5 @@
 OBJS=build/anf.o build/mpool.o build/htable.o
-CFLAGS=-pedantic -std=c11 -Wall -Wextra
+CFLAGS=-pedantic -std=c99 -Wall -Wextra
 
 ifdef RELEASE
 	CFLAGS += -DNDEBUG -O3 -march=native

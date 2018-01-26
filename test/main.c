@@ -93,58 +93,58 @@ bool test_types(void) {
     if (status)
         goto cleanup;
 
-    CHECK(type_i(mod, 1)  == type_i(mod, 1));
-    CHECK(type_i(mod, 8)  == type_i(mod, 8));
-    CHECK(type_i(mod, 16) == type_i(mod, 16));
-    CHECK(type_i(mod, 32) == type_i(mod, 32));
-    CHECK(type_i(mod, 64) == type_i(mod, 64));
-    CHECK(type_u(mod, 8)  == type_u(mod, 8));
-    CHECK(type_u(mod, 16) == type_u(mod, 16));
-    CHECK(type_u(mod, 32) == type_u(mod, 32));
-    CHECK(type_u(mod, 64) == type_u(mod, 64));
-    CHECK(type_f(mod, 32) == type_f(mod, 32));
-    CHECK(type_f(mod, 64) == type_f(mod, 64));
-    CHECK(type_fn(mod, type_i(mod, 32), type_f(mod, 32)) ==
-          type_fn(mod, type_i(mod, 32), type_f(mod, 32)));
-    ops[0] = type_i(mod, 64);
-    ops[1] = type_i(mod, 32);
-    ops[2] = type_i(mod, 16);
+    CHECK(type_i1(mod)  == type_i1(mod));
+    CHECK(type_i8(mod)  == type_i8(mod));
+    CHECK(type_i16(mod) == type_i16(mod));
+    CHECK(type_i32(mod) == type_i32(mod));
+    CHECK(type_i64(mod) == type_i64(mod));
+    CHECK(type_u8(mod)  == type_u8(mod));
+    CHECK(type_u16(mod) == type_u16(mod));
+    CHECK(type_u32(mod) == type_u32(mod));
+    CHECK(type_u64(mod) == type_u64(mod));
+    CHECK(type_f32(mod) == type_f32(mod));
+    CHECK(type_f64(mod) == type_f64(mod));
+    CHECK(type_fn(mod, type_i32(mod), type_f32(mod)) ==
+          type_fn(mod, type_i32(mod), type_f32(mod)));
+    ops[0] = type_i64(mod);
+    ops[1] = type_i32(mod);
+    ops[2] = type_i16(mod);
     CHECK(type_tuple(mod, 1, ops) == ops[0]);
     CHECK(type_tuple(mod, 0, ops) == type_tuple(mod, 0, ops));
     CHECK(type_tuple(mod, 1, ops) == type_tuple(mod, 1, ops));
     CHECK(type_tuple(mod, 2, ops) == type_tuple(mod, 2, ops));
     CHECK(type_tuple(mod, 3, ops) == type_tuple(mod, 3, ops));
 
-    CHECK(type_bitwidth(type_i(mod, 1))  == 1);
-    CHECK(type_bitwidth(type_i(mod, 8))  == 8);
-    CHECK(type_bitwidth(type_i(mod, 16)) == 16);
-    CHECK(type_bitwidth(type_i(mod, 32)) == 32);
-    CHECK(type_bitwidth(type_i(mod, 64)) == 64);
-    CHECK(type_bitwidth(type_u(mod, 8))  == 8);
-    CHECK(type_bitwidth(type_u(mod, 16)) == 16);
-    CHECK(type_bitwidth(type_u(mod, 32)) == 32);
-    CHECK(type_bitwidth(type_u(mod, 64)) == 64);
-    CHECK(type_bitwidth(type_f(mod, 32)) == 32);
-    CHECK(type_bitwidth(type_f(mod, 64)) == 64);
+    CHECK(type_bitwidth(type_i1(mod))  == 1);
+    CHECK(type_bitwidth(type_i8(mod))  == 8);
+    CHECK(type_bitwidth(type_i16(mod)) == 16);
+    CHECK(type_bitwidth(type_i32(mod)) == 32);
+    CHECK(type_bitwidth(type_i64(mod)) == 64);
+    CHECK(type_bitwidth(type_u8(mod))  == 8);
+    CHECK(type_bitwidth(type_u16(mod)) == 16);
+    CHECK(type_bitwidth(type_u32(mod)) == 32);
+    CHECK(type_bitwidth(type_u64(mod)) == 64);
+    CHECK(type_bitwidth(type_f32(mod)) == 32);
+    CHECK(type_bitwidth(type_f64(mod)) == 64);
 
-    CHECK(type_is_prim(type_i(mod, 1)));
-    CHECK(type_is_prim(type_i(mod, 8)));
-    CHECK(type_is_prim(type_i(mod, 16)));
-    CHECK(type_is_prim(type_i(mod, 32)));
-    CHECK(type_is_prim(type_i(mod, 64)));
-    CHECK(type_is_prim(type_u(mod, 8)));
-    CHECK(type_is_prim(type_u(mod, 16)));
-    CHECK(type_is_prim(type_u(mod, 32)));
-    CHECK(type_is_prim(type_u(mod, 64)));
-    CHECK(type_is_prim(type_f(mod, 32)));
-    CHECK(type_is_prim(type_f(mod, 64)));
+    CHECK(type_is_prim(type_i1(mod)));
+    CHECK(type_is_prim(type_i8(mod)));
+    CHECK(type_is_prim(type_i16(mod)));
+    CHECK(type_is_prim(type_i32(mod)));
+    CHECK(type_is_prim(type_i64(mod)));
+    CHECK(type_is_prim(type_u8(mod)));
+    CHECK(type_is_prim(type_u16(mod)));
+    CHECK(type_is_prim(type_u32(mod)));
+    CHECK(type_is_prim(type_u64(mod)));
+    CHECK(type_is_prim(type_f32(mod)));
+    CHECK(type_is_prim(type_f64(mod)));
 
 cleanup:
     mod_destroy(mod);
     return status == 0;
 }
 
-bool test_nodes(void) {
+bool test_literals(void) {
     mod_t* mod = mod_create();
 
     jmp_buf env;
@@ -152,41 +152,133 @@ bool test_nodes(void) {
     if (status)
         goto cleanup;
 
-    CHECK(node_literal(mod, type_i(mod, 1), (box_t) { .i1 = true }) ==
-          node_literal(mod, type_i(mod, 1), (box_t) { .i1 = true }));
-    CHECK(node_literal(mod, type_i(mod, 1), (box_t) { .i1 = false }) ==
-          node_literal(mod, type_i(mod, 1), (box_t) { .i1 = false }));
+    CHECK(node_i1(mod, true)  == node_i1(mod, true));
+    CHECK(node_i1(mod, false) == node_i1(mod, false));
+    CHECK(node_i1(mod, true)  != node_i1(mod, false));
     for (uint8_t i = 0;; ++i) {
-        CHECK(node_literal(mod, type_u(mod, 8), (box_t) { .u8 = i }) ==
-              node_literal(mod, type_u(mod, 8), (box_t) { .u8 = i }));
-        CHECK(node_literal(mod, type_u(mod, 8), (box_t) { .i8 = (int8_t)i }) ==
-              node_literal(mod, type_u(mod, 8), (box_t) { .i8 = (int8_t)i }));
+        CHECK(node_i8(mod, i) != node_u8(mod, (uint8_t)i));
+        CHECK(node_i8(mod, i) == node_i8(mod, i));
+        CHECK(node_u8(mod, (uint8_t)i) == node_u8(mod, (uint8_t)i));
         if (i == 255) break;
     }
+    CHECK(node_i16(mod, 0) == node_i16(mod, 0));
+    CHECK(node_i32(mod, 0) == node_i32(mod, 0));
+    CHECK(node_i64(mod, 0) == node_i64(mod, 0));
+    CHECK(node_u16(mod, 0) == node_u16(mod, 0));
+    CHECK(node_u32(mod, 0) == node_u32(mod, 0));
+    CHECK(node_u64(mod, 0) == node_u64(mod, 0));
 
-    CHECK(node_literal(mod, type_i(mod, 16), (box_t) { .u32 = 0xFFFF }) ==
-          node_literal(mod, type_i(mod, 16), (box_t) { .u16 = 0xFFFF }));
-    CHECK(node_literal(mod, type_i(mod, 16), (box_t) { .i8  = 0 }) ==
-          node_literal(mod, type_i(mod, 16), (box_t) { .i16 = 0 }));
+    CHECK(node_i32(mod, 0) != node_i64(mod, 0));
+    CHECK(node_i16(mod, 0) != node_i32(mod, 0));
+    CHECK(node_i64(mod, 0) != node_i16(mod, 0));
 
-    CHECK(node_literal(mod, type_i(mod, 32), (box_t) { .u32 = 0xFFFF }) ==
-          node_literal(mod, type_i(mod, 32), (box_t) { .u16 = 0xFFFF }));
-    CHECK(node_literal(mod, type_i(mod, 32), (box_t) { .i8  = 0 }) ==
-          node_literal(mod, type_i(mod, 32), (box_t) { .i16 = 0 }));
+    CHECK(node_u32(mod, 0) != node_u64(mod, 0));
+    CHECK(node_u16(mod, 0) != node_u32(mod, 0));
+    CHECK(node_u64(mod, 0) != node_u16(mod, 0));
 
-    CHECK(node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 1.0f }) ==
-          node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 1.0f }));
-    CHECK(node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 0.0f }) ==
-          node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 0.0f }));
-    CHECK(node_literal(mod, type_f(mod, 32), (box_t) { .f32 = 0.0f }) !=
-          node_literal(mod, type_f(mod, 32), (box_t) { .f32 = -0.0f }));
+    CHECK(node_i16(mod, 0) != node_u16(mod, 0));
+    CHECK(node_i32(mod, 0) != node_u32(mod, 0));
+    CHECK(node_i64(mod, 0) != node_u64(mod, 0));
 
-    CHECK(node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 1.0f }) ==
-          node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 1.0f }));
-    CHECK(node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 0.0f }) ==
-          node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 0.0f }));
-    CHECK(node_literal(mod, type_f(mod, 64), (box_t) { .f64 = 0.0f }) !=
-          node_literal(mod, type_f(mod, 64), (box_t) { .f64 = -0.0f }));
+    CHECK(node_f32(mod, 1.0f) == node_f32(mod,  1.0f));
+    CHECK(node_f32(mod, 0.0f) == node_f32(mod,  0.0f));
+    CHECK(node_f32(mod, 0.0f) != node_f32(mod, -0.0f));
+
+    CHECK(node_f64(mod, 1.0) == node_f64(mod,  1.0));
+    CHECK(node_f64(mod, 0.0) == node_f64(mod,  0.0));
+    CHECK(node_f64(mod, 0.0) != node_f64(mod, -0.0));
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_tuples(void) {
+    mod_t* mod = mod_create();
+    const node_t* ops1[3];
+    const node_t* ops2[3];
+    const node_t* tuple1;
+    const node_t* tuple2;
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    ops1[0] = node_i32(mod, 1);
+    ops1[1] = node_i32(mod, 2);
+    ops1[2] = node_i32(mod, 3);
+    tuple1 = node_tuple(mod, 3, ops1, NULL);
+    ops2[0] = node_i32(mod, 4);
+    ops2[1] = node_i32(mod, 5);
+    ops2[2] = node_i32(mod, 6);
+    tuple2 = node_tuple(mod, 3, ops2, NULL);
+
+    CHECK(node_tuple(mod, 1, ops1, NULL) == ops1[0]);
+    CHECK(node_tuple(mod, 0, ops1, NULL) == node_tuple(mod, 0, NULL, NULL));
+    CHECK(node_tuple(mod, 0, ops1, NULL) == node_tuple(mod, 0, ops1, NULL));
+    CHECK(node_tuple(mod, 1, ops1, NULL) == node_tuple(mod, 1, ops1, NULL));
+    CHECK(node_tuple(mod, 2, ops1, NULL) == node_tuple(mod, 2, ops1, NULL));
+    CHECK(node_tuple(mod, 3, ops1, NULL) == node_tuple(mod, 3, ops1, NULL));
+
+    CHECK(node_extract(mod, tuple1, node_u32(mod, 0), NULL) == ops1[0]);
+    CHECK(node_extract(mod, tuple1, node_u32(mod, 1), NULL) == ops1[1]);
+    CHECK(node_extract(mod, tuple1, node_u32(mod, 2), NULL) == ops1[2]);
+
+    CHECK(node_extract(mod, tuple2, node_u32(mod, 0), NULL) == ops2[0]);
+    CHECK(node_extract(mod, tuple2, node_u32(mod, 1), NULL) == ops2[1]);
+    CHECK(node_extract(mod, tuple2, node_u32(mod, 2), NULL) == ops2[2]);
+
+    CHECK(
+        node_insert(mod,
+            node_insert(mod,
+                node_insert(mod,
+                        tuple1,
+                    node_u32(mod, 0), ops2[0], NULL),
+                node_u32(mod, 1), ops2[1], NULL),
+            node_u32(mod, 2), ops2[2], NULL)
+        == tuple2);
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_select(void) {
+    mod_t* mod = mod_create();
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    CHECK(node_select(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
+    CHECK(node_select(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
+    CHECK(node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
+    CHECK(node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL) ==
+          node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL));
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_bitcast(void) {
+    mod_t* mod = mod_create();
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    CHECK(node_bitcast(mod, node_u16(mod, 32), type_i16(mod), NULL) == node_i16(mod, 32));
+    CHECK(node_bitcast(mod, node_u32(mod, 32), type_i32(mod), NULL) == node_i32(mod, 32));
+    CHECK(node_bitcast(mod, node_u64(mod, 32), type_i64(mod), NULL) == node_i64(mod, 32));
+
+    CHECK(node_bitcast(mod, node_f32(mod,  0.0f), type_i32(mod), NULL) == node_i32(mod, 0));
+    CHECK(node_bitcast(mod, node_f32(mod, -0.0f), type_u32(mod), NULL) == node_u32(mod, 0x80000000u));
+
+    CHECK(node_bitcast(mod, node_undef(mod, type_i32(mod)), type_f32(mod), NULL) == node_undef(mod, type_f32(mod)));
 
 cleanup:
     mod_destroy(mod);
@@ -218,10 +310,13 @@ void run_test(const test_t* test) {
 
 int main(int argc, char** argv) {
     test_t tests[] = {
-        {"htable", test_htable},
-        {"mpool",  test_mpool},
-        {"types",  test_types},
-        {"nodes",  test_nodes}
+        {"htable",   test_htable},
+        {"mpool",    test_mpool},
+        {"types",    test_types},
+        {"literals", test_literals},
+        {"tuples",   test_tuples},
+        {"select",   test_select},
+        {"bitcast",  test_bitcast}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {
