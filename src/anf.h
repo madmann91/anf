@@ -125,7 +125,13 @@ const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
 // Values
+bool node_is_zero(const node_t*);
+bool node_is_one(const node_t*);
+bool node_is_all_ones(const node_t*);
 const node_t* node_undef(mod_t*, const type_t*);
+const node_t* node_zero(mod_t*, const type_t*);
+const node_t* node_one(mod_t*, const type_t*);
+const node_t* node_all_ones(mod_t*, const type_t*);
 const node_t* node_i1(mod_t*, bool);
 const node_t* node_i8(mod_t*, int8_t);
 const node_t* node_i16(mod_t*, int16_t);

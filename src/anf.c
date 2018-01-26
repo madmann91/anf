@@ -217,18 +217,122 @@ const node_t* node_undef(mod_t* mod, const type_t* type) {
 }
 
 static inline const node_t* make_literal(mod_t* mod, const type_t* type, box_t value) {
-    // Make sure padding bytes are zeroed
-    box_t box;
-    memset(&box, 0, sizeof(box_t));
-    box = value;
     return make_node(mod, (node_t) {
         .tag  = NODE_LITERAL,
         .nops = 0,
         .uses = NULL,
-        .box  = box,
+        .box  = value,
         .type = type,
         .loc  = NULL
     });
+}
+
+bool node_is_zero(const node_t* node) {
+    if (node->tag != NODE_LITERAL)
+        return false;
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1  == false;
+        case TYPE_I8:  return node->box.i8  == 0;
+        case TYPE_I16: return node->box.i16 == 0;
+        case TYPE_I32: return node->box.i32 == 0;
+        case TYPE_I64: return node->box.i64 == 0;
+        case TYPE_U8:  return node->box.u8  == 0;
+        case TYPE_U16: return node->box.u16 == 0;
+        case TYPE_U32: return node->box.u32 == 0;
+        case TYPE_U64: return node->box.u64 == 0;
+        case TYPE_F32: return node->box.f32 == 0.0f;
+        case TYPE_F64: return node->box.f64 == 0.0;
+        default:       return false;
+    }
+}
+
+bool node_is_one(const node_t* node) {
+    if (node->tag != NODE_LITERAL)
+        return false;
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1  == true;
+        case TYPE_I8:  return node->box.i8  == 1;
+        case TYPE_I16: return node->box.i16 == 1;
+        case TYPE_I32: return node->box.i32 == 1;
+        case TYPE_I64: return node->box.i64 == 1;
+        case TYPE_U8:  return node->box.u8  == 1;
+        case TYPE_U16: return node->box.u16 == 1;
+        case TYPE_U32: return node->box.u32 == 1;
+        case TYPE_U64: return node->box.u64 == 1;
+        case TYPE_F32: return node->box.f32 == 1.0f;
+        case TYPE_F64: return node->box.f64 == 1.0;
+        default:       return false;
+    }
+}
+
+bool node_is_all_ones(const node_t* node) {
+    if (node->tag != NODE_LITERAL)
+        return false;
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1  == true;
+        case TYPE_I8:  return node->box.i8  == -1;
+        case TYPE_I16: return node->box.i16 == -1;
+        case TYPE_I32: return node->box.i32 == -1;
+        case TYPE_I64: return node->box.i64 == -1;
+        case TYPE_U8:  return node->box.u8  == 0xFFu;
+        case TYPE_U16: return node->box.u16 == 0xFFFFu;
+        case TYPE_U32: return node->box.u32 == 0xFFFFFFFFu;
+        case TYPE_U64: return node->box.u64 == 0xFFFFFFFFFFFFFFFFull;
+        default:       return false;
+    }
+}
+
+const node_t* node_zero(mod_t* mod, const type_t* type) {
+    assert(type_is_prim(type));
+    switch (type->tag) {
+        case TYPE_I1:  return node_i1 (mod, false);
+        case TYPE_I8:  return node_i8 (mod, 0);
+        case TYPE_I16: return node_i16(mod, 0);
+        case TYPE_I32: return node_i32(mod, 0);
+        case TYPE_I64: return node_i64(mod, 0);
+        case TYPE_U8:  return node_u8 (mod, 0);
+        case TYPE_U16: return node_u16(mod, 0);
+        case TYPE_U32: return node_u32(mod, 0);
+        case TYPE_U64: return node_u64(mod, 0);
+        case TYPE_F32: return node_f32(mod, 0.0f);
+        case TYPE_F64: return node_f64(mod, 0.0);
+        default:       return NULL;
+    }
+}
+
+const node_t* node_one(mod_t* mod, const type_t* type) {
+    assert(type_is_prim(type));
+    switch (type->tag) {
+        case TYPE_I1:  return node_i1 (mod, true);
+        case TYPE_I8:  return node_i8 (mod, 1);
+        case TYPE_I16: return node_i16(mod, 1);
+        case TYPE_I32: return node_i32(mod, 1);
+        case TYPE_I64: return node_i64(mod, 1);
+        case TYPE_U8:  return node_u8 (mod, 1);
+        case TYPE_U16: return node_u16(mod, 1);
+        case TYPE_U32: return node_u32(mod, 1);
+        case TYPE_U64: return node_u64(mod, 1);
+        case TYPE_F32: return node_f32(mod, 1.0f);
+        case TYPE_F64: return node_f64(mod, 1.0);
+        default:       return NULL;
+    }
+}
+
+const node_t* node_all_ones(mod_t* mod, const type_t* type) {
+    assert(type_is_prim(type));
+    assert(!type_is_f(type));
+    switch (type->tag) {
+        case TYPE_I1:  return node_i1 (mod, true);
+        case TYPE_I8:  return node_i8 (mod, -1);
+        case TYPE_I16: return node_i16(mod, -1);
+        case TYPE_I32: return node_i32(mod, -1);
+        case TYPE_I64: return node_i64(mod, -1);
+        case TYPE_U8:  return node_u8 (mod, 0xFFu);
+        case TYPE_U16: return node_u16(mod, 0xFFFFu);
+        case TYPE_U32: return node_u32(mod, 0xFFFFFFFFu);
+        case TYPE_U64: return node_u64(mod, 0xFFFFFFFFFFFFFFFFull);
+        default:       return NULL;
+    }
 }
 
 const node_t* node_i1 (mod_t* mod, bool     value) { return make_literal(mod, type_i1(mod),  (box_t) { .i1  = value }); }
@@ -345,3 +449,141 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
         .loc  = loc
     });
 }
+
+#define BINOP_I1(op, res, left, right) \
+    case TYPE_I1:  res.i1  = left.i1  op right.i1;  break;
+
+#define BINOP_I(op, res, left, right) \
+    case TYPE_I8:  res.i8  = left.i8  op right.i8;  break; \
+    case TYPE_I16: res.i16 = left.i16 op right.i16; break; \
+    case TYPE_I32: res.i32 = left.i32 op right.i32; break; \
+    case TYPE_I64: res.i64 = left.i64 op right.i64; break;
+
+#define BINOP_U(op, res, left, right) \
+    case TYPE_U8:  res.u8  = left.u8  op right.u8;  break; \
+    case TYPE_U16: res.u16 = left.u16 op right.u16; break; \
+    case TYPE_U32: res.u32 = left.u32 op right.u32; break; \
+    case TYPE_U64: res.u64 = left.u64 op right.u64; break;
+
+#define BINOP_F(op, res, left, right) \
+    case TYPE_F32: res.f32 = left.f32 op right.f32; break; \
+    case TYPE_F64: res.f64 = left.f64 op right.f64; break;
+
+#define BINOP_IUF(op, res, left, right) \
+    BINOP_I(op, res, left, right) \
+    BINOP_U(op, res, left, right) \
+    BINOP_F(op, res, left, right)
+
+#define BINOP_IU(op, res, left, right) \
+    BINOP_I(op, res, left, right) \
+    BINOP_U(op, res, left, right)
+
+#define BINOP_I1IU(op, res, left, right) \
+    BINOP_I1(op, res, left, right) \
+    BINOP_IU(op, res, left, right)
+
+#define BINOP(tag, ...) \
+    switch (tag) { \
+        __VA_ARGS__ \
+        default: \
+            assert(false); \
+            break; \
+    }
+
+static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* left, const node_t* right, const loc_t* loc) {
+    assert(left->type == right->type);
+    assert(type_is_prim(left->type));
+    bool is_shft    = tag == NODE_LSHFT || tag == NODE_RSHFT;
+    bool is_bitwise = tag == NODE_AND || tag == NODE_OR || tag == NODE_XOR;
+    (void)is_bitwise, (void)is_shft;
+    assert(is_bitwise || left->type->tag != TYPE_I1);
+    assert((!is_bitwise && !is_shft) || !type_is_f(left->type));
+    assert(tag != NODE_MOD || !type_is_f(left->type));
+
+    // Constant folding
+    if (left->tag == NODE_LITERAL && right->tag == NODE_LITERAL) {
+        box_t res;
+        memset(&res, 0, sizeof(box_t));
+        switch (tag) {
+            case NODE_ADD:   BINOP(left->type->tag, BINOP_IUF (+,  res, left->box, right->box)) break;
+            case NODE_SUB:   BINOP(left->type->tag, BINOP_IUF (-,  res, left->box, right->box)) break;
+            case NODE_MUL:   BINOP(left->type->tag, BINOP_IUF (*,  res, left->box, right->box)) break;
+            case NODE_DIV:   BINOP(left->type->tag, BINOP_IUF (/,  res, left->box, right->box)) break;
+            case NODE_MOD:   BINOP(left->type->tag, BINOP_IU  (%,  res, left->box, right->box)) break;
+            case NODE_AND:   BINOP(left->type->tag, BINOP_I1IU(&,  res, left->box, right->box)) break;
+            case NODE_OR:    BINOP(left->type->tag, BINOP_I1IU(|,  res, left->box, right->box)) break;
+            case NODE_XOR:   BINOP(left->type->tag, BINOP_I1IU(^,  res, left->box, right->box)) break;
+            case NODE_LSHFT: BINOP(left->type->tag, BINOP_IU  (<<, res, left->box, right->box)) break;
+            case NODE_RSHFT: BINOP(left->type->tag, BINOP_IU  (>>, res, left->box, right->box)) break;
+            default:
+                assert(false);
+                break;
+        }
+        return make_literal(mod, left->type, res);
+    }
+
+    if (left->tag  == NODE_UNDEF) return left;
+    if (right->tag == NODE_UNDEF) return right;
+
+    // Literals always go to the left in commutative expressions
+    bool is_commutative =
+        tag == NODE_ADD ||
+        tag == NODE_MUL ||
+        tag == NODE_AND ||
+        tag == NODE_OR  ||
+        tag == NODE_XOR;
+    if (right->tag == NODE_LITERAL && is_commutative) {
+        const node_t* tmp = left;
+        left = right;
+        right = tmp;
+    }
+
+    // Folding rules
+    if (node_is_zero(left)) {
+        if (tag == NODE_ADD || tag == NODE_OR)  return right;
+        if (tag == NODE_MUL || tag == NODE_AND) return node_zero(mod, left->type);
+    }
+    if (node_is_all_ones(left)) {
+        if (tag == NODE_AND) return right;
+        if (tag == NODE_OR)  return left;
+    }
+    if (tag == NODE_MUL && node_is_one(left))
+        return right;
+    if (node_is_zero(right)) {
+        if (tag == NODE_LSHFT || tag == NODE_RSHFT || tag == NODE_SUB) return left;
+        if (tag == NODE_DIV || tag == NODE_MOD) {
+            assert(false);
+            return NULL;
+        }
+    }
+    if (node_is_one(right)) {
+        if (tag == NODE_DIV) return left;
+        if (tag == NODE_MOD) return node_zero(mod, left->type);
+    }
+
+    const node_t* ops[] = { left, right };
+    return make_node(mod, (node_t) {
+        .tag = tag,
+        .nops = 2,
+        .uses = NULL,
+        .ops  = ops,
+        .type = left->type,
+        .loc  = loc
+    });
+}
+
+#define NODE_BINOP(name, tag) \
+    const node_t* node_##name(mod_t* mod, const node_t* left, const node_t* right, const loc_t* loc) { \
+        return make_binop(mod, tag, left, right, loc); \
+    }
+
+NODE_BINOP(add, NODE_ADD)
+NODE_BINOP(sub, NODE_SUB)
+NODE_BINOP(mul, NODE_MUL)
+NODE_BINOP(div, NODE_DIV)
+NODE_BINOP(mod, NODE_MOD)
+NODE_BINOP(and, NODE_AND)
+NODE_BINOP(or,  NODE_OR)
+NODE_BINOP(xor, NODE_XOR)
+NODE_BINOP(lshft, NODE_LSHFT)
+NODE_BINOP(rshft, NODE_RSHFT)

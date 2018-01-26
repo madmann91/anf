@@ -285,6 +285,40 @@ cleanup:
     return status == 0;
 }
 
+bool test_binops(void) {
+    mod_t* mod = mod_create();
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    CHECK(node_add(mod, node_i8 (mod, 1), node_i8 (mod, 1), NULL) == node_i8 (mod, 2));
+    CHECK(node_add(mod, node_i16(mod, 1), node_i16(mod, 1), NULL) == node_i16(mod, 2));
+    CHECK(node_add(mod, node_i32(mod, 1), node_i32(mod, 1), NULL) == node_i32(mod, 2));
+    CHECK(node_add(mod, node_i64(mod, 1), node_i64(mod, 1), NULL) == node_i64(mod, 2));
+
+    CHECK(node_add(mod, node_u8 (mod, 1), node_u8 (mod, 1), NULL) == node_u8 (mod, 2));
+    CHECK(node_add(mod, node_u16(mod, 1), node_u16(mod, 1), NULL) == node_u16(mod, 2));
+    CHECK(node_add(mod, node_u32(mod, 1), node_u32(mod, 1), NULL) == node_u32(mod, 2));
+    CHECK(node_add(mod, node_u64(mod, 1), node_u64(mod, 1), NULL) == node_u64(mod, 2));
+
+    CHECK(node_add(mod, node_f32(mod, 1.0f), node_f32(mod, 1.0f), NULL) == node_f32(mod, 2.0f));
+    CHECK(node_add(mod, node_f64(mod, 1.0), node_f64(mod, 1.0), NULL) == node_f64(mod, 2.0));
+
+    CHECK(node_bitcast(mod,
+        node_mul(mod,
+            node_bitcast(mod, node_f32(mod, 1.0f), type_i32(mod), NULL),
+            node_i32(mod, 1),
+            NULL),
+        type_f32(mod),
+        NULL) == node_f32(mod, 1.0f));
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
 typedef struct {
     const char* name;
     bool (*test_fn)(void);
@@ -316,7 +350,8 @@ int main(int argc, char** argv) {
         {"literals", test_literals},
         {"tuples",   test_tuples},
         {"select",   test_select},
-        {"bitcast",  test_bitcast}
+        {"bitcast",  test_bitcast},
+        {"binops",   test_binops}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {
