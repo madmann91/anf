@@ -16,6 +16,7 @@ bool node_cmp(const void* ptr1, const void* ptr2) {
         if (node1->ops[i] != node2->ops[i])
             return false;
     }
+    // This implies that the padding bits are not undefined!
     if (node1->tag == NODE_LITERAL)
         return !memcmp(&node1->box, &node2->box, sizeof(box_t));
     return true;
@@ -62,6 +63,10 @@ mod_t* mod_create(void) {
     mod->pool  = mpool_create(1 << 10);
     mod->nodes = htable_create(sizeof(node_t*), 256, node_cmp, node_hash);
     mod->types = htable_create(sizeof(type_t*), 64,  type_cmp, type_hash);
+
+    mod->commutative_fp  = false;
+    mod->distributive_fp = false;
+
     return mod;
 }
 
@@ -70,6 +75,27 @@ void mod_destroy(mod_t* mod) {
     htable_destroy(mod->nodes);
     htable_destroy(mod->types);
     free(mod);
+}
+
+bool mod_is_commutative(const mod_t* mod, uint32_t tag, const type_t* type) {
+    switch (tag) {
+        case NODE_ADD: return mod->commutative_fp || !type_is_f(type);
+        case NODE_MUL: return mod->commutative_fp || !type_is_f(type);
+        case NODE_AND: return true;
+        case NODE_OR:  return true;
+        case NODE_XOR: return true;
+        default: return false;
+    }
+}
+
+bool mod_is_distributive(const mod_t* mod, uint32_t tag1, uint32_t tag2, const type_t* type) {
+    switch (tag1) {
+        case NODE_MUL: return (tag2 == NODE_ADD || tag2 == NODE_SUB) &&
+                              (mod->distributive_fp || !type_is_f(type));
+        case NODE_AND: return tag2 == NODE_OR;
+        case NODE_OR:  return tag2 == NODE_AND;
+        default: return false;
+    }
 }
 
 size_t type_bitwidth(const type_t* type) {
@@ -495,7 +521,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     assert(type_is_prim(left->type));
     bool is_shft    = tag == NODE_LSHFT || tag == NODE_RSHFT;
     bool is_bitwise = tag == NODE_AND || tag == NODE_OR || tag == NODE_XOR;
-    (void)is_bitwise, (void)is_shft;
+    (void)is_shft;
     assert(is_bitwise || left->type->tag != TYPE_I1);
     assert((!is_bitwise && !is_shft) || !type_is_f(left->type));
     assert(tag != NODE_MOD || !type_is_f(left->type));
@@ -526,22 +552,18 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     if (right->tag == NODE_UNDEF) return right;
 
     // Literals always go to the left in commutative expressions
-    bool is_commutative =
-        tag == NODE_ADD ||
-        tag == NODE_MUL ||
-        tag == NODE_AND ||
-        tag == NODE_OR  ||
-        tag == NODE_XOR;
+    bool is_commutative = mod_is_commutative(mod, tag, left->type);
     if (right->tag == NODE_LITERAL && is_commutative) {
         const node_t* tmp = left;
         left = right;
         right = tmp;
     }
 
-    // Folding rules
+    // Simplification rules
     if (node_is_zero(left)) {
         if (tag == NODE_ADD || tag == NODE_OR)  return right;
         if (tag == NODE_MUL || tag == NODE_AND) return node_zero(mod, left->type);
+        if (tag == NODE_XOR) return right;
     }
     if (node_is_all_ones(left)) {
         if (tag == NODE_AND) return right;
@@ -559,6 +581,61 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     if (node_is_one(right)) {
         if (tag == NODE_DIV) return left;
         if (tag == NODE_MOD) return node_zero(mod, left->type);
+    }
+    if (left == right) {
+        if (tag == NODE_AND || tag == NODE_OR)  return left;
+        if (tag == NODE_XOR || tag == NODE_MOD) return node_zero(mod, left->type);
+        if (tag == NODE_DIV) return node_one(mod, left->type);
+    }
+    if (tag == NODE_AND) {
+        if (right->tag == NODE_OR && (right->ops[0] == left || right->ops[1] == left))
+            return left;
+        if (left->tag == NODE_OR && (left->ops[0] == right || left->ops[1] == right))
+            return right;
+    }
+    if (tag == NODE_OR) {
+        if (right->tag == NODE_AND && (right->ops[0] == left || right->ops[1] == left))
+            return left;
+        if (left->tag == NODE_AND && (left->ops[0] == right || left->ops[1] == right))
+            return right;
+    }
+    if (tag == NODE_XOR) {
+        if (right->tag == NODE_XOR) {
+            if (right->ops[0] == left) return right->ops[1];
+            if (right->ops[1] == left) return right->ops[0];
+        } else if (left->tag == NODE_XOR) {
+            if (left->ops[0] == right) return left->ops[1];
+            if (left->ops[1] == right) return left->ops[0];
+        }
+    }
+    bool left_factorizable = mod_is_distributive(mod, right->tag, tag, left->type);
+    if (left_factorizable && right->ops[0]->tag == NODE_LITERAL && right->ops[1] == left) {
+        const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
+        const node_t* K   = make_binop(mod, tag, one, right->ops[0], loc);
+        assert(K->tag == NODE_LITERAL);
+        return make_binop(mod, right->tag, K, left, loc);
+    }
+    bool right_factorizable = mod_is_distributive(mod, left->tag, tag, left->type);
+    if (right_factorizable && left->ops[0]->tag == NODE_LITERAL && left->ops[1] == right) {
+        const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
+        const node_t* K   = make_binop(mod, tag, left->ops[0], one, loc);
+        assert(K->tag == NODE_LITERAL);
+        return make_binop(mod, right->tag, K, right, loc);
+    }
+    bool both_factorizable = left_factorizable & right_factorizable;
+    if (both_factorizable) {
+        const node_t* l1 = left->ops[0];
+        const node_t* l2 = left->ops[1];
+        const node_t* r1 = right->ops[0];
+        const node_t* r2 = right->ops[1];
+        assert(left->tag == right->tag);
+        bool inner_commutative = mod_is_commutative(mod, left->tag, left->type);
+        if (inner_commutative && l1 == r2) { const node_t* tmp = r2; r2 = r1; r1 = tmp; }
+        if (inner_commutative && l2 == r1) { const node_t* tmp = l2; l2 = l1; l1 = tmp; }
+        if (l1 == r1)
+            return make_binop(mod, left->tag, l1, make_binop(mod, tag, l2, r2, loc), loc);
+        if (l2 == r2)
+            return make_binop(mod, left->tag, make_binop(mod, tag, l1, r1, loc), l2, loc);
     }
 
     const node_t* ops[] = { left, right };

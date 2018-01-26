@@ -62,6 +62,9 @@ struct mod_s {
     mpool_t*  pool;
     htable_t* nodes;
     htable_t* types;
+
+    bool commutative_fp  : 1;
+    bool distributive_fp : 1;
 };
 
 enum node_tag_e {
@@ -103,6 +106,9 @@ enum type_tag_e {
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
+
+bool mod_is_commutative(const mod_t*, uint32_t, const type_t*);
+bool mod_is_distributive(const mod_t* mod, uint32_t, uint32_t, const type_t*);
 
 // Types
 size_t type_bitwidth(const type_t*);
