@@ -206,12 +206,12 @@ bool test_tuples(void) {
         goto cleanup;
 
     ops1[0] = node_i32(mod, 1);
-    ops1[1] = node_i32(mod, 2);
-    ops1[2] = node_i32(mod, 3);
+    ops1[1] = node_i8(mod, 2);
+    ops1[2] = node_f32(mod, 3.0f);
     tuple1 = node_tuple(mod, 3, ops1, NULL);
     ops2[0] = node_i32(mod, 4);
-    ops2[1] = node_i32(mod, 5);
-    ops2[2] = node_i32(mod, 6);
+    ops2[1] = node_i8(mod, 5);
+    ops2[2] = node_f32(mod, 6.0f);
     tuple2 = node_tuple(mod, 3, ops2, NULL);
 
     CHECK(node_tuple(mod, 1, ops1, NULL) == ops1[0]);
@@ -238,6 +238,50 @@ bool test_tuples(void) {
                 node_u32(mod, 1), ops2[1], NULL),
             node_u32(mod, 2), ops2[2], NULL)
         == tuple2);
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_arrays(void) {
+    mod_t* mod = mod_create();
+    const node_t* elems1[3];
+    const node_t* elems2[3];
+    const node_t* array1;
+    const node_t* array2;
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    elems1[0] = node_i32(mod, 1);
+    elems1[1] = node_i32(mod, 2);
+    elems1[2] = node_i32(mod, 3);
+    array1 = node_array(mod, 3, elems1, NULL);
+    elems2[0] = node_i32(mod, 4);
+    elems2[1] = node_i32(mod, 5);
+    elems2[2] = node_i32(mod, 6);
+    array2 = node_array(mod, 3, elems2, NULL);
+
+    CHECK(node_extract(mod, array1, node_i32(mod, 0), NULL) == elems1[0]);
+    CHECK(node_extract(mod, array1, node_i32(mod, 1), NULL) == elems1[1]);
+    CHECK(node_extract(mod, array1, node_i32(mod, 2), NULL) == elems1[2]);
+
+    CHECK(node_extract(mod, array2, node_i32(mod, 0), NULL) == elems2[0]);
+    CHECK(node_extract(mod, array2, node_i32(mod, 1), NULL) == elems2[1]);
+    CHECK(node_extract(mod, array2, node_i32(mod, 2), NULL) == elems2[2]);
+
+    CHECK(
+        node_insert(mod,
+            node_insert(mod,
+                node_insert(mod,
+                        array1,
+                    node_u32(mod, 0), elems2[0], NULL),
+                node_u32(mod, 1), elems2[1], NULL),
+            node_u32(mod, 2), elems2[2], NULL)
+        == array2);
 
 cleanup:
     mod_destroy(mod);
@@ -349,6 +393,7 @@ int main(int argc, char** argv) {
         {"types",    test_types},
         {"literals", test_literals},
         {"tuples",   test_tuples},
+        {"arrays",   test_arrays},
         {"select",   test_select},
         {"bitcast",  test_bitcast},
         {"binops",   test_binops}

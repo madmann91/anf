@@ -71,6 +71,7 @@ enum node_tag_e {
     NODE_UNDEF,
     NODE_LITERAL,
     NODE_TUPLE,
+    NODE_ARRAY,
     NODE_EXTRACT,
     NODE_INSERT,
     NODE_SELECT,
@@ -100,6 +101,7 @@ enum type_tag_e {
     TYPE_F32,
     TYPE_F64,
     TYPE_TUPLE,
+    TYPE_ARRAY,
     TYPE_FN
 };
 
@@ -128,6 +130,7 @@ const type_t* type_u64(mod_t*);
 const type_t* type_f32(mod_t*);
 const type_t* type_f64(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
+const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
 // Values
@@ -152,6 +155,7 @@ const node_t* node_f64(mod_t*, double);
 
 // Operations
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const loc_t*);
+const node_t* node_array(mod_t*, size_t, const node_t**, const loc_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);

@@ -199,6 +199,10 @@ const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
     return make_type(mod, (type_t) { .tag = TYPE_TUPLE, .nops = nops, .ops = ops });
 }
 
+const type_t* type_array(mod_t* mod, const type_t* elem_type) {
+    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type });
+}
+
 const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     const type_t* ops[] = { from, to };
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
@@ -388,29 +392,56 @@ const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const loc_
     });
 }
 
+const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const loc_t* loc) {
+    const type_t* elem_type = ops[0]->type;
+#ifndef NDEBUG
+    for (size_t i = 1; i < nops; ++i)
+        assert(ops[i]->type == elem_type);
+#endif
+    return make_node(mod, (node_t) {
+        .tag  = NODE_ARRAY,
+        .nops = nops,
+        .uses = NULL,
+        .ops  = ops,
+        .type = type_array(mod, elem_type),
+        .loc  = loc
+    });
+}
+
 const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index, const loc_t* loc) {
-    assert(type_is_u(index->type));
+    assert(value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_ARRAY);
+    assert(type_is_u(index->type) || type_is_i(index->type));
+    const type_t* elem_type = NULL;
     if (value->type->tag == TYPE_TUPLE) {
         assert(index->tag == NODE_LITERAL);
         assert(index->box.u64 < value->type->nops);
+        elem_type = value->type->ops[index->box.u64];
         if (value->tag == NODE_TUPLE)
             return value->ops[index->box.u64];
-        const node_t* ops[] = { value, index };
-        return make_node(mod, (node_t) {
-            .tag  = NODE_EXTRACT,
-            .nops = 2,
-            .uses = NULL,
-            .ops  = ops,
-            .type = value->type->ops[index->box.u64],
-            .loc  = loc
-        });
+    } else if (value->type->tag == TYPE_ARRAY) {
+        elem_type = value->type->ops[0];
+        if (value->tag == NODE_ARRAY) {
+            assert(index->box.u64 < value->nops);
+            return value->ops[index->box.u64];
+        } else if (value->tag == NODE_UNDEF) {
+            return node_undef(mod, elem_type);
+        }
     }
-    assert(false);
+    const node_t* ops[] = { value, index };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_EXTRACT,
+        .nops = 2,
+        .uses = NULL,
+        .ops  = ops,
+        .type = elem_type,
+        .loc  = loc
+    });
     return NULL;
 }
 
 const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, const node_t* elem, const loc_t* loc) {
-    assert(type_is_u(index->type));
+    assert(value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_ARRAY);
+    assert(type_is_u(index->type) || type_is_i(index->type));
     if (value->type->tag == TYPE_TUPLE) {
         assert(index->tag == NODE_LITERAL);
         assert(index->box.u64 < value->type->nops);
@@ -422,18 +453,27 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
             ops[index->box.u64] = elem;
             return node_tuple(mod, value->nops, ops, loc);
         }
-        const node_t* ops[] = { value, index, elem };
-        return make_node(mod, (node_t) {
-            .tag  = NODE_INSERT,
-            .nops = 3,
-            .uses = NULL,
-            .ops  = ops,
-            .type = value->type,
-            .loc  = loc
-        });
+    } else if (value->type->tag == TYPE_ARRAY) {
+        assert(elem->type == value->type->ops[0]);
+        assert(value->tag != NODE_UNDEF);
+        if (value->tag == NODE_ARRAY && index->tag == NODE_LITERAL) {
+            assert(index->box.u64 < value->nops);
+            const node_t* ops[value->nops];
+            for (size_t i = 0; i < value->nops; ++i)
+                ops[i] = value->ops[i];
+            ops[index->box.u64] = elem;
+            return node_array(mod, value->nops, ops, loc);
+        }
     }
-    assert(false);
-    return NULL;
+    const node_t* ops[] = { value, index, elem };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_INSERT,
+        .nops = 3,
+        .uses = NULL,
+        .ops  = ops,
+        .type = value->type,
+        .loc  = loc
+    });
 }
 
 const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const loc_t* loc) {
