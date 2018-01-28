@@ -288,7 +288,7 @@ cleanup:
     return status == 0;
 }
 
-bool test_select(void) {
+bool test_if(void) {
     mod_t* mod = mod_create();
 
     jmp_buf env;
@@ -296,11 +296,11 @@ bool test_select(void) {
     if (status)
         goto cleanup;
 
-    CHECK(node_select(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
-    CHECK(node_select(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
-    CHECK(node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
-    CHECK(node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL) ==
-          node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL));
+    CHECK(node_if(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
+    CHECK(node_if(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
+    CHECK(node_if(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
+    CHECK(node_if(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL) ==
+          node_if(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL));
 
 cleanup:
     mod_destroy(mod);
@@ -363,6 +363,39 @@ cleanup:
     return status == 0;
 }
 
+bool test_fn(void) {
+    mod_t* mod = mod_create();
+    const node_t* fn;
+    const node_t* body;
+    const type_t* param_types[2];
+    const node_t* call_ops[2];
+    const node_t* x;
+    const node_t* n;
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    param_types[0] = type_i32(mod);
+    param_types[1] = type_i32(mod);
+    fn = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
+    x  = node_extract(mod, node_param(mod, fn, NULL), node_i32(mod, 0), NULL);
+    n  = node_extract(mod, node_param(mod, fn, NULL), node_i32(mod, 0), NULL);
+    call_ops[0] = x;
+    call_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
+    body = node_if(mod,
+        node_cmpeq(mod, n, node_i32(mod, 0), NULL),
+        node_i32(mod, 1),
+        node_mul(mod, x, node_app(mod, fn, node_tuple(mod, 2, call_ops, NULL), NULL), NULL),
+        NULL);
+    node_bind_fn(fn, body);
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
 typedef struct {
     const char* name;
     bool (*test_fn)(void);
@@ -394,9 +427,10 @@ int main(int argc, char** argv) {
         {"literals", test_literals},
         {"tuples",   test_tuples},
         {"arrays",   test_arrays},
-        {"select",   test_select},
+        {"if",       test_if},
         {"bitcast",  test_bitcast},
-        {"binops",   test_binops}
+        {"binops",   test_binops},
+        {"fn",       test_fn}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

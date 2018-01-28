@@ -48,8 +48,8 @@ struct node_s {
     use_t*   uses;
     box_t    box;
     const node_t** ops;
-    const type_t* type;
-    const loc_t*  loc;
+    const type_t*  type;
+    const loc_t*   loc;
 };
 
 struct type_s {
@@ -74,8 +74,10 @@ enum node_tag_e {
     NODE_ARRAY,
     NODE_EXTRACT,
     NODE_INSERT,
-    NODE_SELECT,
     NODE_BITCAST,
+    NODE_CMPLT,
+    NODE_CMPGT,
+    NODE_CMPEQ,
     NODE_ADD,
     NODE_SUB,
     NODE_MUL,
@@ -85,7 +87,11 @@ enum node_tag_e {
     NODE_OR,
     NODE_XOR,
     NODE_LSHFT,
-    NODE_RSHFT
+    NODE_RSHFT,
+    NODE_IF,
+    NODE_FN,
+    NODE_PARAM,
+    NODE_APP
 };
 
 enum type_tag_e {
@@ -158,8 +164,10 @@ const node_t* node_tuple(mod_t*, size_t, const node_t**, const loc_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const loc_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const loc_t*);
+const node_t* node_cmpgt(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_add(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_sub(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_mul(mod_t*, const node_t*, const node_t*, const loc_t*);
@@ -170,5 +178,14 @@ const node_t* node_or(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_xor(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const loc_t*);
+
+// Conditionals
+const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
+
+// Functions
+void node_bind_fn(const node_t*, const node_t*);
+const node_t* node_fn(mod_t*, const type_t*, const loc_t*);
+const node_t* node_param(mod_t*, const node_t*, const loc_t*);
+const node_t* node_app(mod_t*, const node_t*, const node_t*, const loc_t*);
 
 #endif // ANF_H

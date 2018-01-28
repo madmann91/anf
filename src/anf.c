@@ -239,7 +239,6 @@ const node_t* node_undef(mod_t* mod, const type_t* type) {
     return make_node(mod, (node_t) {
         .tag  = NODE_UNDEF,
         .nops = 0,
-        .uses = NULL,
         .ops  = NULL,
         .type = type,
         .loc  = NULL
@@ -250,7 +249,6 @@ static inline const node_t* make_literal(mod_t* mod, const type_t* type, box_t v
     return make_node(mod, (node_t) {
         .tag  = NODE_LITERAL,
         .nops = 0,
-        .uses = NULL,
         .box  = value,
         .type = type,
         .loc  = NULL
@@ -385,7 +383,6 @@ const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const loc_
     return make_node(mod, (node_t) {
         .tag  = NODE_TUPLE,
         .nops = nops,
-        .uses = NULL,
         .ops  = ops,
         .type = type_tuple(mod, nops, type_ops),
         .loc  = loc
@@ -401,7 +398,6 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const loc_
     return make_node(mod, (node_t) {
         .tag  = NODE_ARRAY,
         .nops = nops,
-        .uses = NULL,
         .ops  = ops,
         .type = type_array(mod, elem_type),
         .loc  = loc
@@ -431,7 +427,6 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
     return make_node(mod, (node_t) {
         .tag  = NODE_EXTRACT,
         .nops = 2,
-        .uses = NULL,
         .ops  = ops,
         .type = elem_type,
         .loc  = loc
@@ -469,27 +464,8 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
     return make_node(mod, (node_t) {
         .tag  = NODE_INSERT,
         .nops = 3,
-        .uses = NULL,
         .ops  = ops,
         .type = value->type,
-        .loc  = loc
-    });
-}
-
-const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const loc_t* loc) {
-    assert(cond->type->tag == TYPE_I1);
-    assert(if_true->type == if_false->type);
-    if (cond->tag == NODE_LITERAL)
-        return cond->box.i1 ? if_true : if_false;
-    if (if_true == if_false)
-        return if_true;
-    const node_t* ops[] = { cond, if_true, if_false };
-    return make_node(mod, (node_t) {
-        .tag  = NODE_SELECT,
-        .nops = 3,
-        .uses = NULL,
-        .ops  = ops,
-        .type = if_true->type,
         .loc  = loc
     });
 }
@@ -509,12 +485,91 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
     return make_node(mod, (node_t) {
         .tag  = NODE_BITCAST,
         .nops = 1,
-        .uses = NULL,
         .ops  = &value,
         .type = type,
         .loc  = loc
     });
 }
+
+#define CMPOP_I1(op, res, left, right) \
+    case TYPE_I1:  res  = left.i1  op right.i1;  break;
+
+#define CMPOP_I(op, res, left, right) \
+    case TYPE_I8:  res = left.i8  op right.i8;  break; \
+    case TYPE_I16: res = left.i16 op right.i16; break; \
+    case TYPE_I32: res = left.i32 op right.i32; break; \
+    case TYPE_I64: res = left.i64 op right.i64; break;
+
+#define CMPOP_U(op, res, left, right) \
+    case TYPE_U8:  res = left.u8  op right.u8;  break; \
+    case TYPE_U16: res = left.u16 op right.u16; break; \
+    case TYPE_U32: res = left.u32 op right.u32; break; \
+    case TYPE_U64: res = left.u64 op right.u64; break;
+
+#define CMPOP_F(op, res, left, right) \
+    case TYPE_F32: res = left.f32 op right.f32; break; \
+    case TYPE_F64: res = left.f64 op right.f64; break;
+
+#define CMPOP_IUF(op, res, left, right) \
+    CMPOP_I(op, res, left, right) \
+    CMPOP_U(op, res, left, right) \
+    CMPOP_F(op, res, left, right)
+
+#define CMPOP_I1IUF(op, res, left, right) \
+    CMPOP_I1(op, res, left, right) \
+    CMPOP_IUF(op, res, left, right)
+
+#define CMPOP(tag, ...) \
+    switch (tag) { \
+        __VA_ARGS__ \
+        default: \
+            assert(false); \
+            break; \
+    }
+
+static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* left, const node_t* right, const loc_t* loc) {
+    assert(left->type == right->type);
+    assert(type_is_prim(left->type));
+    assert(tag == NODE_CMPEQ || left->type->tag != TYPE_I1);
+
+    if (left->tag == NODE_LITERAL && right->tag == NODE_LITERAL) {
+        bool res = false;
+        switch (tag) {
+            case NODE_CMPGT: CMPOP(left->type->tag, CMPOP_IUF  (>,  res, left->box, right->box)) break;
+            case NODE_CMPLT: CMPOP(left->type->tag, CMPOP_IUF  (<,  res, left->box, right->box)) break;
+            case NODE_CMPEQ: CMPOP(left->type->tag, CMPOP_I1IUF(==, res, left->box, right->box)) break;
+            default:
+                assert(false);
+                break;
+        }
+        return node_i1(mod, res);
+    }
+
+    if (left == right) {
+        if (tag == NODE_CMPGT || tag == NODE_CMPLT) return node_i1(mod, false);
+        if (tag == NODE_CMPEQ) return node_i1(mod, true);
+    }
+    if (tag == NODE_CMPLT && type_is_u(left->type) && node_is_zero(right))
+        return node_i1(mod, false);
+
+    const node_t* ops[] = { left, right };
+    return make_node(mod, (node_t) {
+        .tag = tag,
+        .nops = 2,
+        .ops  = ops,
+        .type = type_i1(mod),
+        .loc  = loc
+    });
+}
+
+#define NODE_CMPOP(name, tag) \
+    const node_t* node_##name(mod_t* mod, const node_t* left, const node_t* right, const loc_t* loc) { \
+        return make_cmpop(mod, tag, left, right, loc); \
+    }
+
+NODE_CMPOP(cmpgt, NODE_CMPGT)
+NODE_CMPOP(cmplt, NODE_CMPLT)
+NODE_CMPOP(cmpeq, NODE_CMPEQ)
 
 #define BINOP_I1(op, res, left, right) \
     case TYPE_I1:  res.i1  = left.i1  op right.i1;  break;
@@ -682,7 +737,6 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     return make_node(mod, (node_t) {
         .tag = tag,
         .nops = 2,
-        .uses = NULL,
         .ops  = ops,
         .type = left->type,
         .loc  = loc
@@ -704,3 +758,65 @@ NODE_BINOP(or,  NODE_OR)
 NODE_BINOP(xor, NODE_XOR)
 NODE_BINOP(lshft, NODE_LSHFT)
 NODE_BINOP(rshft, NODE_RSHFT)
+
+const node_t* node_if(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const loc_t* loc) {
+    assert(cond->type->tag == TYPE_I1);
+    assert(if_true->type == if_false->type);
+    if (cond->tag == NODE_LITERAL)
+        return cond->box.i1 ? if_true : if_false;
+    if (if_true == if_false)
+        return if_true;
+    const node_t* ops[] = { cond, if_true, if_false };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_IF,
+        .nops = 3,
+        .ops  = ops,
+        .type = if_true->type,
+        .loc  = loc
+    });
+}
+
+void node_bind_fn(const node_t* fn, const node_t* call) {
+    assert(fn->tag == NODE_FN);
+    assert(fn->type->ops[1] == call->type);
+    node_t* node = (node_t*)fn;
+    node->ops[0] = call;
+}
+
+const node_t* node_fn(mod_t* mod, const type_t* type, const loc_t* loc) {
+    assert(type->tag == TYPE_FN);
+    node_t* node = mpool_alloc(&mod->pool, sizeof(node_t));
+    const node_t** ops = mpool_alloc(&mod->pool, sizeof(node_t*));
+    ops[0] = NULL;
+    *node = (node_t) {
+        .tag  = NODE_FN,
+        .nops = 1,
+        .ops  = ops,
+        .type = type,
+        .loc  = loc
+    };
+    return node;
+}
+
+const node_t* node_param(mod_t* mod, const node_t* node, const loc_t* loc) {
+    assert(node->tag == NODE_FN);
+    return make_node(mod, (node_t) {
+        .tag  = NODE_PARAM,
+        .nops = 1,
+        .ops  = &node,
+        .type = node->type->ops[0],
+        .loc  = loc
+    });
+}
+
+const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const loc_t* loc) {
+    assert(fn->type->tag == TYPE_FN);
+    const node_t* ops[] = { fn, arg };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_APP,
+        .nops = 2,
+        .ops  = ops,
+        .type = fn->type->ops[1],
+        .loc  = loc
+    });
+}
