@@ -679,7 +679,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     }
     if (left == right) {
         if (tag == NODE_AND || tag == NODE_OR)  return left;
-        if (tag == NODE_XOR || tag == NODE_MOD) return node_zero(mod, left->type);
+        if (tag == NODE_XOR || tag == NODE_MOD || tag == NODE_SUB) return node_zero(mod, left->type);
         if (tag == NODE_DIV) return node_one(mod, left->type);
     }
     if (tag == NODE_AND) {
@@ -715,7 +715,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
         const node_t* K   = make_binop(mod, tag, left->ops[0], one, loc);
         assert(K->tag == NODE_LITERAL);
-        return make_binop(mod, right->tag, K, right, loc);
+        return make_binop(mod, left->tag, K, right, loc);
     }
     bool both_factorizable = left_factorizable & right_factorizable;
     if (both_factorizable) {

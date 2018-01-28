@@ -309,11 +309,24 @@ cleanup:
 
 bool test_bitcast(void) {
     mod_t* mod = mod_create();
+    const node_t* fn;
+    const node_t* param;
 
     jmp_buf env;
     int status = setjmp(env);
     if (status)
         goto cleanup;
+
+    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    param = node_param(mod, fn, NULL);
+
+    CHECK(
+        node_bitcast(mod,
+            node_bitcast(mod,
+                node_bitcast(mod, param, type_f32(mod), NULL),
+                type_u32(mod), NULL),
+            type_i32(mod), NULL)
+        == param);
 
     CHECK(node_bitcast(mod, node_u16(mod, 32), type_i16(mod), NULL) == node_i16(mod, 32));
     CHECK(node_bitcast(mod, node_u32(mod, 32), type_i32(mod), NULL) == node_i32(mod, 32));
@@ -331,11 +344,45 @@ cleanup:
 
 bool test_binops(void) {
     mod_t* mod = mod_create();
+    const node_t* fn;
+    const node_t* param;
 
     jmp_buf env;
     int status = setjmp(env);
     if (status)
         goto cleanup;
+
+    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    param = node_param(mod, fn, NULL);
+
+    CHECK(node_add(mod, param, node_mul(mod, node_i32(mod, 5), param, NULL), NULL) == node_mul(mod, node_i32(mod, 6), param, NULL));
+    CHECK(node_add(mod, node_mul(mod, node_i32(mod, 5), param, NULL), param, NULL) == node_mul(mod, node_i32(mod, 6), param, NULL));
+    CHECK(
+        node_sub(mod,
+            node_mul(mod, node_i32(mod, 2), param, NULL),
+            node_mul(mod, node_i32(mod, 5), param, NULL), NULL)
+        == node_mul(mod, node_i32(mod, -3), param, NULL));
+
+    CHECK(node_xor(mod, param, node_xor(mod, param, node_i32(mod, 5), NULL), NULL) == node_i32(mod, 5));
+    CHECK(node_xor(mod, node_xor(mod, param, node_i32(mod, 5), NULL), param, NULL) == node_i32(mod, 5));
+
+    CHECK(node_cmplt(mod, node_bitcast(mod, param, type_u32(mod), NULL), node_u32(mod, 0), NULL) == node_i1(mod, false));
+    CHECK(node_cmpgt(mod, node_u32(mod, 5), node_u32(mod, 0), NULL) == node_i1(mod, true));
+    CHECK(node_cmpeq(mod, param, param, NULL) == node_i1(mod, true));
+
+    CHECK(node_rshft(mod, param, node_i32(mod, 0), NULL) == param);
+    CHECK(node_lshft(mod, param, node_i32(mod, 0), NULL) == param);
+
+    CHECK(node_mul(mod, param, node_i32(mod, 1), NULL) == param);
+    CHECK(node_div(mod, param, node_i32(mod, 1), NULL) == param);
+    CHECK(node_add(mod, param, node_i32(mod, 0), NULL) == param);
+    CHECK(node_mod(mod, param, node_i32(mod, 1), NULL) == node_i32(mod, 0));
+    CHECK(node_sub(mod, param, param, NULL) == node_i32(mod, 0));
+    CHECK(node_div(mod, param, param, NULL) == node_i32(mod, 1));
+    CHECK(node_mod(mod, param, param, NULL) == node_i32(mod, 0));
+
+    CHECK(node_and(mod, param, node_or(mod, param, node_i32(mod, 5), NULL), NULL) == param);
+    CHECK(node_or(mod, param, node_and(mod, param, node_i32(mod, 5), NULL), NULL) == param);
 
     CHECK(node_add(mod, node_i8 (mod, 1), node_i8 (mod, 1), NULL) == node_i8 (mod, 2));
     CHECK(node_add(mod, node_i16(mod, 1), node_i16(mod, 1), NULL) == node_i16(mod, 2));
@@ -350,13 +397,15 @@ bool test_binops(void) {
     CHECK(node_add(mod, node_f32(mod, 1.0f), node_f32(mod, 1.0f), NULL) == node_f32(mod, 2.0f));
     CHECK(node_add(mod, node_f64(mod, 1.0), node_f64(mod, 1.0), NULL) == node_f64(mod, 2.0));
 
-    CHECK(node_bitcast(mod,
-        node_mul(mod,
-            node_bitcast(mod, node_f32(mod, 1.0f), type_i32(mod), NULL),
-            node_i32(mod, 1),
-            NULL),
-        type_f32(mod),
-        NULL) == node_f32(mod, 1.0f));
+    CHECK(
+        node_bitcast(mod,
+            node_mul(mod,
+                node_bitcast(mod, node_f32(mod, 1.0f), type_i32(mod), NULL),
+                node_i32(mod, 1),
+                NULL),
+            type_f32(mod),
+            NULL)
+        == node_f32(mod, 1.0f));
 
 cleanup:
     mod_destroy(mod);
@@ -367,6 +416,7 @@ bool test_fn(void) {
     mod_t* mod = mod_create();
     const node_t* fn;
     const node_t* body;
+    const node_t* param;
     const type_t* param_types[2];
     const node_t* call_ops[2];
     const node_t* x;
@@ -380,8 +430,10 @@ bool test_fn(void) {
     param_types[0] = type_i32(mod);
     param_types[1] = type_i32(mod);
     fn = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
-    x  = node_extract(mod, node_param(mod, fn, NULL), node_i32(mod, 0), NULL);
-    n  = node_extract(mod, node_param(mod, fn, NULL), node_i32(mod, 0), NULL);
+    param = node_param(mod, fn, NULL);
+    node_insert(mod, param, node_i32(mod, 0), node_i32(mod, 42), NULL);
+    x  = node_extract(mod, param, node_i32(mod, 0), NULL);
+    n  = node_extract(mod, param, node_i32(mod, 0), NULL);
     call_ops[0] = x;
     call_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
     body = node_if(mod,
