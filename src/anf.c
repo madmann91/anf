@@ -450,7 +450,6 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
         }
     } else if (value->type->tag == TYPE_ARRAY) {
         assert(elem->type == value->type->ops[0]);
-        assert(value->tag != NODE_UNDEF);
         if (value->tag == NODE_ARRAY && index->tag == NODE_LITERAL) {
             assert(index->box.u64 < value->nops);
             const node_t* ops[value->nops];
@@ -458,6 +457,8 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
                 ops[i] = value->ops[i];
             ops[index->box.u64] = elem;
             return node_array(mod, value->nops, ops, loc);
+        } else if (value->tag == NODE_UNDEF) {
+            return value;
         }
     }
     const node_t* ops[] = { value, index, elem };
@@ -668,10 +669,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         return right;
     if (node_is_zero(right)) {
         if (tag == NODE_LSHFT || tag == NODE_RSHFT || tag == NODE_SUB) return left;
-        if (tag == NODE_DIV || tag == NODE_MOD) {
-            assert(false);
-            return NULL;
-        }
+        assert(tag != NODE_DIV && tag != NODE_MOD);
     }
     if (node_is_one(right)) {
         if (tag == NODE_DIV) return left;

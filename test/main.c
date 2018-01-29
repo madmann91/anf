@@ -33,26 +33,22 @@ bool test_htable(void) {
     if (status)
         goto cleanup;
 
-    for (size_t i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; ++i)
         CHECK(htable_insert(table1, &values[i]));
-    }
-    for (size_t i = N - 1; i >= N / 2; --i) {
+    for (size_t i = N - 1; i >= N / 2; --i)
         CHECK(htable_remove(table1, &values[i]));
-    }
-    for (size_t i = N / 2; i < N; ++i) {
+    for (size_t i = N / 2; i < N; ++i)
         CHECK(htable_lookup(table1, &values[i]) == INVALID_INDEX);
-    }
-    for (size_t i = 0; i < N / 2; ++i) {
+    for (size_t i = 0; i < N / 2; ++i)
         CHECK(htable_lookup(table1, &values[i]) != INVALID_INDEX);
-    }
     for (size_t i = 0; i < table1->cap; ++i) {
         if (!(table1->hashes[i] & OCCUPIED_HASH_MASK))
             continue;
         CHECK(htable_insert(table2, ((uint32_t*)table1->elems) + i));
     }
-    for (size_t i = 0; i < N / 2; ++i) {
+    for (size_t i = 0; i < N / 2; ++i)
         CHECK(htable_lookup(table2, &values[i]) != INVALID_INDEX);
-    }
+
     CHECK(table1->nelems == N / 2);
     CHECK(table2->nelems == N / 2);
 
@@ -283,6 +279,9 @@ bool test_arrays(void) {
             node_u32(mod, 2), elems2[2], NULL)
         == array2);
 
+    CHECK(node_extract(mod, node_undef(mod, array1->type), node_i32(mod, 0), NULL) == node_undef(mod, array1->type->ops[0]));
+    CHECK(node_insert(mod, node_undef(mod, array1->type), node_i32(mod, 0), node_i32(mod, 0), NULL) == node_undef(mod, array1->type));
+
 cleanup:
     mod_destroy(mod);
     return status == 0;
@@ -363,9 +362,6 @@ bool test_binops(void) {
             node_mul(mod, node_i32(mod, 5), param, NULL), NULL)
         == node_mul(mod, node_i32(mod, -3), param, NULL));
 
-    CHECK(node_xor(mod, param, node_xor(mod, param, node_i32(mod, 5), NULL), NULL) == node_i32(mod, 5));
-    CHECK(node_xor(mod, node_xor(mod, param, node_i32(mod, 5), NULL), param, NULL) == node_i32(mod, 5));
-
     CHECK(node_cmplt(mod, node_bitcast(mod, param, type_u32(mod), NULL), node_u32(mod, 0), NULL) == node_i1(mod, false));
     CHECK(node_cmpgt(mod, node_u32(mod, 5), node_u32(mod, 0), NULL) == node_i1(mod, true));
     CHECK(node_cmpeq(mod, param, param, NULL) == node_i1(mod, true));
@@ -380,9 +376,19 @@ bool test_binops(void) {
     CHECK(node_sub(mod, param, param, NULL) == node_i32(mod, 0));
     CHECK(node_div(mod, param, param, NULL) == node_i32(mod, 1));
     CHECK(node_mod(mod, param, param, NULL) == node_i32(mod, 0));
+    CHECK(node_mul(mod, param, node_i32(mod, 0), NULL) == node_i32(mod, 0));
 
+    CHECK(node_and(mod, param, node_i32(mod, 0), NULL) == node_i32(mod, 0));
+    CHECK(node_and(mod, param, node_i32(mod, -1), NULL) == param);
+    CHECK(node_or(mod, param, node_i32(mod, -1), NULL) == node_i32(mod, -1));
+    CHECK(node_xor(mod, param, node_i32(mod, 0), NULL) == param);
     CHECK(node_and(mod, param, node_or(mod, param, node_i32(mod, 5), NULL), NULL) == param);
     CHECK(node_or(mod, param, node_and(mod, param, node_i32(mod, 5), NULL), NULL) == param);
+    CHECK(node_and(mod, node_or(mod, param, node_i32(mod, 5), NULL), param, NULL) == param);
+    CHECK(node_or(mod, node_and(mod, param, node_i32(mod, 5), NULL), param, NULL) == param);
+    CHECK(node_xor(mod, param, node_xor(mod, param, node_i32(mod, 5), NULL), NULL) == node_i32(mod, 5));
+    CHECK(node_xor(mod, node_xor(mod, param, node_i32(mod, 5), NULL), param, NULL) == node_i32(mod, 5));
+    CHECK(node_xor(mod, param, param, NULL) == node_i32(mod, 0));
 
     CHECK(node_add(mod, node_i8 (mod, 1), node_i8 (mod, 1), NULL) == node_i8 (mod, 2));
     CHECK(node_add(mod, node_i16(mod, 1), node_i16(mod, 1), NULL) == node_i16(mod, 2));
