@@ -60,7 +60,7 @@ uint32_t type_hash(const void* ptr) {
 
 mod_t* mod_create(void) {
     mod_t* mod = malloc(sizeof(mod_t));
-    mod->pool  = mpool_create(1 << 10);
+    mod->pool  = mpool_create(4096);
     mod->nodes = htable_create(sizeof(node_t*), 256, node_cmp, node_hash);
     mod->types = htable_create(sizeof(type_t*), 64,  type_cmp, type_hash);
 
