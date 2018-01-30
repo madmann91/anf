@@ -429,6 +429,7 @@ bool test_fn(void) {
     const node_t* args[2];
     const node_t* x;
     const node_t* n;
+    const node_t* res;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -456,12 +457,16 @@ bool test_fn(void) {
     args[1] = node_i32(mod, 8);
     CHECK(node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL) == node_i32(mod, 256));
 
+    size_t N = 1000;
     fn2 = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
     param = node_param(mod, fn2, NULL);
     args[0] = param;
-    args[1] = node_i32(mod, 3);
+    args[1] = node_i32(mod, N);
     body = node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL);
-    CHECK(body == node_mul(mod, param, node_mul(mod, param, param, NULL), NULL));
+    res = param;
+    for (size_t i = 1; i < N; ++i)
+        res = node_mul(mod, param, res, NULL);
+    CHECK(body == res);
 
 cleanup:
     mod_destroy(mod);

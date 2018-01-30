@@ -898,47 +898,89 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
     }
 }
 
-const type_t* type_rewrite(mod_t* mod, const type_t* type, size_t ntypes, const type_t** old_types, const type_t** new_types) {
+typedef struct type_rewrite_s type_rewrite_t;
+typedef struct node_rewrite_s node_rewrite_t;
+
+struct type_rewrite_s {
+    mod_t* mod;
+    size_t ntypes;
+    const type_t** old;
+    const type_t** new;
+};
+
+struct node_rewrite_s {
+    type_rewrite_t types;
+    size_t nnodes;
+    const node_t** new;
+    const node_t** old;
+};
+
+static const type_t* type_rewrite_internal(const type_rewrite_t* rewrite, const type_t* type) {
     const type_t* ops[type->nops];
     for (size_t i = 0; i < type->nops; ++i) {
         const type_t* op = type->ops[i];
         size_t j = 0;
-        for (; j < ntypes; ++j) {
-            if (op == old_types[j])
+        for (; j < rewrite->ntypes; ++j) {
+            if (op == rewrite->old[j])
                 break;
         }
-        if (j < ntypes)
-            ops[i] = new_types[j];
+        if (j < rewrite->ntypes)
+            ops[i] = rewrite->new[j];
         else
-            ops[i] = type_rewrite(mod, op, ntypes, old_types, new_types);
+            ops[i] = type_rewrite_internal(rewrite, op);
     }
 
-    return type_rebuild(mod, type, ops);
+    return type_rebuild(rewrite->mod, type, ops);
+}
+
+static const node_t* node_rewrite_internal(const node_rewrite_t* rewrite, const node_t* node) {
+    const node_t* ops[node->nops];
+    for (size_t i = 0; i < node->nops; ++i) {
+        const node_t* op = node->ops[i];
+        size_t j = 0;
+        for (; j < rewrite->nnodes; ++j) {
+            if (op == rewrite->old[j])
+                break;
+        }
+        if (j < rewrite->nnodes)
+            ops[i] = rewrite->new[j];
+        else if (op->tag == NODE_FN)
+            ops[i] = op;
+        else
+            ops[i] = node_rewrite_internal(rewrite, op);
+
+        // Special case for NODE_IF to prevent infinite recursion
+        if (i == 0 && node->tag == NODE_IF && ops[0]->tag == NODE_LITERAL) {
+            return node_rewrite_internal(rewrite, node->ops[ops[0]->box.i1 ? 1 : 2]);
+        }
+    }
+
+    return node_rebuild(rewrite->types.mod, node, ops, type_rewrite_internal(&rewrite->types, node->type));
+}
+
+const type_t* type_rewrite(mod_t* mod, const type_t* type, size_t ntypes, const type_t** old_types, const type_t** new_types) {
+    type_rewrite_t types = {
+        .mod    = mod,
+        .ntypes = ntypes,
+        .old    = old_types,
+        .new    = new_types
+    };
+    return type_rewrite_internal(&types, type);
 }
 
 const node_t* node_rewrite(mod_t* mod, const node_t* node,
                            size_t nnodes, const node_t** old_nodes, const node_t** new_nodes,
                            size_t ntypes, const type_t** old_types, const type_t** new_types) {
-    const node_t* ops[node->nops];
-    for (size_t i = 0; i < node->nops; ++i) {
-        const node_t* op = node->ops[i];
-        size_t j = 0;
-        for (; j < nnodes; ++j) {
-            if (op == old_nodes[j])
-                break;
-        }
-        if (j < nnodes)
-            ops[i] = new_nodes[j];
-        else if (op->tag == NODE_FN)
-            ops[i] = op;
-        else
-            ops[i] = node_rewrite(mod, op, nnodes, old_nodes, new_nodes, ntypes, old_types, new_types);
-
-        // Special case for NODE_IF to prevent infinite recursion
-        if (i == 0 && node->tag == NODE_IF && ops[0]->tag == NODE_LITERAL) {
-            return node_rewrite(mod, node->ops[ops[0]->box.i1 ? 1 : 2], nnodes, old_nodes, new_nodes, ntypes, old_types, new_types);
-        }
-    }
-
-    return node_rebuild(mod, node, ops, type_rewrite(mod, node->type, ntypes, old_types, new_types));
+    node_rewrite_t nodes = {
+        .types  = (type_rewrite_t) {
+            .mod    = mod,
+            .ntypes = ntypes,
+            .old    = old_types,
+            .new    = new_types
+        },
+        .nnodes = nnodes,
+        .old    = old_nodes,
+        .new    = new_nodes
+    };
+    return node_rewrite_internal(&nodes, node);
 }
