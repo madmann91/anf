@@ -457,7 +457,7 @@ bool test_fn(void) {
     args[1] = node_i32(mod, 8);
     CHECK(node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL) == node_i32(mod, 256));
 
-    size_t N = 1000;
+    size_t N = 100;
     fn2 = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
     param = node_param(mod, fn2, NULL);
     args[0] = param;
