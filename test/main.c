@@ -316,7 +316,7 @@ bool test_bitcast(void) {
     if (status)
         goto cleanup;
 
-    fn = node_fn(mod, node_i1(mod, false), type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
     param = node_param(mod, fn, NULL);
 
     CHECK(
@@ -351,7 +351,7 @@ bool test_binops(void) {
     if (status)
         goto cleanup;
 
-    fn = node_fn(mod, node_i1(mod, false), type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
     param = node_param(mod, fn, NULL);
 
     CHECK(node_add(mod, param, node_mul(mod, node_i32(mod, 5), param, NULL), NULL) == node_mul(mod, node_i32(mod, 6), param, NULL));
@@ -425,8 +425,10 @@ bool test_fn(void) {
     const node_t* param;
     const type_t* param_types[2];
     const node_t* call_ops[2];
+    const node_t* args[2];
     const node_t* x;
     const node_t* n;
+    const node_t* run_if;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -435,11 +437,11 @@ bool test_fn(void) {
 
     param_types[0] = type_i32(mod);
     param_types[1] = type_i32(mod);
-    fn = node_fn(mod, node_i1(mod, false), type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
     param = node_param(mod, fn, NULL);
     node_insert(mod, param, node_i32(mod, 0), node_i32(mod, 42), NULL);
     x  = node_extract(mod, param, node_i32(mod, 0), NULL);
-    n  = node_extract(mod, param, node_i32(mod, 0), NULL);
+    n  = node_extract(mod, param, node_i32(mod, 1), NULL);
     call_ops[0] = x;
     call_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
     body = node_if(mod,
@@ -447,7 +449,13 @@ bool test_fn(void) {
         node_i32(mod, 1),
         node_mul(mod, x, node_app(mod, fn, node_tuple(mod, 2, call_ops, NULL), NULL), NULL),
         NULL);
-    node_bind_fn(fn, body);
+    node_bind(fn, body);
+    run_if = node_known(mod, n, NULL);
+    node_run_if(fn, run_if);
+
+    args[0] = node_i32(mod, 2);
+    args[1] = node_i32(mod, 8);
+    CHECK(node_app(mod, fn, node_tuple(mod, 2, args, NULL), NULL) == node_i32(mod, 256));
 
 cleanup:
     mod_destroy(mod);

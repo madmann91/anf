@@ -91,7 +91,8 @@ enum node_tag_e {
     NODE_IF,
     NODE_FN,
     NODE_PARAM,
-    NODE_APP
+    NODE_APP,
+    NODE_KNOWN
 };
 
 enum type_tag_e {
@@ -184,10 +185,12 @@ const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const loc_t*);
 const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
 
 // Functions
-void node_bind_fn(const node_t*, const node_t*);
-const node_t* node_fn(mod_t*, const node_t*, const type_t*, const loc_t*);
+void node_bind(const node_t*, const node_t*);
+void node_run_if(const node_t*, const node_t*);
+const node_t* node_fn(mod_t*, const type_t*, const loc_t*);
 const node_t* node_param(mod_t*, const node_t*, const loc_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_known(mod_t*, const node_t*, const loc_t*);
 
 // Rewriting/Rebuilding
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
