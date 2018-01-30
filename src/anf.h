@@ -115,7 +115,6 @@ enum type_tag_e {
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
-const mod_t* mod_import(mod_t*);
 
 bool mod_is_commutative(const mod_t*, uint32_t, const type_t*);
 bool mod_is_distributive(const mod_t* mod, uint32_t, uint32_t, const type_t*);

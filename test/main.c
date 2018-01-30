@@ -420,7 +420,8 @@ cleanup:
 
 bool test_fn(void) {
     mod_t* mod = mod_create();
-    const node_t* fn;
+    const node_t* fn1;
+    const node_t* fn2;
     const node_t* body;
     const node_t* param;
     const type_t* param_types[2];
@@ -428,7 +429,6 @@ bool test_fn(void) {
     const node_t* args[2];
     const node_t* x;
     const node_t* n;
-    const node_t* run_if;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -437,8 +437,8 @@ bool test_fn(void) {
 
     param_types[0] = type_i32(mod);
     param_types[1] = type_i32(mod);
-    fn = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
-    param = node_param(mod, fn, NULL);
+    fn1 = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
+    param = node_param(mod, fn1, NULL);
     node_insert(mod, param, node_i32(mod, 0), node_i32(mod, 42), NULL);
     x  = node_extract(mod, param, node_i32(mod, 0), NULL);
     n  = node_extract(mod, param, node_i32(mod, 1), NULL);
@@ -447,15 +447,21 @@ bool test_fn(void) {
     body = node_if(mod,
         node_cmpeq(mod, n, node_i32(mod, 0), NULL),
         node_i32(mod, 1),
-        node_mul(mod, x, node_app(mod, fn, node_tuple(mod, 2, call_ops, NULL), NULL), NULL),
+        node_mul(mod, x, node_app(mod, fn1, node_tuple(mod, 2, call_ops, NULL), NULL), NULL),
         NULL);
-    node_bind(fn, body);
-    run_if = node_known(mod, n, NULL);
-    node_run_if(fn, run_if);
+    node_bind(fn1, body);
+    node_run_if(fn1, node_known(mod, n, NULL));
 
     args[0] = node_i32(mod, 2);
     args[1] = node_i32(mod, 8);
-    CHECK(node_app(mod, fn, node_tuple(mod, 2, args, NULL), NULL) == node_i32(mod, 256));
+    CHECK(node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL) == node_i32(mod, 256));
+
+    fn2 = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    param = node_param(mod, fn2, NULL);
+    args[0] = param;
+    args[1] = node_i32(mod, 3);
+    body = node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL);
+    CHECK(body == node_mul(mod, param, node_mul(mod, param, param, NULL), NULL));
 
 cleanup:
     mod_destroy(mod);
