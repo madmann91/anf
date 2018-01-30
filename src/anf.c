@@ -781,14 +781,16 @@ void node_bind_fn(const node_t* fn, const node_t* call) {
     node->ops[0] = call;
 }
 
-const node_t* node_fn(mod_t* mod, const type_t* type, const loc_t* loc) {
+const node_t* node_fn(mod_t* mod, const node_t* run_if, const type_t* type, const loc_t* loc) {
     assert(type->tag == TYPE_FN);
+    assert(run_if->type->tag == TYPE_I1);
     node_t* node = mpool_alloc(&mod->pool, sizeof(node_t));
     const node_t** ops = mpool_alloc(&mod->pool, sizeof(node_t*));
-    ops[0] = NULL;
+    ops[0] = run_if;
+    ops[1] = NULL;
     *node = (node_t) {
         .tag  = NODE_FN,
-        .nops = 1,
+        .nops = 2,
         .ops  = ops,
         .type = type,
         .loc  = loc
@@ -809,6 +811,13 @@ const node_t* node_param(mod_t* mod, const node_t* node, const loc_t* loc) {
 
 const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const loc_t* loc) {
     assert(fn->type->tag == TYPE_FN);
+    if (fn->ops[0]->tag == NODE_LITERAL &&
+        fn->ops[0]->box.i1 == true &&
+        fn->ops[1] != NULL) {
+        // execute the function
+        const node_t* param = node_param(mod, fn, NULL);
+        return node_rewrite(mod, fn->ops[1], 1, &param, &arg, 0, NULL, NULL);
+    }
     const node_t* ops[] = { fn, arg };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
@@ -817,4 +826,96 @@ const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const lo
         .type = fn->type->ops[1],
         .loc  = loc
     });
+}
+
+const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
+    switch (type->tag) {
+        case TYPE_I1:    return type_i1(mod);
+        case TYPE_I8:    return type_i8(mod);
+        case TYPE_I16:   return type_i16(mod);
+        case TYPE_I32:   return type_i32(mod);
+        case TYPE_I64:   return type_i64(mod);
+        case TYPE_U8:    return type_u8(mod);
+        case TYPE_U16:   return type_u16(mod);
+        case TYPE_U32:   return type_u32(mod);
+        case TYPE_U64:   return type_u64(mod);
+        case TYPE_F32:   return type_f32(mod);
+        case TYPE_F64:   return type_f64(mod);
+        case TYPE_TUPLE: return type_tuple(mod, type->nops, ops);
+        case TYPE_ARRAY: return type_array(mod, ops[0]);
+        case TYPE_FN:    return type_fn(mod, ops[0], ops[1]);
+        default:
+            assert(false);
+            return NULL;
+    }
+}
+
+const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, const type_t* type) {
+    switch (node->tag) {
+        case NODE_LITERAL: return make_literal(mod, type, node->box);
+        case NODE_UNDEF:   return node_undef(mod, type);
+        case NODE_TUPLE:   return node_tuple(mod, node->nops, ops, node->loc);
+        case NODE_ARRAY:   return node_array(mod, node->nops, ops, node->loc);
+        case NODE_EXTRACT: return node_extract(mod, ops[0], ops[1], node->loc);
+        case NODE_INSERT:  return node_insert(mod, ops[0], ops[1], ops[2], node->loc);
+        case NODE_BITCAST: return node_bitcast(mod, ops[0], type, node->loc);
+        case NODE_CMPLT:   return node_cmplt(mod, ops[0], ops[1], node->loc);
+        case NODE_CMPGT:   return node_cmpgt(mod, ops[0], ops[1], node->loc);
+        case NODE_CMPEQ:   return node_cmpeq(mod, ops[0], ops[1], node->loc);
+        case NODE_ADD:     return node_add(mod, ops[0], ops[1], node->loc);
+        case NODE_SUB:     return node_sub(mod, ops[0], ops[1], node->loc);
+        case NODE_MUL:     return node_mul(mod, ops[0], ops[1], node->loc);
+        case NODE_DIV:     return node_div(mod, ops[0], ops[1], node->loc);
+        case NODE_MOD:     return node_mod(mod, ops[0], ops[1], node->loc);
+        case NODE_AND:     return node_and(mod, ops[0], ops[1], node->loc);
+        case NODE_OR:      return node_or(mod, ops[0], ops[1], node->loc);
+        case NODE_XOR:     return node_xor(mod, ops[0], ops[1], node->loc);
+        case NODE_LSHFT:   return node_lshft(mod, ops[0], ops[1], node->loc);
+        case NODE_RSHFT:   return node_rshft(mod, ops[0], ops[1], node->loc);
+        case NODE_IF:      return node_if(mod, ops[0], ops[1], ops[2], node->loc);
+        case NODE_FN:      return node_fn(mod, ops[0], type, node->loc);
+        case NODE_PARAM:   return node_param(mod, ops[0], node->loc);
+        case NODE_APP:     return node_app(mod, ops[0], ops[1], node->loc);
+        default:
+            assert(false);
+            return NULL;
+    }
+}
+
+const type_t* type_rewrite(mod_t* mod, const type_t* type, size_t ntypes, const type_t** old_types, const type_t** new_types) {
+    const type_t* ops[type->nops];
+    for (size_t i = 0; i < type->nops; ++i) {
+        const type_t* op = type->ops[i];
+        size_t j = 0;
+        for (; j < ntypes; ++j) {
+            if (op == old_types[j])
+                break;
+        }
+        if (j < ntypes)
+            ops[i] = new_types[j];
+        else
+            ops[i] = type_rewrite(mod, op, ntypes, old_types, new_types);
+    }
+
+    return type_rebuild(mod, type, ops);
+}
+
+const node_t* node_rewrite(mod_t* mod, const node_t* node,
+                           size_t nnodes, const node_t** old_nodes, const node_t** new_nodes,
+                           size_t ntypes, const type_t** old_types, const type_t** new_types) {
+    const node_t* ops[node->nops];
+    for (size_t i = 0; i < node->nops; ++i) {
+        const node_t* op = node->ops[i];
+        size_t j = 0;
+        for (; j < nnodes; ++j) {
+            if (op == old_nodes[j])
+                break;
+        }
+        if (j < nnodes)
+            ops[i] = new_nodes[j];
+        else
+            ops[i] = node_rewrite(mod, op, nnodes, old_nodes, new_nodes, ntypes, old_types, new_types);
+    }
+
+    return node_rebuild(mod, node, ops, type_rewrite(mod, node->type, ntypes, old_types, new_types));
 }

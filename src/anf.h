@@ -114,6 +114,7 @@ enum type_tag_e {
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
+const mod_t* mod_import(mod_t*);
 
 bool mod_is_commutative(const mod_t*, uint32_t, const type_t*);
 bool mod_is_distributive(const mod_t* mod, uint32_t, uint32_t, const type_t*);
@@ -184,8 +185,14 @@ const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const
 
 // Functions
 void node_bind_fn(const node_t*, const node_t*);
-const node_t* node_fn(mod_t*, const type_t*, const loc_t*);
+const node_t* node_fn(mod_t*, const node_t*, const type_t*, const loc_t*);
 const node_t* node_param(mod_t*, const node_t*, const loc_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const loc_t*);
+
+// Rewriting/Rebuilding
+const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
+const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
+const type_t* type_rewrite(mod_t*, const type_t*, size_t, const type_t**, const type_t**);
+const node_t* node_rewrite(mod_t*, const node_t*, size_t, const node_t**, const node_t**, size_t, const type_t**, const type_t**);
 
 #endif // ANF_H
