@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #include "mpool.h"
-#include "htable.h"
+#include "adt.h"
 
 typedef union  box_u  box_t;
 typedef struct loc_s  loc_t;
@@ -58,15 +58,6 @@ struct type_s {
     const type_t** ops;
 };
 
-struct mod_s {
-    mpool_t*  pool;
-    htable_t* nodes;
-    htable_t* types;
-
-    bool commutative_fp  : 1;
-    bool distributive_fp : 1;
-};
-
 enum node_tag_e {
     NODE_UNDEF,
     NODE_LITERAL,
@@ -110,6 +101,22 @@ enum type_tag_e {
     TYPE_TUPLE,
     TYPE_ARRAY,
     TYPE_FN
+};
+
+VEC(type_vec, const type_t*)
+VEC(node_vec, const node_t*)
+HSET(type_set, const type_t*)
+HSET(node_set, const node_t*)
+HMAP(node2node, const node_t*, const node_t*)
+HMAP(type2type, const type_t*, const type_t*)
+
+struct mod_s {
+    mpool_t*  pool;
+    node_set_t nodes;
+    type_set_t types;
+
+    bool commutative_fp  : 1;
+    bool distributive_fp : 1;
 };
 
 // Module

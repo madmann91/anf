@@ -61,8 +61,8 @@ uint32_t type_hash(const void* ptr) {
 mod_t* mod_create(void) {
     mod_t* mod = malloc(sizeof(mod_t));
     mod->pool  = mpool_create(4096);
-    mod->nodes = htable_create(sizeof(node_t*), 256, node_cmp, node_hash);
-    mod->types = htable_create(sizeof(type_t*), 64,  type_cmp, type_hash);
+    mod->nodes = node_set_create(256, node_cmp, node_hash);
+    mod->types = type_set_create(64,  type_cmp, type_hash);
 
     mod->commutative_fp  = false;
     mod->distributive_fp = false;
@@ -72,8 +72,8 @@ mod_t* mod_create(void) {
 
 void mod_destroy(mod_t* mod) {
     mpool_destroy(mod->pool);
-    htable_destroy(mod->nodes);
-    htable_destroy(mod->types);
+    node_set_destroy(&mod->nodes);
+    type_set_destroy(&mod->types);
     free(mod);
 }
 
@@ -164,10 +164,9 @@ bool type_is_f(const type_t* type) {
 }
 
 static inline const type_t* make_type(mod_t* mod, const type_t type) {
-    const type_t* lookup_ptr = &type;
-    size_t index = htable_lookup(mod->types, &lookup_ptr);
-    if (index != INVALID_INDEX)
-        return ((const type_t**)mod->types->elems)[index];
+    const type_t** lookup = type_set_lookup(&mod->types, &type);
+    if (lookup)
+        return *lookup;
 
     type_t* type_ptr = mpool_alloc(&mod->pool, sizeof(type_t));
     *type_ptr = type;
@@ -177,7 +176,7 @@ static inline const type_t* make_type(mod_t* mod, const type_t type) {
         type_ptr->ops = type_ops;
     }
 
-    bool success = htable_insert(mod->types, &type_ptr);
+    bool success = type_set_insert(&mod->types, type_ptr);
     assert(success), (void)success;
     return type_ptr;
 }
@@ -209,10 +208,9 @@ const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
 }
 
 static inline const node_t* make_node(mod_t* mod, const node_t node) {
-    const node_t* lookup_ptr = &node;
-    size_t index = htable_lookup(mod->nodes, &lookup_ptr);
-    if (index != INVALID_INDEX)
-        return ((const node_t**)mod->nodes->elems)[index];
+    const node_t** lookup = node_set_lookup(&mod->nodes, &node);
+    if (lookup)
+        return *lookup;
 
     node_t* node_ptr = mpool_alloc(&mod->pool, sizeof(node_t));
     *node_ptr = node;
@@ -222,7 +220,7 @@ static inline const node_t* make_node(mod_t* mod, const node_t node) {
         node_ptr->ops = node_ops;
     }
 
-    bool success = htable_insert(mod->nodes, &node_ptr);
+    bool success = node_set_insert(&mod->nodes, node_ptr);
     assert(success), (void)success;
     return node_ptr;
 }
