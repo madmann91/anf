@@ -10,7 +10,7 @@
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \
         if ((hmap).table->hashes[i] & OCCUPIED_MASK) { \
             struct pair_s { key_t key; value_t value; }; \
-            struct pair_s pair = ((struct pair_s*)(hmap).table->elems)[i]; \
+            struct pair_s* pair = ((struct pair_s*)(hmap).table->elems) + i; \
             key_t key     = pair->key; \
             value_t value = pair->value; \
             body \
