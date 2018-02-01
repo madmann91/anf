@@ -35,7 +35,7 @@
     static inline bool hmap##_remove(hmap##_t* map, key_t k) { \
         return htable_remove(map->table, &k); \
     } \
-    static inline const value_t* hmap##_lookup(hmap##_t* map, key_t k) { \
+    static inline const value_t* hmap##_lookup(const hmap##_t* map, key_t k) { \
         size_t index = htable_lookup(map->table, &k); \
         struct pair_s { key_t key; const value_t value; };\
         return index != INVALID_INDEX ? &((struct pair_s*)map->table->elems)[index].value : NULL; \
@@ -65,7 +65,7 @@
     static inline bool hset##_remove(hset##_t* set, value_t v) { \
         return htable_remove(set->table, &v); \
     } \
-    static inline const value_t* hset##_lookup(hset##_t* set, value_t v) { \
+    static inline const value_t* hset##_lookup(const hset##_t* set, value_t v) { \
         size_t index = htable_lookup(set->table, &v); \
         return index != INVALID_INDEX ? &((const value_t*)set->table->elems)[index] : NULL; \
     }
