@@ -4,7 +4,7 @@ CFLAGS=-pedantic -std=c99 -Wall -Wextra
 ifdef RELEASE
 	CFLAGS += -DNDEBUG -O3 -march=native
 else
-	CFLAGS += -g -fprofile-arcs -ftest-coverage
+	CFLAGS += -g
 endif
 
 all: build/libanf.a

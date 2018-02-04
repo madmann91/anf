@@ -61,8 +61,8 @@ uint32_t type_hash(const void* ptr) {
 mod_t* mod_create(void) {
     mod_t* mod = malloc(sizeof(mod_t));
     mod->pool  = mpool_create(4096);
-    mod->nodes = node_set_create(256, node_cmp, node_hash);
-    mod->types = type_set_create(64,  type_cmp, type_hash);
+    mod->nodes = node_set_create(256);
+    mod->types = type_set_create(64);
 
     mod->commutative_fp  = false;
     mod->distributive_fp = false;
@@ -814,8 +814,14 @@ const node_t* node_param(mod_t* mod, const node_t* node, const loc_t* loc) {
 }
 
 const node_t* node_known(mod_t* mod, const node_t* node, const loc_t* loc) {
-    if (node->tag == NODE_LITERAL)
+    if (node->tag == NODE_LITERAL || node->tag == NODE_FN)
         return node_i1(mod, true);
+    if (node->tag == NODE_TUPLE || node->tag == NODE_ARRAY) {
+        const node_t* res = node_i1(mod, true);
+        for (size_t i = 0; i < node->nops; ++i)
+            res = node_and(mod, res, node_known(mod, node->ops[i], loc), loc);
+        return res;
+    }
     return make_node(mod, (node_t) {
         .tag  = NODE_KNOWN,
         .nops = 1,
@@ -827,11 +833,6 @@ const node_t* node_known(mod_t* mod, const node_t* node, const loc_t* loc) {
 
 const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const loc_t* loc) {
     assert(fn->type->tag == TYPE_FN);
-    if (fn->tag == NODE_FN && fn->ops[0] != NULL && fn->ops[1] != NULL) {
-        const node_t* param = node_param(mod, fn, NULL);
-        if (node_is_one(node_rewrite(mod, fn->ops[1], 1, &param, &arg, 0, NULL, NULL)))
-            return node_rewrite(mod, fn->ops[0], 1, &param, &arg, 0, NULL, NULL);
-    }
     const node_t* ops[] = { fn, arg };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
@@ -896,89 +897,28 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
     }
 }
 
-typedef struct type_rewrite_s type_rewrite_t;
-typedef struct node_rewrite_s node_rewrite_t;
-
-struct type_rewrite_s {
-    mod_t* mod;
-    size_t ntypes;
-    const type_t** old;
-    const type_t** new;
-};
-
-struct node_rewrite_s {
-    type_rewrite_t types;
-    size_t nnodes;
-    const node_t** new;
-    const node_t** old;
-};
-
-static const type_t* type_rewrite_internal(const type_rewrite_t* rewrite, const type_t* type) {
-    const type_t* ops[type->nops];
+const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_types) {
+    const type_t* new_ops[type->nops];
     for (size_t i = 0; i < type->nops; ++i) {
         const type_t* op = type->ops[i];
-        size_t j = 0;
-        for (; j < rewrite->ntypes; ++j) {
-            if (op == rewrite->old[j])
-                break;
-        }
-        if (j < rewrite->ntypes)
-            ops[i] = rewrite->new[j];
-        else
-            ops[i] = type_rewrite_internal(rewrite, op);
+        const type_t** found = type2type_lookup(new_types, op);
+        new_ops[i] = found ? *found : type_rewrite(mod, op, new_types);
     }
 
-    return type_rebuild(rewrite->mod, type, ops);
+    const type_t* new_type = type_rebuild(mod, type, new_ops);
+    type2type_insert(new_types, type, new_type);
+    return new_type;
 }
 
-static const node_t* node_rewrite_internal(const node_rewrite_t* rewrite, const node_t* node) {
-    const node_t* ops[node->nops];
+const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types) {
+    const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i) {
         const node_t* op = node->ops[i];
-        size_t j = 0;
-        for (; j < rewrite->nnodes; ++j) {
-            if (op == rewrite->old[j])
-                break;
-        }
-        if (j < rewrite->nnodes)
-            ops[i] = rewrite->new[j];
-        else if (op->tag == NODE_FN)
-            ops[i] = op;
-        else
-            ops[i] = node_rewrite_internal(rewrite, op);
-
-        // Special case for NODE_IF to prevent infinite recursion
-        if (i == 0 && node->tag == NODE_IF && ops[0]->tag == NODE_LITERAL) {
-            return node_rewrite_internal(rewrite, node->ops[ops[0]->box.i1 ? 1 : 2]);
-        }
+        const node_t** found = node2node_lookup(new_nodes, op);
+        new_ops[i] = found ? *found : node_rewrite(mod, op, new_nodes, new_types);
     }
 
-    return node_rebuild(rewrite->types.mod, node, ops, type_rewrite_internal(&rewrite->types, node->type));
-}
-
-const type_t* type_rewrite(mod_t* mod, const type_t* type, size_t ntypes, const type_t** old_types, const type_t** new_types) {
-    type_rewrite_t types = {
-        .mod    = mod,
-        .ntypes = ntypes,
-        .old    = old_types,
-        .new    = new_types
-    };
-    return type_rewrite_internal(&types, type);
-}
-
-const node_t* node_rewrite(mod_t* mod, const node_t* node,
-                           size_t nnodes, const node_t** old_nodes, const node_t** new_nodes,
-                           size_t ntypes, const type_t** old_types, const type_t** new_types) {
-    node_rewrite_t nodes = {
-        .types  = (type_rewrite_t) {
-            .mod    = mod,
-            .ntypes = ntypes,
-            .old    = old_types,
-            .new    = new_types
-        },
-        .nnodes = nnodes,
-        .old    = old_nodes,
-        .new    = new_nodes
-    };
-    return node_rewrite_internal(&nodes, node);
+    const node_t* new_node = node_rebuild(mod, node, new_ops, new_types ? type_rewrite(mod, node->type, new_types) : node->type);
+    node2node_insert(new_nodes, node, new_node);
+    return new_node;
 }

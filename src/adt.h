@@ -17,9 +17,9 @@
         } \
     }
 
-#define HMAP(hmap, key_t, value_t) \
+#define HMAP(hmap, key_t, value_t, cmp, hash) \
     typedef struct { htable_t* table; } hmap##_t; \
-    static inline hmap##_t hmap##_create(size_t cap, cmpfn_t cmp, hashfn_t hash) { \
+    static inline hmap##_t hmap##_create(size_t cap) { \
         struct pair_s { key_t key; value_t value; }; \
         return (hmap##_t) { \
             .table = htable_create(sizeof(struct pair_s), cap, cmp, hash) \
@@ -49,9 +49,9 @@
         } \
     }
 
-#define HSET(hset, value_t) \
+#define HSET(hset, value_t, cmp, hash) \
     typedef struct { htable_t* table; } hset##_t; \
-    static inline hset##_t hset##_create(size_t cap, cmpfn_t cmp, hashfn_t hash) { \
+    static inline hset##_t hset##_create(size_t cap) { \
         return (hset##_t) { \
             .table = htable_create(sizeof(value_t), cap, cmp, hash) \
         }; \

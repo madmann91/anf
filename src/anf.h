@@ -103,12 +103,17 @@ enum type_tag_e {
     TYPE_FN
 };
 
+bool type_cmp(const void*, const void*);
+bool node_cmp(const void*, const void*);
+uint32_t type_hash(const void*);
+uint32_t node_hash(const void*);
+
 VEC(type_vec, const type_t*)
 VEC(node_vec, const node_t*)
-HSET(type_set, const type_t*)
-HSET(node_set, const node_t*)
-HMAP(node2node, const node_t*, const node_t*)
-HMAP(type2type, const type_t*, const type_t*)
+HSET(type_set, const type_t*, type_cmp, type_hash)
+HSET(node_set, const node_t*, node_cmp, node_hash)
+HMAP(type2type, const type_t*, const type_t*, type_cmp, type_hash)
+HMAP(node2node, const node_t*, const node_t*, node_cmp, node_hash)
 
 struct mod_s {
     mpool_t*  pool;
@@ -201,7 +206,7 @@ const node_t* node_known(mod_t*, const node_t*, const loc_t*);
 // Rewriting/Rebuilding
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
-const type_t* type_rewrite(mod_t*, const type_t*, size_t, const type_t**, const type_t**);
-const node_t* node_rewrite(mod_t*, const node_t*, size_t, const node_t**, const node_t**, size_t, const type_t**, const type_t**);
+const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
+const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*);
 
 #endif // ANF_H

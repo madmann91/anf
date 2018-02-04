@@ -128,6 +128,8 @@ bool htable_remove(htable_t* table, const void* elem) {
 }
 
 void htable_remove_by_index(htable_t* table, size_t index) {
+    assert(table->hashes[index] & OCCUPIED_HASH_MASK);
+
     // Count number of buckets until an empty bucket or bucket with DIB=0 is found
     size_t prev  = index;
     while (true) {
