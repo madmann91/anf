@@ -8,7 +8,7 @@
 
 #define FORALL_HMAP(hmap, key_t, key, value_t, value, body) \
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \
-        if ((hmap).table->hashes[i] & OCCUPIED_MASK) { \
+        if ((hmap).table->hashes[i] & OCCUPIED_HASH_MASK) { \
             struct pair_s { key_t key; value_t value; }; \
             struct pair_s* pair = ((struct pair_s*)(hmap).table->elems) + i; \
             key_t key     = pair->key; \
@@ -43,7 +43,7 @@
 
 #define FORALL_HSET(hset, value_t, value, body) \
     for (size_t i = 0; i < (hset).table->cap; ++i) { \
-        if ((hset).table->hashes[i] & OCCUPIED_MASK) { \
+        if ((hset).table->hashes[i] & OCCUPIED_HASH_MASK) { \
             value_t value = ((value_t*)(hset).table->elems)[i]; \
             body \
         } \

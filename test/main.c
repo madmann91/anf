@@ -6,6 +6,7 @@
 #include "htable.h"
 #include "mpool.h"
 #include "anf.h"
+#include "scope.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -418,61 +419,33 @@ cleanup:
     return status == 0;
 }
 
-bool test_fn(void) {
+bool test_scope(void) {
     mod_t* mod = mod_create();
-    const node_t* fn1;
-    const node_t* fn2;
-    const node_t* body;
-    const node_t* param;
-    const type_t* param_types[2];
-    const node_t* call_ops[2];
-    const node_t* args[2];
-    const node_t* x;
-    const node_t* n;
-    const node_t* res;
-    const node_t* ins;
+    const node_t* inner, *outer;
+    const node_t* x, *y;
+    const type_t* inner_type;
+    scope_t scope;
 
     jmp_buf env;
     int status = setjmp(env);
     if (status)
         goto cleanup;
 
-    param_types[0] = type_i32(mod);
-    param_types[1] = type_i32(mod);
-    fn1 = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
-    param = node_param(mod, fn1, NULL);
-    ins = node_insert(mod, param, node_i32(mod, 0), node_i32(mod, 42), NULL);
-    x  = node_extract(mod, param, node_i32(mod, 0), NULL);
-    n  = node_extract(mod, param, node_i32(mod, 1), NULL);
-    call_ops[0] = x;
-    call_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
-    body = node_if(mod,
-        node_cmpeq(mod, n, node_i32(mod, 0), NULL),
-        node_i32(mod, 1),
-        node_mul(mod, x, node_app(mod, fn1, node_tuple(mod, 2, call_ops, NULL), NULL), NULL),
-        NULL);
-    node_bind(mod, fn1, body);
-    node_run_if(mod, fn1, node_known(mod, n, NULL));
+    inner_type = type_fn(mod, type_i32(mod), type_i32(mod));
+    inner = node_fn(mod, inner_type, NULL);
+    outer = node_fn(mod, type_fn(mod, type_i32(mod), inner_type), NULL);
+    x = node_param(mod, outer, NULL);
+    y = node_param(mod, inner, NULL);
+    node_bind(mod, inner, x);
+    node_bind(mod, outer, inner);
 
-    CHECK(use_find(param->uses, 0, x) != NULL);
-    CHECK(use_find(param->uses, 0, n) != NULL);
-    CHECK(use_find(param->uses, 0, ins) != NULL);
-    CHECK(node_count_uses(param) == 3);
-
-    args[0] = node_i32(mod, 2);
-    args[1] = node_i32(mod, 8);
-    //CHECK(node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL) == node_i32(mod, 256));
-
-    size_t N = 100;
-    fn2 = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
-    param = node_param(mod, fn2, NULL);
-    args[0] = param;
-    args[1] = node_i32(mod, N);
-    body = node_app(mod, fn1, node_tuple(mod, 2, args, NULL), NULL);
-    res = param;
-    for (size_t i = 1; i < N; ++i)
-        res = node_mul(mod, param, res, NULL);
-    //CHECK(body == res);
+    scope = scope_create(mod, outer);
+    CHECK(node_set_lookup(&scope.nodes, inner) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, outer) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, x) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
+    CHECK(scope.nodes.table->nelems == 4);
+    scope_destroy(&scope);
 
 cleanup:
     mod_destroy(mod);
@@ -513,7 +486,7 @@ int main(int argc, char** argv) {
         {"if",       test_if},
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
-        {"fn",       test_fn}
+        {"scope",    test_scope}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

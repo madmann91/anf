@@ -802,8 +802,7 @@ void node_bind(mod_t* mod, const node_t* fn, const node_t* call) {
     assert(fn->tag == NODE_FN);
     assert(fn->type->ops[1] == call->type);
     node_t* node = (node_t*)fn;
-    if (node->ops[0])
-        unregister_use(0, node->ops[0], node);
+    unregister_use(0, node->ops[0], node);
     node->ops[0] = call;
     register_use(mod, 0, node->ops[0], node);
 }
@@ -812,8 +811,7 @@ void node_run_if(mod_t* mod, const node_t* fn, const node_t* cond) {
     assert(fn->tag == NODE_FN);
     assert(cond->type->tag == TYPE_I1);
     node_t* node = (node_t*)fn;
-    if (node->ops[1])
-        unregister_use(1, node->ops[1], node);
+    unregister_use(1, node->ops[1], node);
     node->ops[1] = cond;
     register_use(mod, 1, node->ops[1], node);
 }
@@ -822,8 +820,10 @@ const node_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
     node_t* node = mpool_alloc(&mod->pool, sizeof(node_t));
     const node_t** ops = mpool_alloc(&mod->pool, sizeof(node_t*) * 2);
-    ops[0] = NULL;
-    ops[1] = NULL;
+    ops[0] = node_undef(mod, type->ops[1]);
+    ops[1] = node_i1(mod, false);
+    register_use(mod, 0, ops[0], node);
+    register_use(mod, 1, ops[1], node);
     *node = (node_t) {
         .tag  = NODE_FN,
         .nops = 2,
