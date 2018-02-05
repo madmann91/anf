@@ -450,8 +450,8 @@ bool test_fn(void) {
         node_i32(mod, 1),
         node_mul(mod, x, node_app(mod, fn1, node_tuple(mod, 2, call_ops, NULL), NULL), NULL),
         NULL);
-    node_bind(fn1, body);
-    node_run_if(fn1, node_known(mod, n, NULL));
+    node_bind(mod, fn1, body);
+    node_run_if(mod, fn1, node_known(mod, n, NULL));
 
     args[0] = node_i32(mod, 2);
     args[1] = node_i32(mod, 8);

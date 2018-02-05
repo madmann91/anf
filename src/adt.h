@@ -83,12 +83,12 @@
     static inline void vec##_destroy(vec##_t* vec) { \
         free(vec->elems); \
     } \
-    static inline void vec##_push(vec##_t* vec, const value_t* v) { \
+    static inline void vec##_push(vec##_t* vec, const value_t v) { \
         if (vec->nelems >= vec->cap) { \
             vec->cap *= 2; \
             vec->elems = realloc(vec->elems, sizeof(value_t*) * vec->cap); \
         } \
-        vec->elems[vec->nelems++] = *v; \
+        vec->elems[vec->nelems++] = v; \
     } \
     static inline void vec##_shrink(vec##_t* vec) { \
         vec->elems = realloc(vec->elems, sizeof(value_t) * vec->nelems); \

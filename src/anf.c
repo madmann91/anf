@@ -64,6 +64,7 @@ mod_t* mod_create(void) {
     mod->pool  = mpool_create(4096);
     mod->nodes = node_set_create(256);
     mod->types = type_set_create(64);
+    mod->fns   = node_vec_create(64);
 
     mod->commutative_fp  = false;
     mod->distributive_fp = false;
@@ -75,6 +76,7 @@ void mod_destroy(mod_t* mod) {
     mpool_destroy(mod->pool);
     node_set_destroy(&mod->nodes);
     type_set_destroy(&mod->types);
+    node_vec_destroy(&mod->fns);
     free(mod);
 }
 
@@ -208,6 +210,27 @@ const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
 }
 
+static void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
+    use_t* use = mpool_alloc(&mod->pool, sizeof(use_t));
+    use->index = index;
+    use->user  = user;
+    use->next  = used->uses;
+    ((node_t*)used)->uses = use;
+}
+
+static void unregister_use(size_t index, const node_t* used, const node_t* user) {
+    use_t* use = used->uses;
+    use_t** prev = &((node_t*)used)->uses;
+    while (use) {
+        if (use->index == index && use->user  == user)
+            break;
+        prev = &use->next;
+        use  = use->next;
+    }
+    assert(use);
+    *prev = use->next;
+}
+
 static inline const node_t* make_node(mod_t* mod, const node_t node) {
     const node_t** lookup = node_set_lookup(&mod->nodes, &node);
     if (lookup)
@@ -217,7 +240,10 @@ static inline const node_t* make_node(mod_t* mod, const node_t node) {
     *node_ptr = node;
     if (node.nops > 0) {
         const node_t** node_ops = mpool_alloc(&mod->pool, sizeof(node_t*) * node.nops);
-        for (size_t i = 0; i < node.nops; ++i) node_ops[i] = node.ops[i];
+        for (size_t i = 0; i < node.nops; ++i) {
+            register_use(mod, i, node.ops[i], node_ptr);
+            node_ops[i] = node.ops[i];
+        }
         node_ptr->ops = node_ops;
     }
 
@@ -230,9 +256,8 @@ const node_t* node_undef(mod_t* mod, const type_t* type) {
     if (type->tag == TYPE_TUPLE) {
         // Resolve undef values for tuples upon creation
         const node_t* ops[type->nops];
-        for (size_t i = 0; i < type->nops; ++i) {
+        for (size_t i = 0; i < type->nops; ++i)
             ops[i] = node_undef(mod, type->ops[i]);
-        }
         return node_tuple(mod, type->nops, ops, NULL);
     }
     return make_node(mod, (node_t) {
@@ -773,18 +798,24 @@ const node_t* node_if(mod_t* mod, const node_t* cond, const node_t* if_true, con
     });
 }
 
-void node_bind(const node_t* fn, const node_t* call) {
+void node_bind(mod_t* mod, const node_t* fn, const node_t* call) {
     assert(fn->tag == NODE_FN);
     assert(fn->type->ops[1] == call->type);
     node_t* node = (node_t*)fn;
+    if (node->ops[0])
+        unregister_use(0, node->ops[0], node);
     node->ops[0] = call;
+    register_use(mod, 0, node->ops[0], node);
 }
 
-void node_run_if(const node_t* fn, const node_t* cond) {
+void node_run_if(mod_t* mod, const node_t* fn, const node_t* cond) {
     assert(fn->tag == NODE_FN);
     assert(cond->type->tag == TYPE_I1);
     node_t* node = (node_t*)fn;
+    if (node->ops[1])
+        unregister_use(1, node->ops[1], node);
     node->ops[1] = cond;
+    register_use(mod, 1, node->ops[1], node);
 }
 
 const node_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
@@ -800,6 +831,7 @@ const node_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
         .type = type,
         .dbg  = dbg
     };
+    node_vec_push(&mod->fns, node);
     return node;
 }
 
@@ -924,6 +956,11 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
     return new_node;
 }
 
+void node_replace(const node_t* node, const node_t* with) {
+    assert(node->type == with->type);
+    ((node_t*)node)->rep = with;
+}
+
 void type_print(const type_t* type, bool colorize) {
     const char* prefix = colorize ? "\33[;34;1m" : "";
     const char* suffix = colorize ? "\33[0m"     : "";
@@ -1031,8 +1068,7 @@ void node_print(const node_t* node, bool colorize) {
         }
         printf(" %s%s%s ", nprefix, op, suffix);
         for (size_t i = 0; i < node->nops; ++i) {
-            if (node->ops[i]->tag == NODE_LITERAL ||
-                node->ops[i]->tag == NODE_UNDEF) {
+            if (node->ops[i]->nops == 0) {
                 // Print literals and undefs inline
                 node_print(node->ops[i], colorize);
             } else {

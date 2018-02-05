@@ -38,9 +38,9 @@ struct dbg_s {
 };
 
 struct use_s {
-    uint32_t index;
-    node_t*  node;
-    use_t*   next;
+    size_t index;
+    const node_t* user;
+    use_t* next;
 };
 
 struct node_s {
@@ -48,6 +48,7 @@ struct node_s {
     size_t   nops;
     use_t*   uses;
     box_t    box;
+    const node_t*  rep;
     const node_t** ops;
     const type_t*  type;
     const dbg_t*   dbg;
@@ -120,6 +121,7 @@ struct mod_s {
     mpool_t*  pool;
     node_set_t nodes;
     type_set_t types;
+    node_vec_t fns;
 
     bool commutative_fp  : 1;
     bool distributive_fp : 1;
@@ -197,18 +199,19 @@ const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Functions
-void node_bind(const node_t*, const node_t*);
-void node_run_if(const node_t*, const node_t*);
+void node_bind(mod_t*, const node_t*, const node_t*);
+void node_run_if(mod_t*, const node_t*, const node_t*);
 const node_t* node_fn(mod_t*, const type_t*, const dbg_t*);
 const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 
-// Rewriting/Rebuilding
+/// Rebuild/Rewrite/Replace
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
 const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
 const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*);
+void node_replace(const node_t*, const node_t*);
 
 // Debugging/Inspection
 void type_print(const type_t*, bool);
