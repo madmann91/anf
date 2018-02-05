@@ -8,7 +8,7 @@
 #include "adt.h"
 
 typedef union  box_u  box_t;
-typedef struct loc_s  loc_t;
+typedef struct dbg_s  dbg_t;
 typedef struct node_s node_t;
 typedef struct type_s type_t;
 typedef struct use_s  use_t;
@@ -28,7 +28,8 @@ union box_u {
     double   f64;
 };
 
-struct loc_s {
+struct dbg_s {
+    const char* name;
     const char* file;
     size_t brow;
     size_t bcol;
@@ -49,7 +50,7 @@ struct node_s {
     box_t    box;
     const node_t** ops;
     const type_t*  type;
-    const loc_t*   loc;
+    const dbg_t*   dbg;
 };
 
 struct type_s {
@@ -173,35 +174,35 @@ const node_t* node_f32(mod_t*, float);
 const node_t* node_f64(mod_t*, double);
 
 // Operations
-const node_t* node_tuple(mod_t*, size_t, const node_t**, const loc_t*);
-const node_t* node_array(mod_t*, size_t, const node_t**, const loc_t*);
-const node_t* node_extract(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const loc_t*);
-const node_t* node_cmpgt(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_add(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_sub(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_mul(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_div(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_mod(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_and(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_or(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_xor(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
+const node_t* node_array(mod_t*, size_t, const node_t**, const dbg_t*);
+const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_cmpgt(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_add(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_sub(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_mul(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_div(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_mod(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_and(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_or(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_xor(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Conditionals
-const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const loc_t*);
+const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Functions
 void node_bind(const node_t*, const node_t*);
 void node_run_if(const node_t*, const node_t*);
-const node_t* node_fn(mod_t*, const type_t*, const loc_t*);
-const node_t* node_param(mod_t*, const node_t*, const loc_t*);
-const node_t* node_app(mod_t*, const node_t*, const node_t*, const loc_t*);
-const node_t* node_known(mod_t*, const node_t*, const loc_t*);
+const node_t* node_fn(mod_t*, const type_t*, const dbg_t*);
+const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
+const node_t* node_app(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 
 // Rewriting/Rebuilding
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
@@ -210,6 +211,8 @@ const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
 const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*);
 
 // Debugging/Inspection
+void type_print(const type_t*, bool);
+void node_print(const node_t*, bool);
 void type_dump(const type_t*);
 void node_dump(const node_t*);
 
