@@ -424,7 +424,7 @@ bool test_scope(void) {
     const node_t* inner, *outer;
     const node_t* x, *y;
     const type_t* inner_type;
-    scope_t scope;
+    node_set_t scope, fvs;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -439,21 +439,30 @@ bool test_scope(void) {
     node_bind(mod, inner, x);
     node_bind(mod, outer, inner);
 
-    scope = scope_create(mod, outer);
-    CHECK(node_set_lookup(&scope.nodes, inner) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, outer) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, x) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
-    CHECK(scope.nodes.table->nelems == 4);
-    scope_destroy(&scope);
-    
-    scope = scope_create(mod, inner);
-    CHECK(node_set_lookup(&scope.nodes, inner) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
-    CHECK(scope.nodes.table->nelems == 2);
-    scope_destroy(&scope);
+    scope = node_set_create(64);
+    fvs = node_set_create(64);
+
+    scope_compute(mod, outer, &scope);
+    CHECK(node_set_lookup(&scope, inner) != NULL);
+    CHECK(node_set_lookup(&scope, outer) != NULL);
+    CHECK(node_set_lookup(&scope, x) != NULL);
+    CHECK(node_set_lookup(&scope, y) != NULL);
+    CHECK(scope.table->nelems == 4);
+
+    node_set_clear(&scope);
+
+    scope_compute(mod, inner, &scope);
+    CHECK(node_set_lookup(&scope, inner) != NULL);
+    CHECK(node_set_lookup(&scope, y) != NULL);
+    CHECK(scope.table->nelems == 2);
+
+    scope_compute_fvs(inner, &scope, &fvs);
+    CHECK(node_set_lookup(&fvs, x) != NULL);
+    CHECK(fvs.table->nelems == 1);
 
 cleanup:
+    node_set_destroy(&scope);
+    node_set_destroy(&fvs);
     mod_destroy(mod);
     return status == 0;
 }

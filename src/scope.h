@@ -3,15 +3,7 @@
 
 #include "anf.h"
 
-typedef struct scope_s scope_t;
-
-struct scope_s {
-    node_set_t nodes;
-    const node_t* fn;
-};
-
-scope_t scope_create(mod_t*, const node_t*);
-void scope_destroy(scope_t*);
-void scope_dump(scope_t*);
+void scope_compute(mod_t*, const node_t*, node_set_t*);
+void scope_compute_fvs(const node_t*, node_set_t*, node_set_t*);
 
 #endif // SCOPE_H

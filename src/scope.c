@@ -1,18 +1,13 @@
 #include "scope.h"
 
-scope_t scope_create(mod_t* mod, const node_t* fn) {
+void scope_compute(mod_t* mod, const node_t* fn, node_set_t* scope) {
     assert(fn->tag == NODE_FN);
-    scope_t scope = {
-        .nodes = node_set_create(64),
-        .fn = fn
-    };
-
     node_vec_t worklist = node_vec_create(64);
-    node_set_insert(&scope.nodes, fn);
+    node_set_insert(scope, fn);
     node_vec_push(&worklist, node_param(mod, fn, NULL));
     while (worklist.nelems > 0) {
         const node_t* node = worklist.elems[--worklist.nelems];
-        if (node_set_insert(&scope.nodes, node)) {
+        if (node_set_insert(scope, node)) {
             const use_t* use = node->uses;
             while (use) {
                 node_vec_push(&worklist, use->user);
@@ -22,18 +17,28 @@ scope_t scope_create(mod_t* mod, const node_t* fn) {
                 node_vec_push(&worklist, node_param(mod, node, NULL));
         }
     }
-
-    return scope;
+    node_vec_destroy(&worklist);
 }
 
-void scope_destroy(scope_t* scope) {
-    node_set_destroy(&scope->nodes);
-}
-
-void scope_dump(scope_t* scope) {
-    node_dump(scope->fn);
-    FORALL_HSET(scope->nodes, const node_t*, node, {
-        if (node != scope->fn)
-            node_dump(node);
-    })
+void scope_compute_fvs(const node_t* fn, node_set_t* scope, node_set_t* fvs) {
+    assert(fn->tag == NODE_FN);
+    node_set_t done = node_set_create(64);
+    node_vec_t worklist = node_vec_create(64);
+    for (size_t i = 0; i < fn->nops; ++i)
+        node_vec_push(&worklist, fn->ops[i]);
+    while (worklist.nelems > 0) {
+        const node_t* node = worklist.elems[--worklist.nelems];
+        if (node->tag == NODE_PARAM || node->tag == NODE_FN) {
+            if (!node_set_lookup(scope, node))
+                node_set_insert(fvs, node);
+        } else {
+            for (size_t i = 0; i < node->nops; ++i) {
+                const node_t* op = node->ops[i];
+                if (!node_set_lookup(&done, op))
+                    node_vec_push(&worklist, op);
+            }
+        }
+    }
+    node_set_destroy(&done);
+    node_vec_destroy(&worklist);
 }

@@ -77,6 +77,11 @@ void htable_destroy(htable_t* table) {
     free(table);
 }
 
+void htable_clear(htable_t* table) {
+    table->nelems = 0;
+    memset(table->hashes, 0, sizeof(uint32_t) * table->cap);
+}
+
 void htable_rehash(htable_t* table, size_t new_cap) {
     assert((new_cap & (new_cap - 1)) == 0);
     void*     new_elems  = malloc(table->esize * new_cap);

@@ -28,6 +28,9 @@
     static inline void hmap##_destroy(hmap##_t* map) { \
         htable_destroy(map->table); \
     } \
+    static inline void hmap##_clear(hmap##_t* map) { \
+        htable_clear(map->table); \
+    } \
     static inline bool hmap##_insert(hmap##_t* map, key_t k, value_t v) { \
         struct { key_t key; value_t value; } elem = { .key = k, .value = v }; \
         return htable_insert(map->table, &elem); \
@@ -58,6 +61,9 @@
     } \
     static inline void hset##_destroy(hset##_t* set) { \
         htable_destroy(set->table); \
+    } \
+    static inline void hset##_clear(hset##_t* set) { \
+        htable_clear(set->table); \
     } \
     static inline bool hset##_insert(hset##_t* set, value_t v) { \
         return htable_insert(set->table, &v); \
