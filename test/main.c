@@ -446,6 +446,12 @@ bool test_scope(void) {
     CHECK(node_set_lookup(&scope.nodes, y) != NULL);
     CHECK(scope.nodes.table->nelems == 4);
     scope_destroy(&scope);
+    
+    scope = scope_create(mod, inner);
+    CHECK(node_set_lookup(&scope.nodes, inner) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
+    CHECK(scope.nodes.table->nelems == 2);
+    scope_destroy(&scope);
 
 cleanup:
     mod_destroy(mod);
