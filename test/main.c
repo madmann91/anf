@@ -430,6 +430,7 @@ bool test_fn(void) {
     const node_t* x;
     const node_t* n;
     const node_t* res;
+    const node_t* ins;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -440,7 +441,7 @@ bool test_fn(void) {
     param_types[1] = type_i32(mod);
     fn1 = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
     param = node_param(mod, fn1, NULL);
-    node_insert(mod, param, node_i32(mod, 0), node_i32(mod, 42), NULL);
+    ins = node_insert(mod, param, node_i32(mod, 0), node_i32(mod, 42), NULL);
     x  = node_extract(mod, param, node_i32(mod, 0), NULL);
     n  = node_extract(mod, param, node_i32(mod, 1), NULL);
     call_ops[0] = x;
@@ -452,6 +453,11 @@ bool test_fn(void) {
         NULL);
     node_bind(mod, fn1, body);
     node_run_if(mod, fn1, node_known(mod, n, NULL));
+
+    CHECK(use_find(param->uses, 0, x) != NULL);
+    CHECK(use_find(param->uses, 0, n) != NULL);
+    CHECK(use_find(param->uses, 0, ins) != NULL);
+    CHECK(node_count_uses(param) == 3);
 
     args[0] = node_i32(mod, 2);
     args[1] = node_i32(mod, 8);

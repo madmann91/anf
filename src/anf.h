@@ -206,12 +206,16 @@ const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 
-/// Rebuild/Rewrite/Replace
+// Rebuild/Rewrite/Replace
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
 const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
 const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*);
 void node_replace(const node_t*, const node_t*);
+
+// Uses
+const use_t* use_find(const use_t*, size_t, const node_t*);
+size_t node_count_uses(const node_t*);
 
 // Debugging/Inspection
 void type_print(const type_t*, bool);

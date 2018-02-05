@@ -210,7 +210,7 @@ const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
 }
 
-static void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
+static inline void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
     use_t* use = mpool_alloc(&mod->pool, sizeof(use_t));
     use->index = index;
     use->user  = user;
@@ -218,7 +218,7 @@ static void register_use(mod_t* mod, size_t index, const node_t* used, const nod
     ((node_t*)used)->uses = use;
 }
 
-static void unregister_use(size_t index, const node_t* used, const node_t* user) {
+static inline void unregister_use(size_t index, const node_t* used, const node_t* user) {
     use_t* use = used->uses;
     use_t** prev = &((node_t*)used)->uses;
     while (use) {
@@ -959,6 +959,26 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
 void node_replace(const node_t* node, const node_t* with) {
     assert(node->type == with->type);
     ((node_t*)node)->rep = with;
+}
+
+const use_t* use_find(const use_t* use, size_t index, const node_t* user) {
+    while (use) {
+        if ((index == INVALID_INDEX || use->index == index) &&
+            (user  == NULL || use->user == user))
+            return use;
+        use = use->next;
+    }
+    return NULL;
+}
+
+size_t node_count_uses(const node_t* node) {
+    size_t i = 0;
+    const use_t* use = node->uses;
+    while (use) {
+        i++;
+        use = use->next;
+    }
+    return i;
 }
 
 void type_print(const type_t* type, bool colorize) {
