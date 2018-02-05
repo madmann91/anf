@@ -209,4 +209,8 @@ const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*)
 const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
 const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*);
 
+// Debugging/Inspection
+void type_dump(const type_t*);
+void node_dump(const node_t*);
+
 #endif // ANF_H

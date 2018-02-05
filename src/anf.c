@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
 #include <assert.h>
 
@@ -921,4 +923,152 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
     const node_t* new_node = node_rebuild(mod, node, new_ops, new_types ? type_rewrite(mod, node->type, new_types) : node->type);
     node2node_insert(new_nodes, node, new_node);
     return new_node;
+}
+
+void type_dump(const type_t* type) {
+    switch (type->tag) {
+        case TYPE_I1:  printf("i1");  break;
+        case TYPE_I8:  printf("i8");  break;
+        case TYPE_I16: printf("i16"); break;
+        case TYPE_I32: printf("i32"); break;
+        case TYPE_I64: printf("i64"); break;
+        case TYPE_U8:  printf("u8");  break;
+        case TYPE_U16: printf("u16"); break;
+        case TYPE_U32: printf("u32"); break;
+        case TYPE_U64: printf("u64"); break;
+        case TYPE_F32: printf("f32"); break;
+        case TYPE_F64: printf("f64"); break;
+        case TYPE_TUPLE:
+            printf("(");
+            for (size_t i = 0; i < type->nops; ++i) {
+                type_dump(type->ops[i]);
+                if (i != type->nops - 1)
+                    printf(", ");
+            }
+            printf(")");
+            break;
+        case TYPE_ARRAY:
+            printf("[");
+            type_dump(type->ops[0]);
+            printf("]");
+            break;
+        case TYPE_FN:
+            if (type->ops[0]->tag == TYPE_FN) printf("(");
+            type_dump(type->ops[0]);
+            if (type->ops[0]->tag == TYPE_FN) printf(")");
+            printf(" -> ");
+            type_dump(type->ops[1]);
+            break;
+        default:
+            assert(false);
+            break;
+    }
+}
+
+void node_dump(const node_t* node) {
+    switch (node->tag) {
+        case NODE_UNDEF:
+            printf("undef<");
+            type_dump(node->type);
+            printf(">");
+            break;
+        case NODE_LITERAL:
+            switch (node->type->tag) {
+                case TYPE_I1:  printf("i1 %s", node->box.i1 ? "true" : "false"); break;
+                case TYPE_I8:  printf( "i8 %"PRIi8,  node->box.i8);  break;
+                case TYPE_I16: printf("i16 %"PRIi16, node->box.i16); break;
+                case TYPE_I32: printf("i32 %"PRIi32, node->box.i32); break;
+                case TYPE_I64: printf("i64 %"PRIi64, node->box.i64); break;
+                case TYPE_U8:  printf( "u8 %"PRIu8,  node->box.u8);  break;
+                case TYPE_U16: printf("u16 %"PRIu16, node->box.u16); break;
+                case TYPE_U32: printf("u32 %"PRIu32, node->box.u32); break;
+                case TYPE_U64: printf("u64 %"PRIu64, node->box.u64); break;
+                case TYPE_F32: printf("f32 %f", node->box.f32); break;
+                case TYPE_F64: printf("f64 %g", node->box.f64); break;
+                default:
+                    assert(false);
+                    break;
+            }
+            break;
+        case NODE_TUPLE:
+        case NODE_ARRAY:
+        case NODE_INSERT:
+        case NODE_EXTRACT:
+        case NODE_CMPLT:
+        case NODE_CMPGT:
+        case NODE_CMPEQ:
+        case NODE_ADD:
+        case NODE_SUB:
+        case NODE_MUL:
+        case NODE_DIV:
+        case NODE_MOD:
+        case NODE_AND:
+        case NODE_OR:
+        case NODE_XOR:
+        case NODE_LSHFT:
+        case NODE_RSHFT:
+        case NODE_APP:
+        case NODE_KNOWN:
+            switch (node->tag) {
+                case NODE_TUPLE:   printf("(");        break;
+                case NODE_ARRAY:   printf("[");        break;
+                case NODE_EXTRACT: printf("extract "); break;
+                case NODE_INSERT:  printf("insert ");  break;
+                case NODE_CMPLT:   printf("cmplt ");   break;
+                case NODE_CMPGT:   printf("cmpgt ");   break;
+                case NODE_CMPEQ:   printf("cmpeq ");   break;
+                case NODE_ADD:     printf("add ");     break;
+                case NODE_SUB:     printf("sub ");     break;
+                case NODE_MUL:     printf("mul ");     break;
+                case NODE_DIV:     printf("div ");     break;
+                case NODE_MOD:     printf("mod ");     break;
+                case NODE_AND:     printf("and ");     break;
+                case NODE_OR:      printf("or ");      break;
+                case NODE_XOR:     printf("xor ");     break;
+                case NODE_LSHFT:   printf("lshft ");   break;
+                case NODE_RSHFT:   printf("rshft ");   break;
+                case NODE_APP:     printf("app ");     break;
+                case NODE_KNOWN:   printf("known ");   break;
+            }
+            for (size_t i = 0; i < node->nops; ++i) {
+                bool parens = node->ops[i]->nops > 0 &&
+                    node->ops[i]->tag != NODE_PARAM &&
+                    node->ops[i]->tag != NODE_FN &&
+                    node->ops[i]->tag != NODE_TUPLE;
+                if (parens) printf("(");
+                node_dump(node->ops[i]);
+                if (parens) printf(")");
+                if (i != node->nops - 1)
+                    printf(", ");
+            }
+            switch (node->tag) {
+                case NODE_TUPLE: printf(")"); break;
+                case NODE_ARRAY: printf(")"); break;
+                default: break;
+            }
+            break;
+        case NODE_BITCAST:
+            printf("bitcast<");
+            type_dump(node->type);
+            printf("> ");
+            node_dump(node->ops[0]);
+            break;
+        case NODE_IF:
+            printf("if ");
+            node_dump(node->ops[0]);
+            printf(" then ");
+            node_dump(node->ops[1]);
+            printf(" else ");
+            node_dump(node->ops[2]);
+            break;
+        case NODE_FN:
+            printf("fn<%"PRIxPTR">", (uintptr_t)node);
+            break;
+        case NODE_PARAM:
+            printf("param<%"PRIxPTR">", (uintptr_t)node->ops[0]);
+            break;
+        default:
+            assert(false);
+            break;
+    }
 }
