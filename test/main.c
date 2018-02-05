@@ -309,7 +309,7 @@ cleanup:
 
 bool test_bitcast(void) {
     mod_t* mod = mod_create();
-    const node_t* fn;
+    fn_t* fn;
     const node_t* param;
 
     jmp_buf env;
@@ -344,7 +344,7 @@ cleanup:
 
 bool test_binops(void) {
     mod_t* mod = mod_create();
-    const node_t* fn;
+    fn_t* fn;
     const node_t* param;
 
     jmp_buf env;
@@ -421,7 +421,7 @@ cleanup:
 
 bool test_scope(void) {
     mod_t* mod = mod_create();
-    const node_t* inner, *outer;
+    fn_t* inner, *outer;
     const node_t* x, *y;
     const type_t* inner_type;
     node_set_t scope, fvs;
@@ -436,15 +436,15 @@ bool test_scope(void) {
     outer = node_fn(mod, type_fn(mod, type_i32(mod), inner_type), NULL);
     x = node_param(mod, outer, NULL);
     y = node_param(mod, inner, NULL);
-    node_bind(mod, inner, x);
-    node_bind(mod, outer, inner);
+    fn_bind(mod, inner, x);
+    fn_bind(mod, outer, &inner->node);
 
     scope = node_set_create(64);
     fvs = node_set_create(64);
 
     scope_compute(mod, outer, &scope);
-    CHECK(node_set_lookup(&scope, inner) != NULL);
-    CHECK(node_set_lookup(&scope, outer) != NULL);
+    CHECK(node_set_lookup(&scope, &inner->node) != NULL);
+    CHECK(node_set_lookup(&scope, &outer->node) != NULL);
     CHECK(node_set_lookup(&scope, x) != NULL);
     CHECK(node_set_lookup(&scope, y) != NULL);
     CHECK(scope.table->nelems == 4);
@@ -452,7 +452,7 @@ bool test_scope(void) {
     node_set_clear(&scope);
 
     scope_compute(mod, inner, &scope);
-    CHECK(node_set_lookup(&scope, inner) != NULL);
+    CHECK(node_set_lookup(&scope, &inner->node) != NULL);
     CHECK(node_set_lookup(&scope, y) != NULL);
     CHECK(scope.table->nelems == 2);
 

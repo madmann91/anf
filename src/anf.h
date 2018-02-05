@@ -9,9 +9,10 @@
 
 typedef union  box_u  box_t;
 typedef struct dbg_s  dbg_t;
-typedef struct node_s node_t;
-typedef struct type_s type_t;
 typedef struct use_s  use_t;
+typedef struct node_s node_t;
+typedef struct fn_s   fn_t;
+typedef struct type_s type_t;
 typedef struct mod_s  mod_t;
 
 union box_u {
@@ -48,10 +49,19 @@ struct node_s {
     size_t   nops;
     use_t*   uses;
     box_t    box;
+
     const node_t*  rep;
     const node_t** ops;
     const type_t*  type;
     const dbg_t*   dbg;
+};
+
+struct fn_s {
+    const node_t node;
+
+    bool is_exported  : 1;
+    bool is_imported  : 1;
+    bool is_intrinsic : 1;
 };
 
 struct type_s {
@@ -112,6 +122,7 @@ uint32_t node_hash(const void*);
 
 VEC(type_vec, const type_t*)
 VEC(node_vec, const node_t*)
+VEC(fn_vec, fn_t*)
 HSET(type_set, const type_t*, type_cmp, type_hash)
 HSET(node_set, const node_t*, node_cmp, node_hash)
 HMAP(type2type, const type_t*, const type_t*, type_cmp, type_hash)
@@ -121,7 +132,7 @@ struct mod_s {
     mpool_t*  pool;
     node_set_t nodes;
     type_set_t types;
-    node_vec_t fns;
+    fn_vec_t fns;
 
     bool commutative_fp  : 1;
     bool distributive_fp : 1;
@@ -195,16 +206,17 @@ const node_t* node_xor(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
-// Conditionals
+// Misc.
+const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Functions
-void node_bind(mod_t*, const node_t*, const node_t*);
-void node_run_if(mod_t*, const node_t*, const node_t*);
-const node_t* node_fn(mod_t*, const type_t*, const dbg_t*);
-const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
+void fn_bind(mod_t*, fn_t*, const node_t*);
+void fn_run_if(mod_t*, fn_t*, const node_t*);
+fn_t* fn_cast(const node_t*);
+fn_t* node_fn(mod_t*, const type_t*, const dbg_t*);
+const node_t* node_param(mod_t*, const fn_t*, const dbg_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 
 // Rebuild/Rewrite/Replace
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);

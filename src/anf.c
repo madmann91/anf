@@ -64,7 +64,7 @@ mod_t* mod_create(void) {
     mod->pool  = mpool_create(4096);
     mod->nodes = node_set_create(256);
     mod->types = type_set_create(64);
-    mod->fns   = node_vec_create(64);
+    mod->fns   = fn_vec_create(64);
 
     mod->commutative_fp  = false;
     mod->distributive_fp = false;
@@ -76,7 +76,7 @@ void mod_destroy(mod_t* mod) {
     mpool_destroy(mod->pool);
     node_set_destroy(&mod->nodes);
     type_set_destroy(&mod->types);
-    node_vec_destroy(&mod->fns);
+    fn_vec_destroy(&mod->fns);
     free(mod);
 }
 
@@ -781,6 +781,24 @@ NODE_BINOP(xor, NODE_XOR)
 NODE_BINOP(lshft, NODE_LSHFT)
 NODE_BINOP(rshft, NODE_RSHFT)
 
+const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
+    if (node->tag == NODE_LITERAL || node->tag == NODE_FN)
+        return node_i1(mod, true);
+    if (node->tag == NODE_TUPLE || node->tag == NODE_ARRAY) {
+        const node_t* res = node_i1(mod, true);
+        for (size_t i = 0; i < node->nops; ++i)
+            res = node_and(mod, res, node_known(mod, node->ops[i], dbg), dbg);
+        return res;
+    }
+    return make_node(mod, (node_t) {
+        .tag  = NODE_KNOWN,
+        .nops = 1,
+        .ops  = &node,
+        .type = type_i1(mod),
+        .dbg  = dbg
+    });
+}
+
 const node_t* node_if(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const dbg_t* dbg) {
     assert(cond->type->tag == TYPE_I1);
     assert(if_true->type == if_false->type);
@@ -798,68 +816,50 @@ const node_t* node_if(mod_t* mod, const node_t* cond, const node_t* if_true, con
     });
 }
 
-void node_bind(mod_t* mod, const node_t* fn, const node_t* call) {
-    assert(fn->tag == NODE_FN);
-    assert(fn->type->ops[1] == call->type);
-    node_t* node = (node_t*)fn;
-    unregister_use(0, node->ops[0], node);
-    node->ops[0] = call;
-    register_use(mod, 0, node->ops[0], node);
+void fn_bind(mod_t* mod, fn_t* fn, const node_t* call) {
+    assert(fn->node.type->ops[1] == call->type);
+    unregister_use(0, fn->node.ops[0], &fn->node);
+    fn->node.ops[0] = call;
+    register_use(mod, 0, fn->node.ops[0], &fn->node);
 }
 
-void node_run_if(mod_t* mod, const node_t* fn, const node_t* cond) {
-    assert(fn->tag == NODE_FN);
+void fn_run_if(mod_t* mod, fn_t* fn, const node_t* cond) {
     assert(cond->type->tag == TYPE_I1);
-    node_t* node = (node_t*)fn;
-    unregister_use(1, node->ops[1], node);
-    node->ops[1] = cond;
-    register_use(mod, 1, node->ops[1], node);
+    unregister_use(1, fn->node.ops[1], &fn->node);
+    fn->node.ops[1] = cond;
+    register_use(mod, 1, fn->node.ops[1], &fn->node);
 }
 
-const node_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
+fn_t* fn_cast(const node_t* node) {
+    assert(node->tag == NODE_FN);
+    return (fn_t*)node;
+}
+
+fn_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
-    node_t* node = mpool_alloc(&mod->pool, sizeof(node_t));
+    fn_t* fn = mpool_alloc(&mod->pool, sizeof(fn_t));
     const node_t** ops = mpool_alloc(&mod->pool, sizeof(node_t*) * 2);
     ops[0] = node_undef(mod, type->ops[1]);
     ops[1] = node_i1(mod, false);
-    register_use(mod, 0, ops[0], node);
-    register_use(mod, 1, ops[1], node);
-    *node = (node_t) {
+    register_use(mod, 0, ops[0], &fn->node);
+    register_use(mod, 1, ops[1], &fn->node);
+    *((node_t*)&fn->node) = (node_t) {
         .tag  = NODE_FN,
         .nops = 2,
         .ops  = ops,
         .type = type,
         .dbg  = dbg
     };
-    node_vec_push(&mod->fns, node);
-    return node;
+    fn_vec_push(&mod->fns, fn);
+    return fn;
 }
 
-const node_t* node_param(mod_t* mod, const node_t* node, const dbg_t* dbg) {
-    assert(node->tag == NODE_FN);
+const node_t* node_param(mod_t* mod, const fn_t* fn, const dbg_t* dbg) {
     return make_node(mod, (node_t) {
         .tag  = NODE_PARAM,
         .nops = 1,
-        .ops  = &node,
-        .type = node->type->ops[0],
-        .dbg  = dbg
-    });
-}
-
-const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
-    if (node->tag == NODE_LITERAL || node->tag == NODE_FN)
-        return node_i1(mod, true);
-    if (node->tag == NODE_TUPLE || node->tag == NODE_ARRAY) {
-        const node_t* res = node_i1(mod, true);
-        for (size_t i = 0; i < node->nops; ++i)
-            res = node_and(mod, res, node_known(mod, node->ops[i], dbg), dbg);
-        return res;
-    }
-    return make_node(mod, (node_t) {
-        .tag  = NODE_KNOWN,
-        .nops = 1,
-        .ops  = &node,
-        .type = type_i1(mod),
+        .ops  = (const node_t**)&fn,
+        .type = fn->node.type->ops[0],
         .dbg  = dbg
     });
 }
@@ -921,7 +921,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_LSHFT:   return node_lshft(mod, ops[0], ops[1], node->dbg);
         case NODE_RSHFT:   return node_rshft(mod, ops[0], ops[1], node->dbg);
         case NODE_IF:      return node_if(mod, ops[0], ops[1], ops[2], node->dbg);
-        case NODE_PARAM:   return node_param(mod, ops[0], node->dbg);
+        case NODE_PARAM:   return node_param(mod, fn_cast(ops[0]), node->dbg);
         case NODE_APP:     return node_app(mod, ops[0], ops[1], node->dbg);
         case NODE_KNOWN:   return node_known(mod, ops[0], node->dbg);
         default:
