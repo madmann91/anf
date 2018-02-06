@@ -208,6 +208,7 @@ const node_t* node_mod(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_and(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_or(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_xor(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_not(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_not(mod_t*, const node_t*, const dbg_t*);

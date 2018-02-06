@@ -693,9 +693,9 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     if (left->tag  == NODE_UNDEF) return left;
     if (right->tag == NODE_UNDEF) return right;
 
-    // Order commutative expressions to make them unique:
-    // - Literals go to the left
-    // - Operands are ordered by address
+    // Establish a standardized order for operands in commutative expressions
+    // - Literals always go to the left in commutative expressions
+    // - Otherwise, operands are ordered by address
     bool is_commutative = mod_is_commutative(mod, tag, left->type);
     if ((right->tag == NODE_LITERAL || ((uintptr_t)left > (uintptr_t)right && left->tag != NODE_LITERAL)) && is_commutative) {
         const node_t* tmp = left;
@@ -707,18 +707,17 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     if (node_is_zero(left)) {
         // 0 + a => a
         // 0 | a => a
-        if (tag == NODE_ADD || tag == NODE_OR)  return right;
+        // 0 ^ a => a
+        if (tag == NODE_ADD || tag == NODE_OR || tag == NODE_XOR) return right;
         // 0 * a => 0
         // 0 & a => 0
         if (tag == NODE_MUL || tag == NODE_AND) return node_zero(mod, left->type);
-        // 0 ^ a => a
-        if (tag == NODE_XOR) return right;
     }
     if (node_is_all_ones(left)) {
         // 1 & a => a
         if (tag == NODE_AND) return right;
         // 1 | a => 1
-        if (tag == NODE_OR)  return left;
+        if (tag == NODE_OR) return left;
     }
     // 1 * a => a
     if (tag == NODE_MUL && node_is_one(left))
@@ -739,7 +738,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // a / 1 => a
         // a * 1 => a
         if (tag == NODE_DIV || tag == NODE_MUL) return left;
-        // a % 1 => a
+        // a % 1 => 0
         if (tag == NODE_MOD) return node_zero(mod, left->type);
     }
     if (left == right) {
@@ -762,6 +761,12 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // (b | a) & a => a
         if (left->tag == NODE_OR && (left->ops[0] == right || left->ops[1] == right))
             return right;
+        // a & ~a => 0
+        // ~a & a => 0
+        if ((right->tag == NODE_XOR && node_is_not(right) && right->ops[1] == left) ||
+            (left->tag  == NODE_XOR && node_is_not(left)  && left->ops[1]  == right))
+            return node_zero(mod, left->type);
+
     }
     if (tag == NODE_OR) {
         // a | (a & b) => a
@@ -772,6 +777,11 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // (b & a) | a => a
         if (left->tag == NODE_AND && (left->ops[0] == right || left->ops[1] == right))
             return right;
+        // a | ~a => 1
+        // ~a | a => 1
+        if ((right->tag == NODE_XOR && node_is_not(right) && right->ops[1] == left) ||
+            (left->tag  == NODE_XOR && node_is_not(left)  && left->ops[1]  == right))
+            return node_all_ones(mod, left->type);
     }
     if (tag == NODE_XOR) {
         if (right->tag == NODE_XOR) {
@@ -803,7 +813,8 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         return make_binop(mod, left->tag, K, right, dbg);
     }
     bool both_factorizable = left_factorizable & right_factorizable;
-    if (both_factorizable) {
+    // Factorization should not be applied to booleans, as this would break normal forms (CNF/DNF)
+    if (both_factorizable && left->type->tag != TYPE_I1) {
         const node_t* l1 = left->ops[0];
         const node_t* l2 = left->ops[1];
         const node_t* r1 = right->ops[0];
