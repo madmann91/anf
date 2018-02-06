@@ -345,7 +345,9 @@ cleanup:
 bool test_binops(void) {
     mod_t* mod = mod_create();
     fn_t* fn;
+    const type_t* param_types[2];
     const node_t* param;
+    const node_t* a, *b;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -413,6 +415,36 @@ bool test_binops(void) {
             type_f32(mod),
             NULL)
         == node_f32(mod, 1.0f));
+
+    param_types[0] = type_i32(mod);
+    param_types[1] = type_i32(mod);
+    fn = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
+    param = node_param(mod, fn, NULL);
+    a = node_extract(mod, param, node_i32(mod, 0), NULL);
+    b = node_extract(mod, param, node_i32(mod, 1), NULL);
+
+    // (a >= b) & (a >= 3) & (a + b >= 3) & (b <= 3) & (b >= 0) => (a >= 3) & (b <= 3) & (b >= 0)
+    CHECK(
+        node_and(mod,
+            node_and(mod,
+                node_cmpge(mod, a, b, NULL),
+                node_cmpge(mod, a, node_i32(mod, 3), NULL),
+                NULL),
+            node_and(mod,
+                node_and(mod,
+                    node_cmpge(mod, node_add(mod, a, b, NULL), node_i32(mod, 3), NULL),
+                    node_cmple(mod, b, node_i32(mod, 3), NULL),
+                    NULL),
+                node_cmpge(mod, b, node_i32(mod, 0), NULL),
+                NULL),
+            NULL)
+        == node_and(mod,
+            node_cmpge(mod, a, node_i32(mod, 3), NULL),
+            node_and(mod,
+                node_cmpge(mod, b, node_i32(mod, 0), NULL),
+                node_cmple(mod, b, node_i32(mod, 3), NULL),
+                NULL),
+            NULL));
 
 cleanup:
     mod_destroy(mod);
@@ -487,7 +519,7 @@ size_t find_test(const char* name, const test_t* tests, size_t ntests) {
 
 void run_test(const test_t* test) {
     bool res = test->test_fn();
-    printf("- %s: %s\n", test->name, res ? "OK" : "FAIL");
+    printf("- %s: %s\n", test->name, res ? "\33[;32;1mOK\33[0m" : "\33[;31;1mFAIL\33[0m");
 }
 
 int main(int argc, char** argv) {
