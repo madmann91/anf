@@ -7,6 +7,7 @@
 #include "mpool.h"
 #include "anf.h"
 #include "scope.h"
+#include "logic.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -421,10 +422,12 @@ cleanup:
 
 bool test_scope(void) {
     mod_t* mod = mod_create();
+    node_set_t scope = node_set_create(64);
+    node_set_t fvs = node_set_create(64);
+
     fn_t* inner, *outer;
     const node_t* x, *y;
     const type_t* inner_type;
-    node_set_t scope, fvs;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -438,9 +441,6 @@ bool test_scope(void) {
     y = node_param(mod, inner, NULL);
     fn_bind(mod, inner, x);
     fn_bind(mod, outer, &inner->node);
-
-    scope = node_set_create(64);
-    fvs = node_set_create(64);
 
     scope_compute(mod, outer, &scope);
     CHECK(node_set_lookup(&scope, &inner->node) != NULL);
@@ -463,6 +463,93 @@ bool test_scope(void) {
 cleanup:
     node_set_destroy(&scope);
     node_set_destroy(&fvs);
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_logic(void) {
+    mod_t* mod = mod_create();
+    node_vec_t ors = node_vec_create(8);
+    node_vec_t ands = node_vec_create(8);
+
+    fn_t* fn;
+    const type_t* param_types[4];
+    const node_t* param;
+    const node_t *x, *y;
+    dbg_t x_dbg = { .name = "x" }, y_dbg = { .name = "y" };
+    const node_t *a, *b;
+    dbg_t a_dbg = { .name = "a" }, b_dbg = { .name = "b" };
+    const node_t* expr, *res;
+    const node_t* not;
+    dbg_t not_dbg = { .name = "not" };
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    param_types[0] = type_i1(mod);
+    param_types[1] = type_i1(mod);
+    param_types[2] = type_i1(mod);
+    param_types[3] = type_i1(mod);
+    fn = node_fn(mod, type_fn(mod, type_tuple(mod, 4, param_types), type_i1(mod)), NULL);
+    param = node_param(mod, fn, NULL);
+    x = node_extract(mod, param, node_i32(mod, 0), &x_dbg);
+    y = node_extract(mod, param, node_i32(mod, 1), &y_dbg);
+    a = node_extract(mod, param, node_i32(mod, 2), &a_dbg);
+    b = node_extract(mod, param, node_i32(mod, 3), &b_dbg);
+
+    CHECK(dnf_convert(mod, node_not(mod, a, NULL)) == node_not(mod, a, NULL));
+    CHECK(cnf_convert(mod, node_not(mod, a, NULL)) == node_not(mod, a, NULL));
+    CHECK(dnf_convert(mod, node_not(mod, node_and(mod, a, b, NULL), NULL)) == node_or(mod, node_not(mod, a, NULL), node_not(mod, b, NULL), NULL));
+    CHECK(cnf_convert(mod, node_not(mod, node_and(mod, a, b, NULL), NULL)) == node_or(mod, node_not(mod, a, NULL), node_not(mod, b, NULL), NULL));
+    CHECK(dnf_convert(mod, node_not(mod, node_or(mod, a, b, NULL), NULL)) == node_and(mod, node_not(mod, a, NULL), node_not(mod, b, NULL), NULL));
+    CHECK(cnf_convert(mod, node_not(mod, node_or(mod, a, b, NULL), NULL)) == node_and(mod, node_not(mod, a, NULL), node_not(mod, b, NULL), NULL));
+
+    CHECK(dnf_convert(mod, node_or(mod, a, b, NULL)) == node_or(mod, a, b, NULL));
+    CHECK(dnf_convert(mod, node_or(mod, x, y, NULL)) == node_or(mod, x, y, NULL));
+    CHECK(cnf_convert(mod, node_and(mod, a, b, NULL)) == node_and(mod, a, b, NULL));
+    CHECK(cnf_convert(mod, node_and(mod, x, y, NULL)) == node_and(mod, x, y, NULL));
+
+    expr = node_and(mod, node_or(mod, a, b, NULL), node_or(mod, x, y, NULL), NULL);
+    res = dnf_convert(mod, expr);
+    dnf_compute_ors(res, &ors);
+    CHECK(node_vec_find(&ors, node_and(mod, a, x, NULL)) != NULL);
+    CHECK(node_vec_find(&ors, node_and(mod, a, y, NULL)) != NULL);
+    CHECK(node_vec_find(&ors, node_and(mod, b, x, NULL)) != NULL);
+    CHECK(node_vec_find(&ors, node_and(mod, b, y, NULL)) != NULL);
+    CHECK(ors.nelems == 4);
+
+    expr = node_or(mod, node_and(mod, a, b, NULL), node_and(mod, x, y, NULL), NULL);
+    res = cnf_convert(mod, expr);
+    cnf_compute_ands(res, &ands);
+    CHECK(node_vec_find(&ands, node_or(mod, a, x, NULL)) != NULL);
+    CHECK(node_vec_find(&ands, node_or(mod, a, y, NULL)) != NULL);
+    CHECK(node_vec_find(&ands, node_or(mod, b, x, NULL)) != NULL);
+    CHECK(node_vec_find(&ands, node_or(mod, b, y, NULL)) != NULL);
+    CHECK(ands.nelems == 4);
+
+    expr = node_and(mod, node_not(mod, node_or(mod, a, b, NULL), NULL), node_or(mod, x, y, NULL), NULL);
+    res = dnf_convert(mod, expr);
+    ors.nelems = 0;
+    dnf_compute_ors(res, &ors);
+    not = node_and(mod, node_not(mod, a, NULL), node_not(mod, b, NULL), &not_dbg);
+    CHECK(node_vec_find(&ors, node_and(mod, x, not, NULL)) != NULL);
+    CHECK(node_vec_find(&ors, node_and(mod, y, not, NULL)) != NULL);
+    CHECK(ors.nelems == 2);
+
+    expr = node_or(mod, node_not(mod, node_and(mod, a, b, NULL), NULL), node_and(mod, x, y, NULL), NULL);
+    res = cnf_convert(mod, expr);
+    ands.nelems = 0;
+    cnf_compute_ands(res, &ands);
+    not = node_or(mod, node_not(mod, a, NULL), node_not(mod, b, NULL), &not_dbg);
+    CHECK(node_vec_find(&ands, node_or(mod, x, not, NULL)) != NULL);
+    CHECK(node_vec_find(&ands, node_or(mod, y, not, NULL)) != NULL);
+    CHECK(ors.nelems == 2);
+
+cleanup:
+    node_vec_destroy(&ands);
+    node_vec_destroy(&ors);
     mod_destroy(mod);
     return status == 0;
 }
@@ -501,7 +588,8 @@ int main(int argc, char** argv) {
         {"if",       test_if},
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
-        {"scope",    test_scope}
+        {"scope",    test_scope},
+        {"logic",    test_logic}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

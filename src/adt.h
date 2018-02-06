@@ -76,6 +76,12 @@
         return index != INVALID_INDEX ? &((const value_t*)set->table->elems)[index] : NULL; \
     }
 
+#define FORALL_VEC(vec, value_t, value, body) \
+    for (size_t i = 0; i < vec.nelems; ++i) { \
+        value_t value = vec.elems[i]; \
+        body \
+    }
+
 #define VEC(vec, value_t) \
     typedef struct { size_t cap; size_t nelems; value_t* elems; } vec##_t; \
     static inline vec##_t vec##_create(size_t cap) { \
@@ -99,6 +105,13 @@
     static inline void vec##_shrink(vec##_t* vec) { \
         vec->elems = realloc(vec->elems, sizeof(value_t) * vec->nelems); \
         vec->cap = vec->nelems; \
+    } \
+    static inline value_t* vec##_find(vec##_t* vec, value_t v) { \
+        for (size_t i = 0; i < vec->nelems; ++i) { \
+            if (vec->elems[i] == v) \
+                return &vec->elems[i]; \
+        } \
+        return NULL; \
     }
 
 #endif // ADT_H

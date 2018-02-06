@@ -187,6 +187,8 @@ const node_t* node_f32(mod_t*, float);
 const node_t* node_f64(mod_t*, double);
 
 // Operations
+bool node_is_not(const node_t*);
+bool node_is_cmp(const node_t*);
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
@@ -203,6 +205,7 @@ const node_t* node_mod(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_and(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_or(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_xor(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_not(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
