@@ -78,8 +78,11 @@ enum node_tag_e {
     NODE_EXTRACT,
     NODE_INSERT,
     NODE_BITCAST,
-    NODE_CMPLT,
     NODE_CMPGT,
+    NODE_CMPGE,
+    NODE_CMPLT,
+    NODE_CMPLE,
+    NODE_CMPNE,
     NODE_CMPEQ,
     NODE_ADD,
     NODE_SUB,
@@ -136,6 +139,7 @@ struct mod_s {
 
     bool commutative_fp  : 1;
     bool distributive_fp : 1;
+    bool no_denormals_fp : 1;
 };
 
 // Module
@@ -144,6 +148,7 @@ void mod_destroy(mod_t*);
 
 bool mod_is_commutative(const mod_t*, uint32_t, const type_t*);
 bool mod_is_distributive(const mod_t* mod, uint32_t, uint32_t, const type_t*);
+bool mod_can_switch_comparands(const mod_t* mod, uint32_t, const type_t*);
 
 // Types
 size_t type_bitwidth(const type_t*);
@@ -189,17 +194,18 @@ const node_t* node_f64(mod_t*, double);
 // Operations
 bool node_is_not(const node_t*);
 bool node_is_cmp(const node_t*);
+bool node_implies(mod_t*, const node_t*, const node_t*, bool, bool);
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_cmpgt(mod_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmpge(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmple(mod_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_cmpneq(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_cmpne(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_add(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_sub(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_mul(mod_t*, const node_t*, const node_t*, const dbg_t*);

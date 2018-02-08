@@ -68,6 +68,7 @@ mod_t* mod_create(void) {
 
     mod->commutative_fp  = false;
     mod->distributive_fp = false;
+    mod->no_denormals_fp = false;
 
     return mod;
 }
@@ -99,6 +100,10 @@ bool mod_is_distributive(const mod_t* mod, uint32_t tag1, uint32_t tag2, const t
         case NODE_OR:  return tag2 == NODE_AND;
         default: return false;
     }
+}
+
+bool mod_can_switch_comparands(const mod_t* mod, uint32_t tag, const type_t* type) {
+    return tag == NODE_CMPEQ || mod->no_denormals_fp || !type_is_f(type);
 }
 
 size_t type_bitwidth(const type_t* type) {
@@ -404,9 +409,123 @@ bool node_is_not(const node_t* node) {
 }
 
 bool node_is_cmp(const node_t* node) {
-    return node->tag == NODE_CMPLT ||
-           node->tag == NODE_CMPGT ||
+    return node->tag == NODE_CMPGT ||
+           node->tag == NODE_CMPGE ||
+           node->tag == NODE_CMPLT ||
+           node->tag == NODE_CMPLE ||
+           node->tag == NODE_CMPNE ||
            node->tag == NODE_CMPEQ;
+}
+
+bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_left, bool not_right) {
+    if (not_left == not_right && left == right)
+        return true;
+    if (left->tag == NODE_AND) {
+        if (not_left) {
+            // ~(X & Y) => right <=> (~X | ~Y) => right
+            return node_implies(mod, left->ops[0], right, true, not_right) &&
+                   node_implies(mod, left->ops[1], right, true, not_right);
+        } else {
+            // (X & Y) => right <=> (X => right) | (Y => right)
+            return node_implies(mod, left->ops[0], right, false, not_right) ||
+                   node_implies(mod, left->ops[1], right, false, not_right);
+        }
+    } else if (left->tag == NODE_OR) {
+        if (not_left) {
+            // ~(X | Y) => right <=> (~X & ~Y) => right
+            return node_implies(mod, left->ops[0], right, true, not_right) ||
+                   node_implies(mod, left->ops[1], right, true, not_right);
+        } else {
+            // X | Y => right <=> (X => right) & (Y => right)
+            return node_implies(mod, left->ops[0], right, false, not_right) &&
+                   node_implies(mod, left->ops[1], right, false, not_right);
+        }
+    } else if (left->tag == NODE_XOR) {
+        if (node_is_not(left)) {
+            return node_implies(mod, left->ops[1], right, !not_left, not_right);
+        } else {
+            if (not_left) {
+                // ~(X ^ Y) => right <=> (~X | Y) & (X | ~Y) => right
+                return (node_implies(mod, left->ops[0], right, true,  not_right) &&
+                        node_implies(mod, left->ops[1], right, false, not_right)) ||
+                       (node_implies(mod, left->ops[0], right, false, not_right) &&
+                        node_implies(mod, left->ops[1], right, true,  not_right));
+            } else {
+                // (X ^ Y) => right <=> (X & ~Y) | (~X & Y) => right
+                return (node_implies(mod, left->ops[0], right, true,  not_right) ||
+                        node_implies(mod, left->ops[1], right, false, not_right)) &&
+                       (node_implies(mod, left->ops[0], right, false, not_right) ||
+                        node_implies(mod, left->ops[1], right, true,  not_right));
+            }
+        }
+    } else if (right->tag == NODE_AND) {
+        if (not_right) {
+            // left => ~(X & Y) <=> left => (~X | ~Y)
+            return node_implies(mod, left, right->ops[0], not_left, true) ||
+                   node_implies(mod, left, right->ops[1], not_left, true);
+        } else {
+            // left => X & Y <=> (left => X) & (left => Y)
+            return node_implies(mod, left, right->ops[0], not_left, false) &&
+                   node_implies(mod, left, right->ops[1], not_left, false);
+        }
+    } else if (right->tag == NODE_OR) {
+        if (not_right) {
+            // left => ~(X | Y) <=> left => (~X & ~Y)
+            return node_implies(mod, left, right->ops[0], not_left, true) &&
+                   node_implies(mod, left, right->ops[1], not_left, true);
+        } else {
+            // left => X | Y <=> (left => X) | (left => Y)
+            return node_implies(mod, left, right->ops[0], not_left, false) ||
+                   node_implies(mod, left, right->ops[1], not_left, false);
+        }
+    } else if (right->tag == NODE_XOR) {
+        if (node_is_not(right)) {
+            return node_implies(mod, left, right->ops[1], not_left, !not_right);
+        } else {
+            if (not_right) {
+                // left => ~(X ^ Y) <=> left => (~X | Y) & (X | ~Y)
+                return (node_implies(mod, left, right->ops[0], not_left, true) ||
+                        node_implies(mod, left, right->ops[1], not_left, false)) &&
+                       (node_implies(mod, left, right->ops[0], not_left, false) ||
+                        node_implies(mod, left, right->ops[1], not_left, true));
+            } else {
+                // left => (X ^ Y) <=> left => (X & ~Y) | (~X & Y)
+                return (node_implies(mod, left, right->ops[0], not_left, true) &&
+                        node_implies(mod, left, right->ops[1], not_left, false)) ||
+                       (node_implies(mod, left, right->ops[0], not_left, false) &&
+                        node_implies(mod, left, right->ops[1], not_left, true));
+            }
+        }
+    } else {
+        left  = not_left  ? node_not(mod, left, NULL)  : left;
+        right = not_right ? node_not(mod, right, NULL) : right;
+        if (left == right)
+            return true;
+
+        if (left->ops[1] == right->ops[1] &&
+            node_is_cmp(left) && node_is_cmp(right) &&
+            left->ops[0]->tag == NODE_LITERAL &&
+            right->ops[0]->tag == NODE_LITERAL) {
+            if ((left->tag  == NODE_CMPGT || left->tag  == NODE_CMPGE) &&
+                (right->tag == NODE_CMPGT || right->tag == NODE_CMPGE)) {
+                // 3 > x does not imply 3 >= x, but the converse is true
+                if (left->tag == NODE_CMPGT && right->tag == NODE_CMPGE)
+                    return node_cmplt(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+                else
+                    return node_cmple(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+            }
+            if ((left->tag  == NODE_CMPLT || left->tag  == NODE_CMPLE) &&
+                (right->tag == NODE_CMPLT || right->tag == NODE_CMPLE)) {
+                // 3 < x does not imply 3 <= x, but the converse is true
+                if (left->tag == NODE_CMPLT && right->tag == NODE_CMPLE)
+                    return node_cmpgt(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+                else
+                    return node_cmpge(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+            }
+        }
+
+        return false;
+    }
 }
 
 const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const dbg_t* dbg) {
@@ -526,6 +645,19 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
     });
 }
 
+static inline bool node_should_switch_ops(const node_t* left, const node_t* right) {
+    // Establish a standardized order for operands in commutative expressions/comparisons
+    // - Literals always go to the left
+    // - Non-literal operands are ordered by address
+    return right->tag == NODE_LITERAL || ((uintptr_t)left > (uintptr_t)right && left->tag != NODE_LITERAL);
+}
+
+static inline void node_switch_ops(const node_t** left, const node_t** right) {
+    const node_t* tmp = *left;
+    *left = *right;
+    *right = tmp;
+}
+
 #define CMPOP_I1(op, res, left, right) \
     case TYPE_I1:  res  = left.i1  op right.i1;  break;
 
@@ -565,13 +697,16 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
 static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* left, const node_t* right, const dbg_t* dbg) {
     assert(left->type == right->type);
     assert(type_is_prim(left->type));
-    assert(tag == NODE_CMPEQ || left->type->tag != TYPE_I1);
+    assert(tag == NODE_CMPEQ || tag == NODE_CMPNE || left->type->tag != TYPE_I1);
 
     if (left->tag == NODE_LITERAL && right->tag == NODE_LITERAL) {
         bool res = false;
         switch (tag) {
             case NODE_CMPGT: CMPOP(left->type->tag, CMPOP_IUF  (>,  res, left->box, right->box)) break;
+            case NODE_CMPGE: CMPOP(left->type->tag, CMPOP_IUF  (>=, res, left->box, right->box)) break;
             case NODE_CMPLT: CMPOP(left->type->tag, CMPOP_IUF  (<,  res, left->box, right->box)) break;
+            case NODE_CMPLE: CMPOP(left->type->tag, CMPOP_IUF  (<=, res, left->box, right->box)) break;
+            case NODE_CMPNE: CMPOP(left->type->tag, CMPOP_I1IUF(!=, res, left->box, right->box)) break;
             case NODE_CMPEQ: CMPOP(left->type->tag, CMPOP_I1IUF(==, res, left->box, right->box)) break;
             default:
                 assert(false);
@@ -580,12 +715,35 @@ static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* l
         return node_i1(mod, res);
     }
 
-    if (left == right) {
-        if (tag == NODE_CMPGT || tag == NODE_CMPLT) return node_i1(mod, false);
-        if (tag == NODE_CMPEQ) return node_i1(mod, true);
+    if (node_should_switch_ops(left, right) && mod_can_switch_comparands(mod, tag, left->type)) {
+        node_switch_ops(&left, &right);
+        switch (tag) {
+            case NODE_CMPGT: tag = NODE_CMPLT; break;
+            case NODE_CMPGE: tag = NODE_CMPLE; break;
+            case NODE_CMPLT: tag = NODE_CMPGT; break;
+            case NODE_CMPLE: tag = NODE_CMPGE; break;
+            default:
+                assert(tag == NODE_CMPEQ || tag == NODE_CMPNE);
+                break;
+        }
     }
-    if (tag == NODE_CMPLT && type_is_u(left->type) && node_is_zero(right))
-        return node_i1(mod, false);
+
+    if (left == right) {
+        // X > X  <=> false
+        // X < X  <=> false
+        // X != X <=> false
+        if (tag == NODE_CMPNE || tag == NODE_CMPGT || tag == NODE_CMPLT) return node_i1(mod, false);
+        // X == X <=> true
+        // X >= X <=> true
+        // X <= X <=> true
+        if (tag == NODE_CMPEQ || tag == NODE_CMPGE || tag == NODE_CMPLE) return node_i1(mod, true);
+    }
+    if (type_is_u(left->type) && node_is_zero(left)) {
+        // 0 > X <=> false
+        if (tag == NODE_CMPGT) return node_i1(mod, false);
+        // 0 <= X <=> true
+        if (tag == NODE_CMPLE) return node_i1(mod, true);
+    }
 
     const node_t* ops[] = { left, right };
     return make_node(mod, (node_t) {
@@ -603,20 +761,11 @@ static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* l
     }
 
 NODE_CMPOP(cmpgt, NODE_CMPGT)
+NODE_CMPOP(cmpge, NODE_CMPGE)
 NODE_CMPOP(cmplt, NODE_CMPLT)
+NODE_CMPOP(cmple, NODE_CMPLE)
+NODE_CMPOP(cmpne, NODE_CMPNE)
 NODE_CMPOP(cmpeq, NODE_CMPEQ)
-
-const node_t* node_cmpge(mod_t* mod, const node_t* left, const node_t* right, const dbg_t* dbg) {
-    return node_not(mod, node_cmplt(mod, left, right, dbg), dbg);
-}
-
-const node_t* node_cmple(mod_t* mod, const node_t* left, const node_t* right, const dbg_t* dbg) {
-    return node_not(mod, node_cmpgt(mod, left, right, dbg), dbg);
-}
-
-const node_t* node_cmpneq(mod_t* mod, const node_t* left, const node_t* right, const dbg_t* dbg) {
-    return node_not(mod, node_cmpeq(mod, left, right, dbg), dbg);
-}
 
 #define BINOP_I1(op, res, left, right) \
     case TYPE_I1:  res.i1  = left.i1  op right.i1;  break;
@@ -693,106 +842,113 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     if (left->tag  == NODE_UNDEF) return left;
     if (right->tag == NODE_UNDEF) return right;
 
-    // Establish a standardized order for operands in commutative expressions
-    // - Literals always go to the left in commutative expressions
-    // - Otherwise, operands are ordered by address
-    bool is_commutative = mod_is_commutative(mod, tag, left->type);
-    if ((right->tag == NODE_LITERAL || ((uintptr_t)left > (uintptr_t)right && left->tag != NODE_LITERAL)) && is_commutative) {
-        const node_t* tmp = left;
-        left = right;
-        right = tmp;
-    }
+    if (node_should_switch_ops(left, right) && mod_is_commutative(mod, tag, left->type))
+        node_switch_ops(&left, &right);
 
     // Simplification rules
     if (node_is_zero(left)) {
-        // 0 + a => a
-        // 0 | a => a
-        // 0 ^ a => a
+        // 0 + a <=> a
+        // 0 | a <=> a
+        // 0 ^ a <=> a
         if (tag == NODE_ADD || tag == NODE_OR || tag == NODE_XOR) return right;
-        // 0 * a => 0
-        // 0 & a => 0
+        // 0 * a <=> 0
+        // 0 & a <=> 0
         if (tag == NODE_MUL || tag == NODE_AND) return node_zero(mod, left->type);
     }
     if (node_is_all_ones(left)) {
-        // 1 & a => a
+        // 1 & a <=> a
         if (tag == NODE_AND) return right;
-        // 1 | a => 1
+        // 1 | a <=> 1
         if (tag == NODE_OR) return left;
+        // ~(a cmp b) <=> a ~(cmp) b
+        if (tag == NODE_XOR && node_is_cmp(right) && mod_can_switch_comparands(mod, right->tag, right->type)) {
+            switch (right->tag) {
+                case NODE_CMPGT: return node_cmple(mod, right->ops[0], right->ops[1], dbg);
+                case NODE_CMPGE: return node_cmplt(mod, right->ops[0], right->ops[1], dbg);
+                case NODE_CMPLT: return node_cmpge(mod, right->ops[0], right->ops[1], dbg);
+                case NODE_CMPLE: return node_cmpgt(mod, right->ops[0], right->ops[1], dbg);
+                case NODE_CMPNE: return node_cmpeq(mod, right->ops[0], right->ops[1], dbg);
+                case NODE_CMPEQ: return node_cmpne(mod, right->ops[0], right->ops[1], dbg);
+                default:
+                    assert(false);
+                    break;
+            }
+        }
     }
-    // 1 * a => a
+    // 1 * a <=> a
     if (tag == NODE_MUL && node_is_one(left))
         return right;
     if (node_is_zero(right)) {
-        // a * 0 => 0
+        // a * 0 <=> 0
         if (tag == NODE_MUL) return node_zero(mod, left->type);
-        // a + 0 => 0
+        // a + 0 <=> 0
         if (tag == NODE_ADD) return node_zero(mod, left->type);
-        // a >> 0 => a
-        // a << 0 => a
-        // a - 0 => a
+        // a >> 0 <=> a
+        // a << 0 <=> a
+        // a - 0 <=> a
         if (tag == NODE_LSHFT || tag == NODE_RSHFT || tag == NODE_SUB) return left;
         assert(tag != NODE_AND && tag != NODE_OR);  // Commutative operations should be handled before
         assert(tag != NODE_DIV && tag != NODE_MOD); // Divisions by zero should not be executed
     }
     if (node_is_one(right)) {
-        // a / 1 => a
-        // a * 1 => a
+        // a / 1 <=> a
+        // a * 1 <=> a
         if (tag == NODE_DIV || tag == NODE_MUL) return left;
-        // a % 1 => 0
+        // a % 1 <=> 0
         if (tag == NODE_MOD) return node_zero(mod, left->type);
     }
     if (left == right) {
-        // a & a => a
-        // a | a => a
+        // a & a <=> a
+        // a | a <=> a
         if (tag == NODE_AND || tag == NODE_OR)  return left;
-        // a ^ a => 0
-        // a % a => 0
-        // a - a => 0
+        // a ^ a <=> 0
+        // a % a <=> 0
+        // a - a <=> 0
         if (tag == NODE_XOR || tag == NODE_MOD || tag == NODE_SUB) return node_zero(mod, left->type);
-        // a / a => 1
+        // a / a <=> 1
         if (tag == NODE_DIV) return node_one(mod, left->type);
     }
     if (tag == NODE_AND) {
-        // a & (a | b) => a
-        // a & (b | a) => a
+        // a & (a | b) <=> a
+        // a & (b | a) <=> a
         if (right->tag == NODE_OR && (right->ops[0] == left || right->ops[1] == left))
             return left;
-        // (a | b) & a => a
-        // (b | a) & a => a
+        // (a | b) & a <=> a
+        // (b | a) & a <=> a
         if (left->tag == NODE_OR && (left->ops[0] == right || left->ops[1] == right))
             return right;
-        // a & ~a => 0
-        // ~a & a => 0
+        // a & ~a <=> 0
+        // ~a & a <=> 0
         if ((right->tag == NODE_XOR && node_is_not(right) && right->ops[1] == left) ||
             (left->tag  == NODE_XOR && node_is_not(left)  && left->ops[1]  == right))
             return node_zero(mod, left->type);
 
     }
     if (tag == NODE_OR) {
-        // a | (a & b) => a
-        // a | (b & a) => a
+        // a | (a & b) <=> a
+        // a | (b & a) <=> a
         if (right->tag == NODE_AND && (right->ops[0] == left || right->ops[1] == left))
             return left;
-        // (a & b) | a => a
-        // (b & a) | a => a
+        // (a & b) | a <=> a
+        // (b & a) | a <=> a
         if (left->tag == NODE_AND && (left->ops[0] == right || left->ops[1] == right))
             return right;
-        // a | ~a => 1
-        // ~a | a => 1
+        // a | ~a <=> 1
+        // ~a | a <=> 1
         if ((right->tag == NODE_XOR && node_is_not(right) && right->ops[1] == left) ||
             (left->tag  == NODE_XOR && node_is_not(left)  && left->ops[1]  == right))
             return node_all_ones(mod, left->type);
     }
     if (tag == NODE_XOR) {
         if (right->tag == NODE_XOR) {
-            // a ^ (a ^ b) => b
+            // a ^ (a ^ b) <=> b
             if (right->ops[0] == left) return right->ops[1];
-            // a ^ (b ^ a) => b
+            // a ^ (b ^ a) <=> b
             if (right->ops[1] == left) return right->ops[0];
         } else if (left->tag == NODE_XOR) {
-            // (a ^ b) ^ a => b
+            // (a ^ b) ^ a <=> b
             if (left->ops[0] == right) return left->ops[1];
-            // (b ^ a) ^ a => b
+            // (b ^ a) ^ a <=> b
             if (left->ops[1] == right) return left->ops[0];
         }
     }
@@ -801,7 +957,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
         const node_t* K   = make_binop(mod, tag, one, right->ops[0], dbg);
         assert(K->tag == NODE_LITERAL);
-        // a + K * a => (K + 1) * a
+        // a + K * a <=> (K + 1) * a
         return make_binop(mod, right->tag, K, left, dbg);
     }
     bool right_factorizable = mod_is_distributive(mod, left->tag, tag, left->type);
@@ -809,7 +965,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
         const node_t* K   = make_binop(mod, tag, left->ops[0], one, dbg);
         assert(K->tag == NODE_LITERAL);
-        // K * a + a => (K + 1) * a
+        // K * a + a <=> (K + 1) * a
         return make_binop(mod, left->tag, K, right, dbg);
     }
     bool both_factorizable = left_factorizable & right_factorizable;
@@ -823,12 +979,35 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         bool inner_commutative = mod_is_commutative(mod, left->tag, left->type);
         if (inner_commutative && l1 == r2) { const node_t* tmp = r2; r2 = r1; r1 = tmp; }
         if (inner_commutative && l2 == r1) { const node_t* tmp = l2; l2 = l1; l1 = tmp; }
-        // (a * b) + (a * c) => a * (b + c)
+        // (a * b) + (a * c) <=> a * (b + c)
         if (l1 == r1)
             return make_binop(mod, left->tag, l1, make_binop(mod, tag, l2, r2, dbg), dbg);
-        // (b * a) + (c * a) => (b + c) * a
+        // (b * a) + (c * a) <=> (b + c) * a
         if (l2 == r2)
             return make_binop(mod, left->tag, make_binop(mod, tag, l1, r1, dbg), l2, dbg);
+    }
+
+    // Logical implications
+    if (left->type->tag == TYPE_I1) {
+        if (tag == NODE_AND) {
+            // (A => B) => (A & B <=> A)
+            if (node_implies(mod, left, right, false, false)) return left;
+            // (B => A) => (A & B <=> B)
+            if (node_implies(mod, right, left, false, false)) return right;
+            // (A => ~B) => (A & B <=> 0)
+            if (node_implies(mod, left, right, false, true)) return node_i1(mod, false);
+            // (B => ~A) => (A & B <=> 0)
+            if (node_implies(mod, left, right, false, true)) return node_i1(mod, false);
+        } else if (tag == NODE_OR) {
+            // (~A => ~B) => (A | B <=> A)
+            if (node_implies(mod, left, right, true, true)) return left;
+            // (~B => ~A) => (A | B <=> B)
+            if (node_implies(mod, right, left, true, true)) return right;
+            // (~A => B) => (A | B <=> 1)
+            if (node_implies(mod, left, right, true, false)) return node_i1(mod, true);
+            // (~B => A) => (A | B <=> 1)
+            if (node_implies(mod, right, left, true, false)) return node_i1(mod, true);
+        }
     }
 
     const node_t* ops[] = { left, right };
@@ -1144,8 +1323,11 @@ void node_print(const node_t* node, bool colorize) {
             case NODE_ARRAY:   op = "array";   break;
             case NODE_EXTRACT: op = "extract"; break;
             case NODE_INSERT:  op = "insert";  break;
-            case NODE_CMPLT:   op = "cmplt";   break;
             case NODE_CMPGT:   op = "cmpgt";   break;
+            case NODE_CMPGE:   op = "cmpge";   break;
+            case NODE_CMPLT:   op = "cmplt";   break;
+            case NODE_CMPLE:   op = "cmple";   break;
+            case NODE_CMPNE:   op = "cmpne";   break;
             case NODE_CMPEQ:   op = "cmpeq";   break;
             case NODE_ADD:     op = "add";     break;
             case NODE_SUB:     op = "sub";     break;
