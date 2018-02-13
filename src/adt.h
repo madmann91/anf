@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #include "htable.h"
+#include "hash.h"
 
 #define FORALL_HMAP(hmap, key_t, key, value_t, value, body) \
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \
@@ -45,6 +46,16 @@
         return index != INVALID_INDEX ? &((struct pair_s*)map->table->elems)[index].value : NULL; \
     }
 
+#define HMAP_DEFAULT(hmap, key_t, value_t) \
+    static uint32_t hmap##_hash(const void* ptr) { \
+        const value_t value = *(const value_t*)ptr; \
+        return hash(hash_init(), value); \
+    } \
+    static bool hmap##_cmp(const void* a, const void* b) { \
+        return *(const value_t*)a == *(const value_t*)b; \
+    } \
+    HMAP(hmap, key_t, value_t, hmap##_cmp, hmap##_hash)
+
 #define FORALL_HSET(hset, value_t, value, body) \
     for (size_t i = 0; i < (hset).table->cap; ++i) { \
         if ((hset).table->hashes[i] & OCCUPIED_HASH_MASK) { \
@@ -76,6 +87,16 @@
         size_t index = htable_lookup(set->table, &v); \
         return index != INVALID_INDEX ? &((const value_t*)set->table->elems)[index] : NULL; \
     }
+
+#define HSET_DEFAULT(hset, value_t) \
+    static uint32_t hset##_hash(const void* ptr) { \
+        const value_t value = *(const value_t*)ptr; \
+        return hash(hash_init(), value); \
+    } \
+    static bool hset##_cmp(const void* a, const void* b) { \
+        return *(const value_t*)a == *(const value_t*)b; \
+    } \
+    HSET(hset, value_t, hset##_cmp, hset##_hash)
 
 #define FORALL_VEC(vec, value_t, value, body) \
     for (size_t i = 0; i < vec.nelems; ++i) { \

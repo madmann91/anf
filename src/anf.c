@@ -62,8 +62,8 @@ uint32_t type_hash(const void* ptr) {
 mod_t* mod_create(void) {
     mod_t* mod = malloc(sizeof(mod_t));
     mod->pool  = mpool_create(4096);
-    mod->nodes = node_set_create(256);
-    mod->types = type_set_create(64);
+    mod->nodes = internal_node_set_create(256);
+    mod->types = internal_type_set_create(64);
     mod->fns   = fn_vec_create(64);
 
     mod->commutative_fp  = false;
@@ -75,8 +75,8 @@ mod_t* mod_create(void) {
 
 void mod_destroy(mod_t* mod) {
     mpool_destroy(mod->pool);
-    node_set_destroy(&mod->nodes);
-    type_set_destroy(&mod->types);
+    internal_node_set_destroy(&mod->nodes);
+    internal_type_set_destroy(&mod->types);
     fn_vec_destroy(&mod->fns);
     free(mod);
 }
@@ -172,7 +172,7 @@ bool type_is_f(const type_t* type) {
 }
 
 static inline const type_t* make_type(mod_t* mod, const type_t type) {
-    const type_t** lookup = type_set_lookup(&mod->types, &type);
+    const type_t** lookup = internal_type_set_lookup(&mod->types, &type);
     if (lookup)
         return *lookup;
 
@@ -184,7 +184,7 @@ static inline const type_t* make_type(mod_t* mod, const type_t type) {
         type_ptr->ops = type_ops;
     }
 
-    bool success = type_set_insert(&mod->types, type_ptr);
+    bool success = internal_type_set_insert(&mod->types, type_ptr);
     assert(success), (void)success;
     return type_ptr;
 }
@@ -237,7 +237,7 @@ static inline void unregister_use(size_t index, const node_t* used, const node_t
 }
 
 static inline const node_t* make_node(mod_t* mod, const node_t node) {
-    const node_t** lookup = node_set_lookup(&mod->nodes, &node);
+    const node_t** lookup = internal_node_set_lookup(&mod->nodes, &node);
     if (lookup)
         return *lookup;
 
@@ -252,7 +252,7 @@ static inline const node_t* make_node(mod_t* mod, const node_t node) {
         node_ptr->ops = node_ops;
     }
 
-    bool success = node_set_insert(&mod->nodes, node_ptr);
+    bool success = internal_node_set_insert(&mod->nodes, node_ptr);
     assert(success), (void)success;
     return node_ptr;
 }

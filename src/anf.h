@@ -126,15 +126,17 @@ uint32_t node_hash(const void*);
 VEC(type_vec, const type_t*)
 VEC(node_vec, const node_t*)
 VEC(fn_vec, fn_t*)
-HSET(type_set, const type_t*, type_cmp, type_hash)
-HSET(node_set, const node_t*, node_cmp, node_hash)
-HMAP(type2type, const type_t*, const type_t*, type_cmp, type_hash)
-HMAP(node2node, const node_t*, const node_t*, node_cmp, node_hash)
+HSET(internal_type_set, const type_t*, type_cmp, type_hash)
+HSET(internal_node_set, const node_t*, node_cmp, node_hash)
+HSET_DEFAULT(type_set, const type_t*)
+HSET_DEFAULT(node_set, const node_t*)
+HMAP_DEFAULT(type2type, const type_t*, const type_t*)
+HMAP_DEFAULT(node2node, const node_t*, const node_t*)
 
 struct mod_s {
     mpool_t*  pool;
-    node_set_t nodes;
-    type_set_t types;
+    internal_node_set_t nodes;
+    internal_type_set_t types;
     fn_vec_t fns;
 
     bool commutative_fp  : 1;

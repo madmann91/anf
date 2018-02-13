@@ -17,8 +17,8 @@ void check(jmp_buf env, bool cond, const char* expr, const char* file, int line)
     }
 }
 
-bool cmp(const void* a, const void* b) { return *(uint32_t*)a == *(uint32_t*)b; }
-uint32_t hash(const void* elem) { return *(uint32_t*)elem % 23; }
+bool cmp_elem(const void* a, const void* b) { return *(uint32_t*)a == *(uint32_t*)b; }
+uint32_t hash_elem(const void* elem) { return *(uint32_t*)elem % 23; }
 
 bool test_htable(void) {
     size_t N = 4000;
@@ -27,8 +27,8 @@ bool test_htable(void) {
     for (size_t i = 0, j = 0; i < N; ++i, j += inc[j%3]) {
         values[i] = j;
     }
-    htable_t* table1 = htable_create(sizeof(uint32_t), 16, cmp, hash);
-    htable_t* table2 = htable_create(sizeof(uint32_t), 16, cmp, hash);
+    htable_t* table1 = htable_create(sizeof(uint32_t), 16, cmp_elem, hash_elem);
+    htable_t* table2 = htable_create(sizeof(uint32_t), 16, cmp_elem, hash_elem);
 
     jmp_buf env;
     int status = setjmp(env);
