@@ -2,6 +2,7 @@
 #define ADT_H
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "htable.h"
@@ -98,9 +99,16 @@
     static inline void vec##_push(vec##_t* vec, value_t v) { \
         if (vec->nelems >= vec->cap) { \
             vec->cap *= 2; \
-            vec->elems = realloc(vec->elems, sizeof(value_t*) * vec->cap); \
+            vec->elems = realloc(vec->elems, sizeof(value_t) * vec->cap); \
         } \
         vec->elems[vec->nelems++] = v; \
+    } \
+    static inline void vec##_resize(vec##_t* vec, size_t nelems) { \
+        if (nelems > vec->cap) { \
+            vec->cap = nelems; \
+            vec->elems = realloc(vec->elems, sizeof(value_t) * vec->cap); \
+        } \
+        vec->nelems = nelems; \
     } \
     static inline void vec##_shrink(vec##_t* vec) { \
         vec->elems = realloc(vec->elems, sizeof(value_t) * vec->nelems); \
@@ -108,7 +116,7 @@
     } \
     static inline value_t* vec##_find(vec##_t* vec, value_t v) { \
         for (size_t i = 0; i < vec->nelems; ++i) { \
-            if (vec->elems[i] == v) \
+            if (!memcmp(&vec->elems[i], &v, sizeof(value_t))) \
                 return &vec->elems[i]; \
         } \
         return NULL; \

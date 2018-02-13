@@ -418,6 +418,12 @@ bool node_is_cmp(const node_t* node) {
 }
 
 bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_left, bool not_right) {
+    if (left->tag == NODE_LITERAL) {
+        // (0 => X) <=> 1
+        if (( not_left &&  left->box.i1) ||
+            (!not_left && !left->box.i1))
+            return true;
+    }
     if (not_left == not_right && left == right)
         return true;
     if (left->tag == NODE_AND) {
@@ -506,22 +512,27 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
             node_is_cmp(left) && node_is_cmp(right) &&
             left->ops[0]->tag == NODE_LITERAL &&
             right->ops[0]->tag == NODE_LITERAL) {
+            // K1 > X => K2 > X
             if ((left->tag  == NODE_CMPGT || left->tag  == NODE_CMPGE) &&
                 (right->tag == NODE_CMPGT || right->tag == NODE_CMPGE)) {
                 // 3 > x does not imply 3 >= x, but the converse is true
                 if (left->tag == NODE_CMPGT && right->tag == NODE_CMPGE)
-                    return node_cmplt(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+                    return node_cmplt(mod, left->ops[0], right->ops[0], NULL)->box.i1;
                 else
-                    return node_cmple(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+                    return node_cmple(mod, left->ops[0], right->ops[0], NULL)->box.i1;
             }
+            // K1 < X => K2 < X
             if ((left->tag  == NODE_CMPLT || left->tag  == NODE_CMPLE) &&
                 (right->tag == NODE_CMPLT || right->tag == NODE_CMPLE)) {
                 // 3 < x does not imply 3 <= x, but the converse is true
                 if (left->tag == NODE_CMPLT && right->tag == NODE_CMPLE)
-                    return node_cmpgt(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+                    return node_cmpgt(mod, left->ops[0], right->ops[0], NULL)->box.i1;
                 else
-                    return node_cmpge(mod, left->ops[0], right->ops[0], NULL) == node_i1(mod, true);
+                    return node_cmpge(mod, left->ops[0], right->ops[0], NULL)->box.i1;
             }
+            // K1 == X => K1 <= X
+            // K1 == X => K1 >= X
+            // TODO
         }
 
         return false;
