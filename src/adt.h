@@ -48,11 +48,10 @@
 
 #define HMAP_DEFAULT(hmap, key_t, value_t) \
     static uint32_t hmap##_hash(const void* ptr) { \
-        const value_t value = *(const value_t*)ptr; \
-        return hash(hash_init(), value); \
+        return hash_bytes(hash_init(), ptr, sizeof(value_t)); \
     } \
     static bool hmap##_cmp(const void* a, const void* b) { \
-        return *(const value_t*)a == *(const value_t*)b; \
+        return !memcmp(a, b, sizeof(value_t)); \
     } \
     HMAP(hmap, key_t, value_t, hmap##_cmp, hmap##_hash)
 
@@ -90,11 +89,10 @@
 
 #define HSET_DEFAULT(hset, value_t) \
     static uint32_t hset##_hash(const void* ptr) { \
-        const value_t value = *(const value_t*)ptr; \
-        return hash(hash_init(), value); \
+        return hash_bytes(hash_init(), ptr, sizeof(value_t)); \
     } \
     static bool hset##_cmp(const void* a, const void* b) { \
-        return *(const value_t*)a == *(const value_t*)b; \
+        return !memcmp(a, b, sizeof(value_t)); \
     } \
     HSET(hset, value_t, hset##_cmp, hset##_hash)
 

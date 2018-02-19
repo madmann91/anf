@@ -23,19 +23,15 @@ static inline uint32_t hash_uint64(uint32_t h, uint64_t d) {
     return hash_uint32(hash_uint32(h, d & ((uint64_t)0xFFFFFFFF)), d >> 32);
 }
 
-static inline uint32_t hash_ptr(uint32_t h, const void* ptr) {
-    uintptr_t uptr = (uintptr_t)ptr;
-    for (size_t i = 0; i < sizeof(const void*); ++i, uptr >>= 8) {
-        h = hash_uint8(h, uptr & 0xFF);
-    }
+static inline uint32_t hash_bytes(uint32_t h, const void* ptr, size_t nbytes) {
+    const uint8_t* byte_ptr = ptr;
+    for (size_t i = 0; i < nbytes; ++i, byte_ptr++)
+        h = hash_uint8(h, *byte_ptr);
     return h;
 }
 
-#define hash(h, X) _Generic((X), \
-    uint8_t:  hash_uint8, \
-    uint16_t: hash_uint16, \
-    uint32_t: hash_uint32, \
-    uint64_t: hash_uint64, \
-    default: hash_ptr)(h, X)
+static inline uint32_t hash_ptr(uint32_t h, const void* ptr) {
+    return hash_bytes(h, &ptr, sizeof(void*));
+}
 
 #endif // HASH_H
