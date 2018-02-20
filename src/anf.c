@@ -65,11 +65,6 @@ mod_t* mod_create(void) {
     mod->nodes = internal_node_set_create(256);
     mod->types = internal_type_set_create(64);
     mod->fns   = fn_vec_create(64);
-
-    mod->commutative_fp  = false;
-    mod->distributive_fp = false;
-    mod->no_denormals_fp = false;
-
     return mod;
 }
 
@@ -79,31 +74,6 @@ void mod_destroy(mod_t* mod) {
     internal_type_set_destroy(&mod->types);
     fn_vec_destroy(&mod->fns);
     free(mod);
-}
-
-bool mod_is_commutative(const mod_t* mod, uint32_t tag, const type_t* type) {
-    switch (tag) {
-        case NODE_ADD: return mod->commutative_fp || !type_is_f(type);
-        case NODE_MUL: return mod->commutative_fp || !type_is_f(type);
-        case NODE_AND: return true;
-        case NODE_OR:  return true;
-        case NODE_XOR: return true;
-        default: return false;
-    }
-}
-
-bool mod_is_distributive(const mod_t* mod, uint32_t tag1, uint32_t tag2, const type_t* type) {
-    switch (tag1) {
-        case NODE_MUL: return (tag2 == NODE_ADD || tag2 == NODE_SUB) &&
-                              (mod->distributive_fp || !type_is_f(type));
-        case NODE_AND: return tag2 == NODE_OR;
-        case NODE_OR:  return tag2 == NODE_AND;
-        default: return false;
-    }
-}
-
-bool mod_can_switch_comparands(const mod_t* mod, uint32_t tag, const type_t* type) {
-    return tag == NODE_CMPEQ || mod->no_denormals_fp || !type_is_f(type);
 }
 
 size_t type_bitwidth(const type_t* type) {
@@ -165,9 +135,19 @@ bool type_is_u(const type_t* type) {
 
 bool type_is_f(const type_t* type) {
     switch (type->tag) {
-        case TYPE_F32: return true;
-        case TYPE_F64: return true;
-        default:       return false;
+        case TYPE_F32:  return true;
+        case TYPE_F64:  return true;
+        case TYPE_F32F: return true;
+        case TYPE_F64F: return true;
+        default:        return false;
+    }
+}
+
+bool type_is_f_f(const type_t* type) {
+    switch (type->tag) {
+        case TYPE_F32F: return true;
+        case TYPE_F64F: return true;
+        default:        return false;
     }
 }
 
@@ -200,6 +180,8 @@ const type_t* type_u32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYP
 const type_t* type_u64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U64, .nops = 0, .ops = NULL }); }
 const type_t* type_f32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32, .nops = 0, .ops = NULL }); }
 const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64, .nops = 0, .ops = NULL }); }
+const type_t* type_f32f(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32F, .nops = 0, .ops = NULL }); }
+const type_t* type_f64f(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64F, .nops = 0, .ops = NULL }); }
 
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
     if (nops == 1) return ops[0];
@@ -418,6 +400,8 @@ bool node_is_cmp(const node_t* node) {
 }
 
 bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_left, bool not_right) {
+    assert(left->type->tag == TYPE_I1);
+    assert(right->type->tag == TYPE_I1);
     if (left->tag == NODE_LITERAL) {
         // (0 => X) <=> 1
         if (( not_left &&  left->box.i1) ||
@@ -508,31 +492,33 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
         if (left == right)
             return true;
 
-        if (left->ops[1] == right->ops[1] &&
-            node_is_cmp(left) && node_is_cmp(right) &&
-            left->ops[0]->tag == NODE_LITERAL &&
-            right->ops[0]->tag == NODE_LITERAL) {
-            // K1 > X => K2 > X
-            if ((left->tag  == NODE_CMPGT || left->tag  == NODE_CMPGE) &&
-                (right->tag == NODE_CMPGT || right->tag == NODE_CMPGE)) {
-                // 3 > x does not imply 3 >= x, but the converse is true
-                if (left->tag == NODE_CMPGT && right->tag == NODE_CMPGE)
-                    return node_cmplt(mod, left->ops[0], right->ops[0], NULL)->box.i1;
-                else
-                    return node_cmple(mod, left->ops[0], right->ops[0], NULL)->box.i1;
+        if (left->ops[1] == right->ops[1] && node_is_cmp(left) && node_is_cmp(right)) {
+            if (left->ops[0]->tag == NODE_LITERAL && right->ops[0]->tag == NODE_LITERAL) {
+                // K1 > X => K2 > X
+                if ((left->tag  == NODE_CMPGT || left->tag  == NODE_CMPGE) &&
+                    (right->tag == NODE_CMPGT || right->tag == NODE_CMPGE)) {
+                    // 3 > x does not imply 3 >= x, but the converse is true
+                    if (left->tag == NODE_CMPGT && right->tag == NODE_CMPGE)
+                        return node_cmplt(mod, left->ops[0], right->ops[0], NULL)->box.i1;
+                    else
+                        return node_cmple(mod, left->ops[0], right->ops[0], NULL)->box.i1;
+                }
+                // K1 < X => K2 < X
+                if ((left->tag  == NODE_CMPLT || left->tag  == NODE_CMPLE) &&
+                    (right->tag == NODE_CMPLT || right->tag == NODE_CMPLE)) {
+                    // 3 < x does not imply 3 <= x, but the converse is true
+                    if (left->tag == NODE_CMPLT && right->tag == NODE_CMPLE)
+                        return node_cmpgt(mod, left->ops[0], right->ops[0], NULL)->box.i1;
+                    else
+                        return node_cmpge(mod, left->ops[0], right->ops[0], NULL)->box.i1;
+                }
             }
-            // K1 < X => K2 < X
-            if ((left->tag  == NODE_CMPLT || left->tag  == NODE_CMPLE) &&
-                (right->tag == NODE_CMPLT || right->tag == NODE_CMPLE)) {
-                // 3 < x does not imply 3 <= x, but the converse is true
-                if (left->tag == NODE_CMPLT && right->tag == NODE_CMPLE)
-                    return node_cmpgt(mod, left->ops[0], right->ops[0], NULL)->box.i1;
-                else
-                    return node_cmpge(mod, left->ops[0], right->ops[0], NULL)->box.i1;
+            // X == Y => X <= Y
+            // X == Y => X >= Y
+            if (left->ops[0] == right->ops[0] && left->ops[1] == right->ops[1]) {
+                if (left->tag == NODE_CMPEQ && right->tag == NODE_CMPLE) return true;
+                if (left->tag == NODE_CMPEQ && right->tag == NODE_CMPGE) return true;
             }
-            // K1 == X => K1 <= X
-            // K1 == X => K1 >= X
-            // TODO
         }
 
         return false;
@@ -656,6 +642,31 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
     });
 }
 
+static inline bool node_is_commutative(uint32_t tag, const type_t* type) {
+    switch (tag) {
+        case NODE_ADD: return !type_is_f(type) || type_is_f_f(type);
+        case NODE_MUL: return !type_is_f(type) || type_is_f_f(type);
+        case NODE_AND: return true;
+        case NODE_OR:  return true;
+        case NODE_XOR: return true;
+        default: return false;
+    }
+}
+
+static inline bool node_is_distributive(uint32_t tag1, uint32_t tag2, const type_t* type) {
+    switch (tag1) {
+        case NODE_MUL: return (tag2 == NODE_ADD || tag2 == NODE_SUB) &&
+                              (!type_is_f(type) || type_is_f_f(type));
+        case NODE_AND: return tag2 == NODE_OR;
+        case NODE_OR:  return tag2 == NODE_AND;
+        default: return false;
+    }
+}
+
+static inline bool node_can_switch_comparands(uint32_t tag, const type_t* type) {
+    return tag == NODE_CMPEQ || !type_is_f(type) || type_is_f_f(type);
+}
+
 static inline bool node_should_switch_ops(const node_t* left, const node_t* right) {
     // Establish a standardized order for operands in commutative expressions/comparisons
     // - Literals always go to the left
@@ -726,7 +737,7 @@ static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* l
         return node_i1(mod, res);
     }
 
-    if (node_should_switch_ops(left, right) && mod_can_switch_comparands(mod, tag, left->type)) {
+    if (node_should_switch_ops(left, right) && node_can_switch_comparands(tag, left->type)) {
         node_switch_ops(&left, &right);
         switch (tag) {
             case NODE_CMPGT: tag = NODE_CMPLT; break;
@@ -853,7 +864,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     if (left->tag  == NODE_UNDEF) return left;
     if (right->tag == NODE_UNDEF) return right;
 
-    if (node_should_switch_ops(left, right) && mod_is_commutative(mod, tag, left->type))
+    if (node_should_switch_ops(left, right) && node_is_commutative(tag, left->type))
         node_switch_ops(&left, &right);
 
     // Simplification rules
@@ -872,7 +883,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // 1 | a <=> 1
         if (tag == NODE_OR) return left;
         // ~(a cmp b) <=> a ~(cmp) b
-        if (tag == NODE_XOR && node_is_cmp(right) && mod_can_switch_comparands(mod, right->tag, right->type)) {
+        if (tag == NODE_XOR && node_is_cmp(right) && node_can_switch_comparands(right->tag, right->type)) {
             switch (right->tag) {
                 case NODE_CMPGT: return node_cmple(mod, right->ops[0], right->ops[1], dbg);
                 case NODE_CMPGE: return node_cmplt(mod, right->ops[0], right->ops[1], dbg);
@@ -963,7 +974,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
             if (left->ops[1] == right) return left->ops[0];
         }
     }
-    bool left_factorizable = mod_is_distributive(mod, right->tag, tag, left->type);
+    bool left_factorizable = node_is_distributive(right->tag, tag, left->type);
     if (left_factorizable && right->ops[0]->tag == NODE_LITERAL && right->ops[1] == left) {
         const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
         const node_t* K   = make_binop(mod, tag, one, right->ops[0], dbg);
@@ -971,7 +982,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // a + K * a <=> (K + 1) * a
         return make_binop(mod, right->tag, K, left, dbg);
     }
-    bool right_factorizable = mod_is_distributive(mod, left->tag, tag, left->type);
+    bool right_factorizable = node_is_distributive(left->tag, tag, left->type);
     if (right_factorizable && left->ops[0]->tag == NODE_LITERAL && left->ops[1] == right) {
         const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
         const node_t* K   = make_binop(mod, tag, left->ops[0], one, dbg);
@@ -987,7 +998,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         const node_t* r1 = right->ops[0];
         const node_t* r2 = right->ops[1];
         assert(left->tag == right->tag);
-        bool inner_commutative = mod_is_commutative(mod, left->tag, left->type);
+        bool inner_commutative = node_is_commutative(left->tag, left->type);
         if (inner_commutative && l1 == r2) { const node_t* tmp = r2; r2 = r1; r1 = tmp; }
         if (inner_commutative && l2 == r1) { const node_t* tmp = l2; l2 = l1; l1 = tmp; }
         // (a * b) + (a * c) <=> a * (b + c)
@@ -1177,8 +1188,11 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_EXTRACT: return node_extract(mod, ops[0], ops[1], node->dbg);
         case NODE_INSERT:  return node_insert(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_BITCAST: return node_bitcast(mod, ops[0], type, node->dbg);
-        case NODE_CMPLT:   return node_cmplt(mod, ops[0], ops[1], node->dbg);
         case NODE_CMPGT:   return node_cmpgt(mod, ops[0], ops[1], node->dbg);
+        case NODE_CMPGE:   return node_cmpge(mod, ops[0], ops[1], node->dbg);
+        case NODE_CMPLT:   return node_cmplt(mod, ops[0], ops[1], node->dbg);
+        case NODE_CMPLE:   return node_cmple(mod, ops[0], ops[1], node->dbg);
+        case NODE_CMPNE:   return node_cmpne(mod, ops[0], ops[1], node->dbg);
         case NODE_CMPEQ:   return node_cmpeq(mod, ops[0], ops[1], node->dbg);
         case NODE_ADD:     return node_add(mod, ops[0], ops[1], node->dbg);
         case NODE_SUB:     return node_sub(mod, ops[0], ops[1], node->dbg);

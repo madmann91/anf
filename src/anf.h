@@ -113,6 +113,8 @@ enum type_tag_e {
     TYPE_U64,
     TYPE_F32,
     TYPE_F64,
+    TYPE_F32F,
+    TYPE_F64F,
     TYPE_TUPLE,
     TYPE_ARRAY,
     TYPE_FN
@@ -138,19 +140,11 @@ struct mod_s {
     internal_node_set_t nodes;
     internal_type_set_t types;
     fn_vec_t fns;
-
-    bool commutative_fp  : 1;
-    bool distributive_fp : 1;
-    bool no_denormals_fp : 1;
 };
 
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
-
-bool mod_is_commutative(const mod_t*, uint32_t, const type_t*);
-bool mod_is_distributive(const mod_t* mod, uint32_t, uint32_t, const type_t*);
-bool mod_can_switch_comparands(const mod_t* mod, uint32_t, const type_t*);
 
 // Types
 size_t type_bitwidth(const type_t*);
@@ -158,6 +152,7 @@ bool type_is_prim(const type_t*);
 bool type_is_i(const type_t*);
 bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
+bool type_is_f_f(const type_t*);
 const type_t* type_i1(mod_t*);
 const type_t* type_i8(mod_t*);
 const type_t* type_i16(mod_t*);
@@ -169,6 +164,8 @@ const type_t* type_u32(mod_t*);
 const type_t* type_u64(mod_t*);
 const type_t* type_f32(mod_t*);
 const type_t* type_f64(mod_t*);
+const type_t* type_f32f(mod_t*);
+const type_t* type_f64f(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
