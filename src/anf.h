@@ -68,6 +68,7 @@ struct type_s {
     uint32_t tag;
     size_t   nops;
     const type_t** ops;
+    bool fast;
 };
 
 enum node_tag_e {
@@ -84,6 +85,11 @@ enum node_tag_e {
     NODE_CMPLE,
     NODE_CMPNE,
     NODE_CMPEQ,
+    NODE_ZEXT,
+    NODE_SEXT,
+    NODE_TRUNC,
+    NODE_ITOF,
+    NODE_FTOI,
     NODE_ADD,
     NODE_SUB,
     NODE_MUL,
@@ -94,7 +100,7 @@ enum node_tag_e {
     NODE_XOR,
     NODE_LSHFT,
     NODE_RSHFT,
-    NODE_IF,
+    NODE_SELECT,
     NODE_FN,
     NODE_PARAM,
     NODE_APP,
@@ -113,8 +119,6 @@ enum type_tag_e {
     TYPE_U64,
     TYPE_F32,
     TYPE_F64,
-    TYPE_F32F,
-    TYPE_F64F,
     TYPE_TUPLE,
     TYPE_ARRAY,
     TYPE_FN
@@ -152,7 +156,6 @@ bool type_is_prim(const type_t*);
 bool type_is_i(const type_t*);
 bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
-bool type_is_f_f(const type_t*);
 const type_t* type_i1(mod_t*);
 const type_t* type_i8(mod_t*);
 const type_t* type_i16(mod_t*);
@@ -164,8 +167,6 @@ const type_t* type_u32(mod_t*);
 const type_t* type_u64(mod_t*);
 const type_t* type_f32(mod_t*);
 const type_t* type_f64(mod_t*);
-const type_t* type_f32f(mod_t*);
-const type_t* type_f64f(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
@@ -205,6 +206,11 @@ const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmple(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmpne(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_zext(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_sext(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_trunc(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_itof(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_ftoi(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_add(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_sub(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_mul(mod_t*, const node_t*, const node_t*, const dbg_t*);
@@ -219,7 +225,7 @@ const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Misc.
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
-const node_t* node_if(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Functions
 void fn_bind(mod_t*, fn_t*, const node_t*);

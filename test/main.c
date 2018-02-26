@@ -289,7 +289,7 @@ cleanup:
     return status == 0;
 }
 
-bool test_if(void) {
+bool test_select(void) {
     mod_t* mod = mod_create();
 
     jmp_buf env;
@@ -297,11 +297,9 @@ bool test_if(void) {
     if (status)
         goto cleanup;
 
-    CHECK(node_if(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
-    CHECK(node_if(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
-    CHECK(node_if(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
-    CHECK(node_if(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL) ==
-          node_if(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 64), NULL));
+    CHECK(node_select(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
+    CHECK(node_select(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
+    CHECK(node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
 
 cleanup:
     mod_destroy(mod);
@@ -651,7 +649,7 @@ int main(int argc, char** argv) {
         {"literals", test_literals},
         {"tuples",   test_tuples},
         {"arrays",   test_arrays},
-        {"if",       test_if},
+        {"select",   test_select},
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
         {"scope",    test_scope},

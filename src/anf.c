@@ -41,7 +41,8 @@ bool type_cmp(const void* ptr1, const void* ptr2) {
     const type_t* type1 = *(const type_t**)ptr1;
     const type_t* type2 = *(const type_t**)ptr2;
     if (type1->tag  != type2->tag ||
-        type1->nops != type2->nops)
+        type1->nops != type2->nops ||
+        type1->fast != type2->fast)
         return false;
     for (size_t i = 0; i < type1->nops; ++i) {
         if (type1->ops[i] != type2->ops[i])
@@ -137,16 +138,6 @@ bool type_is_f(const type_t* type) {
     switch (type->tag) {
         case TYPE_F32:  return true;
         case TYPE_F64:  return true;
-        case TYPE_F32F: return true;
-        case TYPE_F64F: return true;
-        default:        return false;
-    }
-}
-
-bool type_is_f_f(const type_t* type) {
-    switch (type->tag) {
-        case TYPE_F32F: return true;
-        case TYPE_F64F: return true;
         default:        return false;
     }
 }
@@ -180,8 +171,6 @@ const type_t* type_u32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYP
 const type_t* type_u64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U64, .nops = 0, .ops = NULL }); }
 const type_t* type_f32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32, .nops = 0, .ops = NULL }); }
 const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64, .nops = 0, .ops = NULL }); }
-const type_t* type_f32f(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32F, .nops = 0, .ops = NULL }); }
-const type_t* type_f64f(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64F, .nops = 0, .ops = NULL }); }
 
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
     if (nops == 1) return ops[0];
@@ -644,8 +633,8 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
 
 static inline bool node_is_commutative(uint32_t tag, const type_t* type) {
     switch (tag) {
-        case NODE_ADD: return !type_is_f(type) || type_is_f_f(type);
-        case NODE_MUL: return !type_is_f(type) || type_is_f_f(type);
+        case NODE_ADD: return !type_is_f(type) || type->fast;
+        case NODE_MUL: return !type_is_f(type) || type->fast;
         case NODE_AND: return true;
         case NODE_OR:  return true;
         case NODE_XOR: return true;
@@ -656,7 +645,7 @@ static inline bool node_is_commutative(uint32_t tag, const type_t* type) {
 static inline bool node_is_distributive(uint32_t tag1, uint32_t tag2, const type_t* type) {
     switch (tag1) {
         case NODE_MUL: return (tag2 == NODE_ADD || tag2 == NODE_SUB) &&
-                              (!type_is_f(type) || type_is_f_f(type));
+                              (!type_is_f(type) || type->fast);
         case NODE_AND: return tag2 == NODE_OR;
         case NODE_OR:  return tag2 == NODE_AND;
         default: return false;
@@ -664,7 +653,7 @@ static inline bool node_is_distributive(uint32_t tag1, uint32_t tag2, const type
 }
 
 static inline bool node_can_switch_comparands(uint32_t tag, const type_t* type) {
-    return tag == NODE_CMPEQ || !type_is_f(type) || type_is_f_f(type);
+    return tag == NODE_CMPEQ || !type_is_f(type) || type->fast;
 }
 
 static inline bool node_should_switch_ops(const node_t* left, const node_t* right) {
@@ -1080,16 +1069,18 @@ const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     });
 }
 
-const node_t* node_if(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const dbg_t* dbg) {
+const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const dbg_t* dbg) {
     assert(cond->type->tag == TYPE_I1);
     assert(if_true->type == if_false->type);
     if (cond->tag == NODE_LITERAL)
         return cond->box.i1 ? if_true : if_false;
+    if (cond->tag == NODE_UNDEF)
+        return if_true; // Arbitrary, could be if_false
     if (if_true == if_false)
         return if_true;
     const node_t* ops[] = { cond, if_true, if_false };
     return make_node(mod, (node_t) {
-        .tag  = NODE_IF,
+        .tag  = NODE_SELECT,
         .nops = 3,
         .ops  = ops,
         .type = if_true->type,
@@ -1204,7 +1195,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_XOR:     return node_xor(mod, ops[0], ops[1], node->dbg);
         case NODE_LSHFT:   return node_lshft(mod, ops[0], ops[1], node->dbg);
         case NODE_RSHFT:   return node_rshft(mod, ops[0], ops[1], node->dbg);
-        case NODE_IF:      return node_if(mod, ops[0], ops[1], ops[2], node->dbg);
+        case NODE_SELECT:  return node_select(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_PARAM:   return node_param(mod, fn_cast(ops[0]), node->dbg);
         case NODE_APP:     return node_app(mod, ops[0], ops[1], node->dbg);
         case NODE_KNOWN:   return node_known(mod, ops[0], node->dbg);
@@ -1364,7 +1355,7 @@ void node_print(const node_t* node, bool colorize) {
             case NODE_XOR:     op = "xor";     break;
             case NODE_LSHFT:   op = "lshft";   break;
             case NODE_RSHFT:   op = "rshft";   break;
-            case NODE_IF:      op = "if";      break;
+            case NODE_SELECT:  op = "select";  break;
             case NODE_FN:      op = "fn";      break;
             case NODE_PARAM:   op = "param";   break;
             case NODE_APP:     op = "app";     break;
