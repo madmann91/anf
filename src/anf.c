@@ -547,6 +547,17 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
     assert(value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_ARRAY);
     assert(type_is_u(index->type) || type_is_i(index->type));
     const type_t* elem_type = NULL;
+
+    // extract(insert(value, index, elem), index) == elem
+    if (value->tag == NODE_INSERT && index->tag == NODE_LITERAL) {
+        const node_t* insert = value;
+        do {
+            if (insert->ops[1] == index)
+                return insert->ops[2];
+            insert = insert->ops[0];
+        } while (insert->tag == NODE_INSERT);
+    }
+
     if (value->type->tag == TYPE_TUPLE) {
         assert(index->tag == NODE_LITERAL);
         assert(index->box.u64 < value->type->nops);
@@ -562,6 +573,7 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
             return node_undef(mod, elem_type);
         }
     }
+
     const node_t* ops[] = { value, index };
     return make_node(mod, (node_t) {
         .tag  = NODE_EXTRACT,
@@ -576,6 +588,7 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
 const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, const node_t* elem, const dbg_t* dbg) {
     assert(value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_ARRAY);
     assert(type_is_u(index->type) || type_is_i(index->type));
+
     if (value->type->tag == TYPE_TUPLE) {
         assert(index->tag == NODE_LITERAL);
         assert(index->box.u64 < value->type->nops);
@@ -600,6 +613,7 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
             return value;
         }
     }
+
     const node_t* ops[] = { value, index, elem };
     return make_node(mod, (node_t) {
         .tag  = NODE_INSERT,
@@ -898,8 +912,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // a << 0 <=> a
         // a - 0 <=> a
         if (tag == NODE_LSHFT || tag == NODE_RSHFT || tag == NODE_SUB) return left;
-        assert(tag != NODE_AND && tag != NODE_OR);  // Commutative operations should be handled before
-        assert(tag != NODE_DIV && tag != NODE_MOD); // Divisions by zero should not be executed
+        assert(tag != NODE_AND && tag != NODE_OR); // Commutative operations should be handled before
     }
     if (node_is_one(right)) {
         // a / 1 <=> a
