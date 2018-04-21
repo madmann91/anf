@@ -8,6 +8,7 @@
 #include "anf.h"
 #include "scope.h"
 #include "logic.h"
+#include "sched.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -486,7 +487,7 @@ cleanup:
 
 bool test_scope(void) {
     mod_t* mod = mod_create();
-    node_set_t scope = node_set_create(64);
+    scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
     node_set_t fvs = node_set_create(64);
 
     fn_t* inner, *outer;
@@ -506,28 +507,77 @@ bool test_scope(void) {
     fn_bind(mod, inner, x);
     fn_bind(mod, outer, &inner->node);
 
-    scope_compute(mod, outer, &scope);
-    CHECK(node_set_lookup(&scope, &inner->node) != NULL);
-    CHECK(node_set_lookup(&scope, &outer->node) != NULL);
-    CHECK(node_set_lookup(&scope, x) != NULL);
-    CHECK(node_set_lookup(&scope, y) != NULL);
-    CHECK(scope.table->nelems == 4);
+    scope.entry = outer;
+    scope_compute(mod, &scope);
+    CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, &outer->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, x) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
+    CHECK(scope.nodes.table->nelems == 4);
 
-    node_set_clear(&scope);
+    scope.entry = inner;
+    node_set_clear(&scope.nodes);
+    scope_compute(mod, &scope);
+    CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
+    CHECK(scope.nodes.table->nelems == 2);
 
-    scope_compute(mod, inner, &scope);
-    CHECK(node_set_lookup(&scope, &inner->node) != NULL);
-    CHECK(node_set_lookup(&scope, y) != NULL);
-    CHECK(scope.table->nelems == 2);
-
-    scope_compute_fvs(inner, &scope, &fvs);
+    scope_compute_fvs(&scope, &fvs);
     CHECK(node_set_lookup(&fvs, x) != NULL);
     CHECK(fvs.table->nelems == 1);
 
 cleanup:
-    node_set_destroy(&scope);
+    node_set_destroy(&scope.nodes);
     node_set_destroy(&fvs);
     mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_sched(void) {
+    mod_t* mod = mod_create();
+    node_vec_t sched = node_vec_create(64);
+    node_set_t seen = node_set_create(64);
+
+    const type_t* param_types[2];
+    const type_t* pow_type;
+    fn_t* pow;
+    const node_t* args[2];
+    const node_t* param, *x, *n, *cmp, *app, *mul, *sel;
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    param_types[0] = type_i32(mod);
+    param_types[1] = type_i32(mod);
+    pow_type = type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod));
+    pow = node_fn(mod, pow_type, NULL);
+    param = node_param(mod, pow, NULL);
+    x = node_extract(mod, param, node_i32(mod, 0), NULL);
+    n = node_extract(mod, param, node_i32(mod, 1), NULL);
+    cmp = node_cmpeq(mod, n, node_i32(mod, 0), NULL);
+    args[0] = x;
+    args[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
+    app = node_app(mod, &pow->node, node_tuple(mod, 2, args, NULL), NULL);
+    mul = node_mul(mod, app, x, NULL);
+    sel = node_select(mod, cmp, node_i32(mod, 1), mul, NULL);
+    fn_bind(mod, pow, sel);
+    schedule_node(pow->node.ops[0], &sched);
+
+    for (size_t i = 0; i < sched.nelems; ++i) {
+        const node_t* node = sched.elems[i];
+        for (size_t j = 0; j < node->nops; ++j) {
+            const node_t* op = node->ops[j];
+            if (op->tag != NODE_PARAM && op->tag != NODE_FN && op->tag != NODE_LITERAL)
+                CHECK(node_set_lookup(&seen, op) != NULL);
+        }
+        node_set_insert(&seen, node);
+    }
+
+cleanup:
+    node_vec_destroy(&sched);
+    node_set_destroy(&seen);
     return status == 0;
 }
 
@@ -653,6 +703,7 @@ int main(int argc, char** argv) {
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
         {"scope",    test_scope},
+        {"sched",    test_sched},
         {"logic",    test_logic}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);

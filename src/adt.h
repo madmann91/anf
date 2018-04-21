@@ -122,6 +122,9 @@
         } \
         vec->elems[vec->nelems++] = v; \
     } \
+    static inline value_t vec##_pop(vec##_t* vec) { \
+        return vec->elems[--vec->nelems]; \
+    } \
     static inline void vec##_resize(vec##_t* vec, size_t nelems) { \
         if (nelems > vec->cap) { \
             vec->cap = nelems; \
