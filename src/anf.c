@@ -567,7 +567,8 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
     } else if (value->type->tag == TYPE_ARRAY) {
         elem_type = value->type->ops[0];
         if (value->tag == NODE_ARRAY) {
-            assert(index->box.u64 < value->nops);
+            if (index->box.u64 >= value->nops)
+                return node_undef(mod, elem_type);
             return value->ops[index->box.u64];
         } else if (value->tag == NODE_UNDEF) {
             return node_undef(mod, elem_type);
@@ -582,7 +583,6 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
         .type = elem_type,
         .dbg  = dbg
     });
-    return NULL;
 }
 
 const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, const node_t* elem, const dbg_t* dbg) {
