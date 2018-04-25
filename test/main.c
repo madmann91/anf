@@ -456,6 +456,13 @@ bool test_binops(void) {
             NULL)
         == node_or(mod, a, b, NULL));
 
+    CHECK(
+        node_or(mod,
+            node_cmpeq(mod, x, y, NULL),
+            node_cmpge(mod, x, y, NULL),
+            NULL)
+        == node_cmpge(mod, x, y, NULL));
+
     // (x >= y) & (x >= 3) & (x + y >= 3) & (y <= 3) & (y >= 0) <=> (x >= 3) & (y <= 3) & (y >= 0)
     // DOES NOT YET PASS
     /*CHECK(

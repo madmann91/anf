@@ -402,22 +402,22 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
     if (left->tag == NODE_AND) {
         if (not_left) {
             // ~(X & Y) => right <=> (~X | ~Y) => right
-            return node_implies(mod, left->ops[0], right, true, not_right) &&
-                   node_implies(mod, left->ops[1], right, true, not_right);
+            return node_implies(mod, left->ops[0], right, !not_left, not_right) &&
+                   node_implies(mod, left->ops[1], right, !not_left, not_right);
         } else {
             // (X & Y) => right <=> (X => right) | (Y => right)
-            return node_implies(mod, left->ops[0], right, false, not_right) ||
-                   node_implies(mod, left->ops[1], right, false, not_right);
+            return node_implies(mod, left->ops[0], right, not_left, not_right) ||
+                   node_implies(mod, left->ops[1], right, not_left, not_right);
         }
     } else if (left->tag == NODE_OR) {
         if (not_left) {
             // ~(X | Y) => right <=> (~X & ~Y) => right
-            return node_implies(mod, left->ops[0], right, true, not_right) ||
-                   node_implies(mod, left->ops[1], right, true, not_right);
+            return node_implies(mod, left->ops[0], right, !not_left, not_right) ||
+                   node_implies(mod, left->ops[1], right, !not_left, not_right);
         } else {
             // X | Y => right <=> (X => right) & (Y => right)
-            return node_implies(mod, left->ops[0], right, false, not_right) &&
-                   node_implies(mod, left->ops[1], right, false, not_right);
+            return node_implies(mod, left->ops[0], right, not_left, not_right) &&
+                   node_implies(mod, left->ops[1], right, not_left, not_right);
         }
     } else if (left->tag == NODE_XOR) {
         if (node_is_not(left)) {
@@ -425,37 +425,37 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
         } else {
             if (not_left) {
                 // ~(X ^ Y) => right <=> (~X | Y) & (X | ~Y) => right
-                return (node_implies(mod, left->ops[0], right, true,  not_right) &&
-                        node_implies(mod, left->ops[1], right, false, not_right)) ||
-                       (node_implies(mod, left->ops[0], right, false, not_right) &&
-                        node_implies(mod, left->ops[1], right, true,  not_right));
+                return (node_implies(mod, left->ops[0], right, !not_left, not_right) &&
+                        node_implies(mod, left->ops[1], right,  not_left, not_right)) ||
+                       (node_implies(mod, left->ops[0], right,  not_left, not_right) &&
+                        node_implies(mod, left->ops[1], right, !not_left, not_right));
             } else {
                 // (X ^ Y) => right <=> (X & ~Y) | (~X & Y) => right
-                return (node_implies(mod, left->ops[0], right, true,  not_right) ||
-                        node_implies(mod, left->ops[1], right, false, not_right)) &&
-                       (node_implies(mod, left->ops[0], right, false, not_right) ||
-                        node_implies(mod, left->ops[1], right, true,  not_right));
+                return (node_implies(mod, left->ops[0], right, !not_left, not_right) ||
+                        node_implies(mod, left->ops[1], right,  not_left, not_right)) &&
+                       (node_implies(mod, left->ops[0], right,  not_left, not_right) ||
+                        node_implies(mod, left->ops[1], right, !not_left, not_right));
             }
         }
     } else if (right->tag == NODE_AND) {
         if (not_right) {
             // left => ~(X & Y) <=> left => (~X | ~Y)
-            return node_implies(mod, left, right->ops[0], not_left, true) ||
-                   node_implies(mod, left, right->ops[1], not_left, true);
+            return node_implies(mod, left, right->ops[0], not_left, !not_right) ||
+                   node_implies(mod, left, right->ops[1], not_left, !not_right);
         } else {
             // left => X & Y <=> (left => X) & (left => Y)
-            return node_implies(mod, left, right->ops[0], not_left, false) &&
-                   node_implies(mod, left, right->ops[1], not_left, false);
+            return node_implies(mod, left, right->ops[0], not_left, not_right) &&
+                   node_implies(mod, left, right->ops[1], not_left, not_right);
         }
     } else if (right->tag == NODE_OR) {
         if (not_right) {
             // left => ~(X | Y) <=> left => (~X & ~Y)
-            return node_implies(mod, left, right->ops[0], not_left, true) &&
-                   node_implies(mod, left, right->ops[1], not_left, true);
+            return node_implies(mod, left, right->ops[0], not_left, !not_right) &&
+                   node_implies(mod, left, right->ops[1], not_left, !not_right);
         } else {
             // left => X | Y <=> (left => X) | (left => Y)
-            return node_implies(mod, left, right->ops[0], not_left, false) ||
-                   node_implies(mod, left, right->ops[1], not_left, false);
+            return node_implies(mod, left, right->ops[0], not_left, not_right) ||
+                   node_implies(mod, left, right->ops[1], not_left, not_right);
         }
     } else if (right->tag == NODE_XOR) {
         if (node_is_not(right)) {
@@ -463,16 +463,16 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
         } else {
             if (not_right) {
                 // left => ~(X ^ Y) <=> left => (~X | Y) & (X | ~Y)
-                return (node_implies(mod, left, right->ops[0], not_left, true) ||
-                        node_implies(mod, left, right->ops[1], not_left, false)) &&
-                       (node_implies(mod, left, right->ops[0], not_left, false) ||
-                        node_implies(mod, left, right->ops[1], not_left, true));
+                return (node_implies(mod, left, right->ops[0], not_left, !not_right) ||
+                        node_implies(mod, left, right->ops[1], not_left,  not_right)) &&
+                       (node_implies(mod, left, right->ops[0], not_left,  not_right) ||
+                        node_implies(mod, left, right->ops[1], not_left, !not_right));
             } else {
                 // left => (X ^ Y) <=> left => (X & ~Y) | (~X & Y)
-                return (node_implies(mod, left, right->ops[0], not_left, true) &&
-                        node_implies(mod, left, right->ops[1], not_left, false)) ||
-                       (node_implies(mod, left, right->ops[0], not_left, false) &&
-                        node_implies(mod, left, right->ops[1], not_left, true));
+                return (node_implies(mod, left, right->ops[0], not_left, !not_right) &&
+                        node_implies(mod, left, right->ops[1], not_left,  not_right)) ||
+                       (node_implies(mod, left, right->ops[0], not_left,  not_right) &&
+                        node_implies(mod, left, right->ops[1], not_left, !not_right));
             }
         }
     } else {
@@ -502,11 +502,16 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
                         return node_cmpge(mod, left->ops[0], right->ops[0], NULL)->box.i1;
                 }
             }
-            // X == Y => X <= Y
-            // X == Y => X >= Y
+
             if (left->ops[0] == right->ops[0] && left->ops[1] == right->ops[1]) {
+                // X == Y => X <= Y
+                // X == Y => X >= Y
                 if (left->tag == NODE_CMPEQ && right->tag == NODE_CMPLE) return true;
                 if (left->tag == NODE_CMPEQ && right->tag == NODE_CMPGE) return true;
+                // X < Y => X != Y
+                // X > Y => X != Y
+                if (left->tag == NODE_CMPLT && right->tag == NODE_CMPNE) return true;
+                if (left->tag == NODE_CMPGT && right->tag == NODE_CMPNE) return true;
             }
         }
 
@@ -1219,12 +1224,13 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
 }
 
 const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_types) {
+    const type_t** found = type2type_lookup(new_types, type);
+    if (found)
+        return *found;
+
     const type_t* new_ops[type->nops];
-    for (size_t i = 0; i < type->nops; ++i) {
-        const type_t* op = type->ops[i];
-        const type_t** found = type2type_lookup(new_types, op);
-        new_ops[i] = found ? *found : type_rewrite(mod, op, new_types);
-    }
+    for (size_t i = 0; i < type->nops; ++i)
+        new_ops[i] = type_rewrite(mod, type->ops[i], new_types);
 
     const type_t* new_type = type_rebuild(mod, type, new_ops);
     type2type_insert(new_types, type, new_type);
@@ -1232,14 +1238,16 @@ const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_type
 }
 
 const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types) {
-    const node_t* new_ops[node->nops];
-    for (size_t i = 0; i < node->nops; ++i) {
-        const node_t* op = node->ops[i];
-        const node_t** found = node2node_lookup(new_nodes, op);
-        new_ops[i] = found ? *found : node_rewrite(mod, op, new_nodes, new_types);
-    }
+    const node_t** found = node2node_lookup(new_nodes, node);
+    if (found)
+        return *found;
 
-    const node_t* new_node = node_rebuild(mod, node, new_ops, new_types ? type_rewrite(mod, node->type, new_types) : node->type);
+    const node_t* new_ops[node->nops];
+    for (size_t i = 0; i < node->nops; ++i)
+        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types);
+
+    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
+    const node_t* new_node = node_rebuild(mod, node, new_ops, new_type);
     node2node_insert(new_nodes, node, new_node);
     return new_node;
 }
