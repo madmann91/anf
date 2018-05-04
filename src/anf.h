@@ -172,6 +172,7 @@ const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
 // Values
+bool node_is_const(const node_t*);
 bool node_is_zero(const node_t*);
 bool node_is_one(const node_t*);
 bool node_is_all_ones(const node_t*);

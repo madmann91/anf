@@ -255,6 +255,16 @@ static inline const node_t* make_literal(mod_t* mod, const type_t* type, box_t v
     });
 }
 
+bool node_is_const(const node_t* node) {
+    if (node->tag == NODE_LITERAL)
+        return true;
+    for (size_t i = 0; i < node->nops; ++i) {
+        if (!node_is_const(node->ops[i]))
+            return false;
+    }
+    return true;
+}
+
 bool node_is_zero(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
@@ -1070,7 +1080,7 @@ const node_t* node_not(mod_t* mod, const node_t* node, const dbg_t* dbg) {
 }
 
 const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
-    if (node->tag == NODE_LITERAL || node->tag == NODE_FN)
+    if (node->tag == NODE_FN || node_is_const(node))
         return node_i1(mod, true);
     if (node->tag == NODE_TUPLE || node->tag == NODE_ARRAY) {
         const node_t* res = node_i1(mod, true);
