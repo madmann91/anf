@@ -85,8 +85,7 @@ enum node_tag_e {
     NODE_CMPLE,
     NODE_CMPNE,
     NODE_CMPEQ,
-    NODE_ZEXT,
-    NODE_SEXT,
+    NODE_EXT,
     NODE_TRUNC,
     NODE_ITOF,
     NODE_FTOI,
@@ -201,17 +200,16 @@ const node_t* node_array(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_ext(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_trunc(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_itof(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_ftoi(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_cmpgt(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmpge(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmplt(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmple(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmpne(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_cmpeq(mod_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_zext(mod_t*, const node_t*, const type_t*, const dbg_t*);
-const node_t* node_sext(mod_t*, const node_t*, const type_t*, const dbg_t*);
-const node_t* node_trunc(mod_t*, const node_t*, const type_t*, const dbg_t*);
-const node_t* node_itof(mod_t*, const node_t*, const type_t*, const dbg_t*);
-const node_t* node_ftoi(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_add(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_sub(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_mul(mod_t*, const node_t*, const node_t*, const dbg_t*);
