@@ -195,6 +195,8 @@ bool test_tuples(void) {
     const node_t* ops2[3];
     const node_t* tuple1;
     const node_t* tuple2;
+    fn_t* fn;
+    const node_t* param;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -234,6 +236,14 @@ bool test_tuples(void) {
                 node_u32(mod, 1), ops2[1], NULL),
             node_u32(mod, 2), ops2[2], NULL)
         == tuple2);
+
+    fn = node_fn(mod, type_fn(mod, tuple1->type, type_i32(mod)), NULL);
+    param = node_param(mod, fn, NULL);
+
+    ops1[0] = node_extract(mod, param, node_i32(mod, 0), NULL);
+    ops1[1] = node_extract(mod, param, node_i32(mod, 1), NULL);
+    ops1[2] = node_extract(mod, param, node_i32(mod, 2), NULL);
+    CHECK(node_tuple(mod, 3, ops1, NULL) == param);
 
 cleanup:
     mod_destroy(mod);
@@ -453,36 +463,13 @@ bool test_binops(void) {
             NULL)
         == node_or(mod, a, b, NULL));
 
+    // (x == y) | (x >= y) <=> (x >= y)
     CHECK(
         node_or(mod,
             node_cmpeq(mod, x, y, NULL),
             node_cmpge(mod, x, y, NULL),
             NULL)
         == node_cmpge(mod, x, y, NULL));
-
-    // (x >= y) & (x >= 3) & (x + y >= 3) & (y <= 3) & (y >= 0) <=> (x >= 3) & (y <= 3) & (y >= 0)
-    // DOES NOT YET PASS
-    /*CHECK(
-        node_and(mod,
-            node_and(mod,
-                node_cmpge(mod, x, y, NULL),
-                node_cmpge(mod, x, node_i32(mod, 3), NULL),
-                NULL),
-            node_and(mod,
-                node_and(mod,
-                    node_cmpge(mod, node_add(mod, x, y, NULL), node_i32(mod, 3), NULL),
-                    node_cmple(mod, y, node_i32(mod, 3), NULL),
-                    NULL),
-                node_cmpge(mod, y, node_i32(mod, 0), NULL),
-                NULL),
-            NULL)
-        == node_and(mod,
-            node_cmpge(mod, x, node_i32(mod, 3), NULL),
-            node_and(mod,
-                node_cmpge(mod, y, node_i32(mod, 0), NULL),
-                node_cmple(mod, y, node_i32(mod, 3), NULL),
-                NULL),
-            NULL));*/
 
 cleanup:
     mod_destroy(mod);

@@ -171,6 +171,9 @@ const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 
 // Values
+uint64_t node_value_u(const node_t*);
+int64_t  node_value_i(const node_t*);
+double   node_value_f(const node_t*);
 bool node_is_const(const node_t*);
 bool node_is_zero(const node_t*);
 bool node_is_one(const node_t*);

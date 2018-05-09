@@ -55,6 +55,7 @@ uint32_t type_hash(const void* ptr) {
     const type_t* type = *(const type_t**)ptr;
     uint32_t h = hash_init();
     h = hash_uint32(h, type->tag);
+    h = hash_uint8(h, type->fast ? 0xFF : 0);
     for (size_t i = 0; i < type->nops; ++i)
         h = hash_ptr(h, type->ops[i]);
     return h;
@@ -255,6 +256,60 @@ static inline const node_t* make_literal(mod_t* mod, const type_t* type, box_t v
     });
 }
 
+uint64_t node_value_u(const node_t* node) {
+    assert(node->tag == NODE_LITERAL);
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1 ? UINT64_C(1) : UINT64_C(0);
+        case TYPE_I8:  return node->box.i8;
+        case TYPE_I16: return node->box.i16;
+        case TYPE_I32: return node->box.i32;
+        case TYPE_I64: return node->box.i64;
+        case TYPE_U8:  return node->box.u8;
+        case TYPE_U16: return node->box.u16;
+        case TYPE_U32: return node->box.u32;
+        case TYPE_U64: return node->box.u64;
+        case TYPE_F32: return node->box.f32;
+        case TYPE_F64: return node->box.f64;
+        default:       assert(false); return 0;
+    }
+}
+
+int64_t node_value_i(const node_t* node) {
+    assert(node->tag == NODE_LITERAL);
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1 ? INT64_C(1) : INT64_C(0);
+        case TYPE_I8:  return node->box.i8;
+        case TYPE_I16: return node->box.i16;
+        case TYPE_I32: return node->box.i32;
+        case TYPE_I64: return node->box.i64;
+        case TYPE_U8:  return node->box.u8;
+        case TYPE_U16: return node->box.u16;
+        case TYPE_U32: return node->box.u32;
+        case TYPE_U64: return node->box.u64;
+        case TYPE_F32: return node->box.f32;
+        case TYPE_F64: return node->box.f64;
+        default:       assert(false); return 0;
+    }
+}
+
+double node_value_f(const node_t* node) {
+    assert(node->tag == NODE_LITERAL);
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1 ? 1.0 : 0.0;
+        case TYPE_I8:  return node->box.i8;
+        case TYPE_I16: return node->box.i16;
+        case TYPE_I32: return node->box.i32;
+        case TYPE_I64: return node->box.i64;
+        case TYPE_U8:  return node->box.u8;
+        case TYPE_U16: return node->box.u16;
+        case TYPE_U32: return node->box.u32;
+        case TYPE_U64: return node->box.u64;
+        case TYPE_F32: return node->box.f32;
+        case TYPE_F64: return node->box.f64;
+        default:       assert(false); return 0;
+    }
+}
+
 bool node_is_const(const node_t* node) {
     if (node->tag == NODE_LITERAL ||
         node->tag == NODE_FN)
@@ -270,7 +325,7 @@ bool node_is_zero(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->box.i1  == false;
+        case TYPE_I1:  return !node->box.i1;
         case TYPE_I8:  return node->box.i8  == 0;
         case TYPE_I16: return node->box.i16 == 0;
         case TYPE_I32: return node->box.i32 == 0;
@@ -289,7 +344,7 @@ bool node_is_one(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->box.i1  == true;
+        case TYPE_I1:  return node->box.i1;
         case TYPE_I8:  return node->box.i8  == 1;
         case TYPE_I16: return node->box.i16 == 1;
         case TYPE_I32: return node->box.i32 == 1;
@@ -308,15 +363,15 @@ bool node_is_all_ones(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->box.i1  == true;
+        case TYPE_I1:  return node->box.i1;
         case TYPE_I8:  return node->box.i8  == -1;
         case TYPE_I16: return node->box.i16 == -1;
         case TYPE_I32: return node->box.i32 == -1;
         case TYPE_I64: return node->box.i64 == -1;
-        case TYPE_U8:  return node->box.u8  == UINT8_C (0xFF);
-        case TYPE_U16: return node->box.u16 == UINT16_C(0xFFFF);
-        case TYPE_U32: return node->box.u32 == UINT32_C(0xFFFFFFFF);
-        case TYPE_U64: return node->box.u64 == UINT64_C(0xFFFFFFFFFFFFFFFF);
+        case TYPE_U8:  return node->box.u8  == (uint8_t) (-1);
+        case TYPE_U16: return node->box.u16 == (uint16_t)(-1);
+        case TYPE_U32: return node->box.u32 == (uint32_t)(-1);
+        case TYPE_U64: return node->box.u64 == (uint64_t)(-1);
         default:       return false;
     }
 }
@@ -335,7 +390,7 @@ const node_t* node_zero(mod_t* mod, const type_t* type) {
         case TYPE_U64: return node_u64(mod, 0);
         case TYPE_F32: return node_f32(mod, 0.0f);
         case TYPE_F64: return node_f64(mod, 0.0);
-        default:       return NULL;
+        default:       assert(false); return NULL;
     }
 }
 
@@ -353,7 +408,7 @@ const node_t* node_one(mod_t* mod, const type_t* type) {
         case TYPE_U64: return node_u64(mod, 1);
         case TYPE_F32: return node_f32(mod, 1.0f);
         case TYPE_F64: return node_f64(mod, 1.0);
-        default:       return NULL;
+        default:       assert(false); return NULL;
     }
 }
 
@@ -370,7 +425,7 @@ const node_t* node_all_ones(mod_t* mod, const type_t* type) {
         case TYPE_U16: return node_u16(mod, -1);
         case TYPE_U32: return node_u32(mod, -1);
         case TYPE_U64: return node_u64(mod, -1);
-        default:       return NULL;
+        default:       assert(false); return NULL;
     }
 }
 
@@ -530,8 +585,26 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
     }
 }
 
+static inline const node_t* node_try_fold_ops(size_t nops, const node_t** ops) {
+    const node_t* base = NULL;
+    for (size_t i = 0; i < nops; ++i) {
+        const node_t* op = ops[i];
+        if (op->tag != NODE_EXTRACT ||
+            (base && op->ops[0] != base) ||
+            op->ops[1]->tag != NODE_LITERAL ||
+            (size_t)node_value_u(op->ops[1]) != i)
+            return NULL;
+        base = op->ops[0];
+    }
+    return base;
+}
+
 const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const dbg_t* dbg) {
     if (nops == 1) return ops[0];
+    // (extract(t, 0), extract(t, 1), extract(t, 2), ...) <=> t
+    const node_t* base = node_try_fold_ops(nops, ops);
+    if (base && base->type->tag == TYPE_TUPLE && base->type->nops == nops)
+        return base;
     const type_t* type_ops[nops];
     for (size_t i = 0; i < nops; ++i)
         type_ops[i] = ops[i]->type;
