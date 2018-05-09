@@ -20,7 +20,7 @@ bool cmp_elem(const void* a, const void* b) { return *(uint32_t*)a == *(uint32_t
 uint32_t hash_elem(const void* elem) { return *(uint32_t*)elem % 239; }
 HSET(elemset, uint32_t, cmp_elem, hash_elem)
 
-bool test_htable(void) {
+bool test_hset(void) {
     size_t N = 4000;
     size_t inc[3] = {3, 5, 7};
     uint32_t* values = malloc(sizeof(uint32_t) * N);
@@ -562,7 +562,7 @@ void run_test(const test_t* test) {
 
 int main(int argc, char** argv) {
     test_t tests[] = {
-        {"htable",   test_htable},
+        {"hset",     test_hset},
         {"mpool",    test_mpool},
         {"types",    test_types},
         {"literals", test_literals},

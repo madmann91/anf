@@ -36,8 +36,9 @@ static inline bool htable_insert_internal(const void* restrict elem, uint32_t ha
         size_t next_index = htable_index(next_hash, cap);
         size_t next_dib   = htable_dib(index, next_index, cap);
         void* next_elem   = htable_elem(elems, index, esize);
-        if (cmp && cmp_fn(next_elem, cur_elem))
+        if (cmp && next_hash == hash && cmp_fn(next_elem, cur_elem))
             return false;
+
         // Robin Hood hashing: swap the current element with the element to insert if
         // its Distance to Initial Bucket is lower than that of the current element.
         if (next_dib < dib) {
@@ -52,6 +53,7 @@ static inline bool htable_insert_internal(const void* restrict elem, uint32_t ha
         index++;
         index = index >= cap ? 0 : index;
     }
+
     hashes[index] = hash | OCCUPIED_HASH_MASK;
     memcpy(htable_elem(elems, index, esize), cur_elem, esize);
     return true;
@@ -84,8 +86,7 @@ void htable_clear(htable_t* table) {
 void htable_rehash(htable_t* table, size_t new_cap) {
     assert((new_cap & (new_cap - 1)) == 0);
     void*     new_elems  = malloc(table->esize * new_cap);
-    uint32_t* new_hashes = malloc(sizeof(uint32_t) * new_cap);
-    memset(new_hashes, 0, sizeof(uint32_t) * new_cap);
+    uint32_t* new_hashes = calloc(new_cap, sizeof(uint32_t));
 
     for (size_t i = 0; i < table->cap; ++i) {
         uint32_t hash = table->hashes[i];
@@ -205,7 +206,7 @@ size_t htable_lookup(htable_t* table, const void* elem, uint32_t hash) {
             return INVALID_INDEX;
 
         void* next_elem = htable_elem(table->elems, index, table->esize);
-        if (table->cmp_fn(next_elem, elem))
+        if (next_hash == hash && table->cmp_fn(next_elem, elem))
             return index;
 
         dib++;
