@@ -7,8 +7,6 @@
 #include "mpool.h"
 #include "anf.h"
 #include "scope.h"
-#include "logic.h"
-#include "sched.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {

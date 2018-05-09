@@ -85,7 +85,7 @@ enum node_tag_e {
     NODE_CMPLE,
     NODE_CMPNE,
     NODE_CMPEQ,
-    NODE_EXT,
+    NODE_WIDEN,
     NODE_TRUNC,
     NODE_ITOF,
     NODE_FTOI,
@@ -200,7 +200,7 @@ const node_t* node_array(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const dbg_t*);
-const node_t* node_ext(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_widen(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_trunc(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_itof(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_ftoi(mod_t*, const node_t*, const type_t*, const dbg_t*);
