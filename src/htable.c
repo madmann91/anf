@@ -57,7 +57,7 @@ static inline bool htable_insert_internal(const void* restrict elem, uint32_t ha
     return true;
 }
 
-htable_t* htable_create(size_t esize, size_t cap, cmpfn_t cmp_fn, hashfn_t hash_fn) {
+htable_t* htable_create(size_t esize, size_t cap, cmpfn_t cmp_fn) {
     assert((cap & (cap - 1)) == 0);
     htable_t* table = malloc(sizeof(htable_t));
     table->esize   = esize;
@@ -66,7 +66,6 @@ htable_t* htable_create(size_t esize, size_t cap, cmpfn_t cmp_fn, hashfn_t hash_
     table->elems   = malloc(esize * cap);
     table->hashes  = malloc(sizeof(uint32_t) * cap);
     table->cmp_fn  = cmp_fn;
-    table->hash_fn = hash_fn;
     memset(table->hashes, 0, sizeof(uint32_t) * cap);
     return table;
 }
@@ -108,8 +107,8 @@ void htable_rehash(htable_t* table, size_t new_cap) {
     table->cap    = new_cap;
 }
 
-bool htable_insert(htable_t* table, const void* elem) {
-    if (!htable_insert_internal(elem, table->hash_fn(elem) & ~OCCUPIED_HASH_MASK,
+bool htable_insert(htable_t* table, const void* elem, uint32_t hash) {
+    if (!htable_insert_internal(elem, hash & ~OCCUPIED_HASH_MASK,
                                 table->elems, table->hashes,
                                 table->esize, table->cap,
                                 table->cmp_fn, true))
@@ -124,8 +123,8 @@ bool htable_insert(htable_t* table, const void* elem) {
     return true;
 }
 
-bool htable_remove(htable_t* table, const void* elem) {
-    size_t index = htable_lookup(table, elem);
+bool htable_remove(htable_t* table, const void* elem, uint32_t hash) {
+    size_t index = htable_lookup(table, elem, hash);
     if (index == INVALID_INDEX)
         return false;
     htable_remove_by_index(table, index);
@@ -188,8 +187,9 @@ void htable_remove_by_index(htable_t* table, size_t index) {
     table->nelems--;
 }
 
-size_t htable_lookup(htable_t* table, const void* elem) {
-    uint32_t hash = table->hash_fn(elem) & ~OCCUPIED_HASH_MASK;
+size_t htable_lookup(htable_t* table, const void* elem, uint32_t hash) {
+    hash = hash & ~OCCUPIED_HASH_MASK;
+
     size_t index  = htable_index(hash, table->cap);
     size_t dib    = 0;
 

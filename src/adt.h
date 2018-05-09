@@ -24,7 +24,7 @@
     static inline hmap##_t hmap##_create(size_t cap) { \
         struct pair_s { key_t key; value_t value; }; \
         return (hmap##_t) { \
-            .table = htable_create(sizeof(struct pair_s), cap, cmp, hash) \
+            .table = htable_create(sizeof(struct pair_s), cap, cmp) \
         }; \
     } \
     static inline void hmap##_destroy(hmap##_t* map) { \
@@ -35,13 +35,13 @@
     } \
     static inline bool hmap##_insert(hmap##_t* map, key_t k, value_t v) { \
         struct { key_t key; value_t value; } elem = { .key = k, .value = v }; \
-        return htable_insert(map->table, &elem); \
+        return htable_insert(map->table, &elem, hash(&elem)); \
     } \
     static inline bool hmap##_remove(hmap##_t* map, key_t k) { \
-        return htable_remove(map->table, &k); \
+        return htable_remove(map->table, &k, hash(&k)); \
     } \
     static inline const value_t* hmap##_lookup(const hmap##_t* map, key_t k) { \
-        size_t index = htable_lookup(map->table, &k); \
+        size_t index = htable_lookup(map->table, &k, hash(&k)); \
         struct pair_s { key_t key; const value_t value; };\
         return index != INVALID_INDEX ? &((struct pair_s*)map->table->elems)[index].value : NULL; \
     }
@@ -67,7 +67,7 @@
     typedef struct { htable_t* table; } hset##_t; \
     static inline hset##_t hset##_create(size_t cap) { \
         return (hset##_t) { \
-            .table = htable_create(sizeof(value_t), cap, cmp, hash) \
+            .table = htable_create(sizeof(value_t), cap, cmp) \
         }; \
     } \
     static inline void hset##_destroy(hset##_t* set) { \
@@ -77,13 +77,13 @@
         htable_clear(set->table); \
     } \
     static inline bool hset##_insert(hset##_t* set, value_t v) { \
-        return htable_insert(set->table, &v); \
+        return htable_insert(set->table, &v, hash(&v)); \
     } \
     static inline bool hset##_remove(hset##_t* set, value_t v) { \
-        return htable_remove(set->table, &v); \
+        return htable_remove(set->table, &v, hash(&v)); \
     } \
     static inline const value_t* hset##_lookup(const hset##_t* set, value_t v) { \
-        size_t index = htable_lookup(set->table, &v); \
+        size_t index = htable_lookup(set->table, &v, hash(&v)); \
         return index != INVALID_INDEX ? &((const value_t*)set->table->elems)[index] : NULL; \
     }
 

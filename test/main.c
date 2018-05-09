@@ -26,8 +26,8 @@ bool test_htable(void) {
     for (size_t i = 0, j = 0; i < N; ++i, j += inc[j%3]) {
         values[i] = j;
     }
-    htable_t* table1 = htable_create(sizeof(uint32_t), 16, cmp_elem, hash_elem);
-    htable_t* table2 = htable_create(sizeof(uint32_t), 16, cmp_elem, hash_elem);
+    htable_t* table1 = htable_create(sizeof(uint32_t), 16, cmp_elem);
+    htable_t* table2 = htable_create(sizeof(uint32_t), 16, cmp_elem);
 
     jmp_buf env;
     int status = setjmp(env);
@@ -35,20 +35,21 @@ bool test_htable(void) {
         goto cleanup;
 
     for (size_t i = 0; i < N; ++i)
-        CHECK(htable_insert(table1, &values[i]));
+        CHECK(htable_insert(table1, &values[i], hash_elem(&values[i])));
     for (size_t i = N - 1; i >= N / 2; --i)
-        CHECK(htable_remove(table1, &values[i]));
+        CHECK(htable_remove(table1, &values[i], hash_elem(&values[i])));
     for (size_t i = N / 2; i < N; ++i)
-        CHECK(htable_lookup(table1, &values[i]) == INVALID_INDEX);
+        CHECK(htable_lookup(table1, &values[i], hash_elem(&values[i])) == INVALID_INDEX);
     for (size_t i = 0; i < N / 2; ++i)
-        CHECK(htable_lookup(table1, &values[i]) != INVALID_INDEX);
+        CHECK(htable_lookup(table1, &values[i], hash_elem(&values[i])) != INVALID_INDEX);
     for (size_t i = 0; i < table1->cap; ++i) {
         if (!(table1->hashes[i] & OCCUPIED_HASH_MASK))
             continue;
-        CHECK(htable_insert(table2, ((uint32_t*)table1->elems) + i));
+        uint32_t* elem = (uint32_t*)table1->elems + i;
+        CHECK(htable_insert(table2, elem, hash_elem(elem)));
     }
     for (size_t i = 0; i < N / 2; ++i)
-        CHECK(htable_lookup(table2, &values[i]) != INVALID_INDEX);
+        CHECK(htable_lookup(table2, &values[i], hash_elem(&values[i])) != INVALID_INDEX);
 
     CHECK(table1->nelems == N / 2);
     CHECK(table2->nelems == N / 2);

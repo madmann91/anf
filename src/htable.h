@@ -10,8 +10,7 @@
 
 typedef struct htable_s htable_t;
 
-typedef bool     (*cmpfn_t)(const void*, const void*);
-typedef uint32_t (*hashfn_t)(const void*);
+typedef bool (*cmpfn_t)(const void*, const void*);
 
 struct htable_s {
     size_t esize;
@@ -20,16 +19,15 @@ struct htable_s {
     void* elems;
     uint32_t* hashes;
     cmpfn_t cmp_fn;
-    hashfn_t hash_fn;
 };
 
-htable_t* htable_create(size_t, size_t, cmpfn_t, hashfn_t);
+htable_t* htable_create(size_t, size_t, cmpfn_t);
 void htable_destroy(htable_t*);
 void htable_clear(htable_t*);
 void htable_rehash(htable_t*, size_t);
-bool htable_insert(htable_t*, const void*);
-bool htable_remove(htable_t*, const void*);
+bool htable_insert(htable_t*, const void*, uint32_t);
+bool htable_remove(htable_t*, const void*, uint32_t);
 void htable_remove_by_index(htable_t*, size_t);
-size_t htable_lookup(htable_t*, const void*);
+size_t htable_lookup(htable_t*, const void*, uint32_t);
 
 #endif // HTABLE_H
