@@ -17,7 +17,8 @@ void check(jmp_buf env, bool cond, const char* expr, const char* file, int line)
 }
 
 bool cmp_elem(const void* a, const void* b) { return *(uint32_t*)a == *(uint32_t*)b; }
-uint32_t hash_elem(const void* elem) { return *(uint32_t*)elem % 23; }
+uint32_t hash_elem(const void* elem) { return *(uint32_t*)elem % 239; }
+HSET(elemset, uint32_t, cmp_elem, hash_elem)
 
 bool test_htable(void) {
     size_t N = 4000;
@@ -26,8 +27,8 @@ bool test_htable(void) {
     for (size_t i = 0, j = 0; i < N; ++i, j += inc[j%3]) {
         values[i] = j;
     }
-    htable_t* table1 = htable_create(sizeof(uint32_t), 16, cmp_elem);
-    htable_t* table2 = htable_create(sizeof(uint32_t), 16, cmp_elem);
+    elemset_t set1 = elemset_create(16);
+    elemset_t set2 = elemset_create(16);
 
     jmp_buf env;
     int status = setjmp(env);
@@ -35,28 +36,25 @@ bool test_htable(void) {
         goto cleanup;
 
     for (size_t i = 0; i < N; ++i)
-        CHECK(htable_insert(table1, &values[i], hash_elem(&values[i])));
+        CHECK(elemset_insert(&set1, values[i]));
     for (size_t i = N - 1; i >= N / 2; --i)
-        CHECK(htable_remove(table1, &values[i], hash_elem(&values[i])));
+        CHECK(elemset_remove(&set1, values[i]));
     for (size_t i = N / 2; i < N; ++i)
-        CHECK(htable_lookup(table1, &values[i], hash_elem(&values[i])) == INVALID_INDEX);
+        CHECK(elemset_lookup(&set1, values[i]) == NULL);
     for (size_t i = 0; i < N / 2; ++i)
-        CHECK(htable_lookup(table1, &values[i], hash_elem(&values[i])) != INVALID_INDEX);
-    for (size_t i = 0; i < table1->cap; ++i) {
-        if (!(table1->hashes[i] & OCCUPIED_HASH_MASK))
-            continue;
-        uint32_t* elem = (uint32_t*)table1->elems + i;
-        CHECK(htable_insert(table2, elem, hash_elem(elem)));
-    }
+        CHECK(elemset_lookup(&set1, values[i]) != NULL);
+    FORALL_HSET(set1, uint32_t, elem, {
+        CHECK(elemset_insert(&set2, elem));
+    })
     for (size_t i = 0; i < N / 2; ++i)
-        CHECK(htable_lookup(table2, &values[i], hash_elem(&values[i])) != INVALID_INDEX);
+        CHECK(elemset_lookup(&set2, values[i]) != NULL);
 
-    CHECK(table1->nelems == N / 2);
-    CHECK(table2->nelems == N / 2);
+    CHECK(set1.table->nelems == N / 2);
+    CHECK(set1.table->nelems == N / 2);
 
 cleanup:
-    htable_destroy(table1);
-    htable_destroy(table2);
+    elemset_destroy(&set1);
+    elemset_destroy(&set2);
     free(values);
     return status == 0;
 }
