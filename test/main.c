@@ -50,7 +50,7 @@ bool test_hset(void) {
         CHECK(elemset_lookup(&set2, values[i]) != NULL);
 
     CHECK(set1.table->nelems == N / 2);
-    CHECK(set1.table->nelems == N / 2);
+    CHECK(set2.table->nelems == N / 2);
 
 cleanup:
     elemset_destroy(&set1);
