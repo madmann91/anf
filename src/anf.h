@@ -149,6 +149,9 @@ struct mod_s {
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
 
+void mod_import(const mod_t*, mod_t*);
+void mod_opt(mod_t**);
+
 // Types
 size_t type_bitwidth(const type_t*);
 bool type_is_prim(const type_t*);

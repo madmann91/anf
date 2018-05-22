@@ -1535,13 +1535,31 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
     if (found)
         return *found;
 
+    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
+    const node_t* new_node = NULL;
+    if (node->tag == NODE_FN) {
+        fn_t* new_fn = node_fn(mod, new_type, node->dbg);
+        fn_t* old_fn = fn_cast(node);
+        new_fn->is_exported  = old_fn->is_exported;
+        new_fn->is_imported  = old_fn->is_imported;
+        new_fn->is_intrinsic = old_fn->is_intrinsic;
+        new_node = &new_fn->node;
+        node2node_insert(new_nodes, node, new_node);
+    }
+
     const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i)
-        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types);
+        new_ops[i] = node->ops[i] ? node_rewrite(mod, node->ops[i], new_nodes, new_types) : NULL;
 
-    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
-    const node_t* new_node = node_rebuild(mod, node, new_ops, new_type);
-    node2node_insert(new_nodes, node, new_node);
+    if (node->tag == NODE_FN) {
+        fn_t* new_fn = fn_cast(new_node);
+        if (new_ops[0]) fn_bind(mod, new_fn, new_ops[0]);
+        if (new_ops[1]) fn_run_if(mod, new_fn, new_ops[1]);
+    } else {
+        new_node = node_rebuild(mod, node, new_ops, new_type);
+        node2node_insert(new_nodes, node, new_node);
+    }
+
     return new_node;
 }
 
