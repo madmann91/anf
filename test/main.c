@@ -539,7 +539,7 @@ bool test_io() {
         goto cleanup;
 
     make_const_fn(mod, type_i32(mod));
-    CHECK(mod_save(mod, "mod.anf"))
+    CHECK(mod_save(mod, "mod.anf"));
 
 cleanup:
     mod_destroy(mod);
