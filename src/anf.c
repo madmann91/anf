@@ -55,6 +55,7 @@ uint32_t type_hash(const void* ptr) {
     const type_t* type = *(const type_t**)ptr;
     uint32_t h = hash_init();
     h = hash_uint32(h, type->tag);
+    h = hash_uint8(h, type->fast ? 0xFF : 0);
     for (size_t i = 0; i < type->nops; ++i)
         h = hash_ptr(h, type->ops[i]);
     return h;
@@ -255,10 +256,66 @@ static inline const node_t* make_literal(mod_t* mod, const type_t* type, box_t v
     });
 }
 
+uint64_t node_value_u(const node_t* node) {
+    assert(node->tag == NODE_LITERAL);
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1 ? UINT64_C(1) : UINT64_C(0);
+        case TYPE_I8:  return node->box.i8;
+        case TYPE_I16: return node->box.i16;
+        case TYPE_I32: return node->box.i32;
+        case TYPE_I64: return node->box.i64;
+        case TYPE_U8:  return node->box.u8;
+        case TYPE_U16: return node->box.u16;
+        case TYPE_U32: return node->box.u32;
+        case TYPE_U64: return node->box.u64;
+        case TYPE_F32: return node->box.f32;
+        case TYPE_F64: return node->box.f64;
+        default:       assert(false); return 0;
+    }
+}
+
+int64_t node_value_i(const node_t* node) {
+    assert(node->tag == NODE_LITERAL);
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1 ? INT64_C(1) : INT64_C(0);
+        case TYPE_I8:  return node->box.i8;
+        case TYPE_I16: return node->box.i16;
+        case TYPE_I32: return node->box.i32;
+        case TYPE_I64: return node->box.i64;
+        case TYPE_U8:  return node->box.u8;
+        case TYPE_U16: return node->box.u16;
+        case TYPE_U32: return node->box.u32;
+        case TYPE_U64: return node->box.u64;
+        case TYPE_F32: return node->box.f32;
+        case TYPE_F64: return node->box.f64;
+        default:       assert(false); return 0;
+    }
+}
+
+double node_value_f(const node_t* node) {
+    assert(node->tag == NODE_LITERAL);
+    switch (node->type->tag) {
+        case TYPE_I1:  return node->box.i1 ? 1.0 : 0.0;
+        case TYPE_I8:  return node->box.i8;
+        case TYPE_I16: return node->box.i16;
+        case TYPE_I32: return node->box.i32;
+        case TYPE_I64: return node->box.i64;
+        case TYPE_U8:  return node->box.u8;
+        case TYPE_U16: return node->box.u16;
+        case TYPE_U32: return node->box.u32;
+        case TYPE_U64: return node->box.u64;
+        case TYPE_F32: return node->box.f32;
+        case TYPE_F64: return node->box.f64;
+        default:       assert(false); return 0;
+    }
+}
+
 bool node_is_const(const node_t* node) {
     if (node->tag == NODE_LITERAL ||
         node->tag == NODE_FN)
         return true;
+    if (node->tag == NODE_PARAM)
+        return false;
     for (size_t i = 0; i < node->nops; ++i) {
         if (!node_is_const(node->ops[i]))
             return false;
@@ -270,7 +327,7 @@ bool node_is_zero(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->box.i1  == false;
+        case TYPE_I1:  return !node->box.i1;
         case TYPE_I8:  return node->box.i8  == 0;
         case TYPE_I16: return node->box.i16 == 0;
         case TYPE_I32: return node->box.i32 == 0;
@@ -289,7 +346,7 @@ bool node_is_one(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->box.i1  == true;
+        case TYPE_I1:  return node->box.i1;
         case TYPE_I8:  return node->box.i8  == 1;
         case TYPE_I16: return node->box.i16 == 1;
         case TYPE_I32: return node->box.i32 == 1;
@@ -308,15 +365,15 @@ bool node_is_all_ones(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->box.i1  == true;
+        case TYPE_I1:  return node->box.i1;
         case TYPE_I8:  return node->box.i8  == -1;
         case TYPE_I16: return node->box.i16 == -1;
         case TYPE_I32: return node->box.i32 == -1;
         case TYPE_I64: return node->box.i64 == -1;
-        case TYPE_U8:  return node->box.u8  == UINT8_C (0xFF);
-        case TYPE_U16: return node->box.u16 == UINT16_C(0xFFFF);
-        case TYPE_U32: return node->box.u32 == UINT32_C(0xFFFFFFFF);
-        case TYPE_U64: return node->box.u64 == UINT64_C(0xFFFFFFFFFFFFFFFF);
+        case TYPE_U8:  return node->box.u8  == (uint8_t) (-1);
+        case TYPE_U16: return node->box.u16 == (uint16_t)(-1);
+        case TYPE_U32: return node->box.u32 == (uint32_t)(-1);
+        case TYPE_U64: return node->box.u64 == (uint64_t)(-1);
         default:       return false;
     }
 }
@@ -335,7 +392,7 @@ const node_t* node_zero(mod_t* mod, const type_t* type) {
         case TYPE_U64: return node_u64(mod, 0);
         case TYPE_F32: return node_f32(mod, 0.0f);
         case TYPE_F64: return node_f64(mod, 0.0);
-        default:       return NULL;
+        default:       assert(false); return NULL;
     }
 }
 
@@ -353,7 +410,7 @@ const node_t* node_one(mod_t* mod, const type_t* type) {
         case TYPE_U64: return node_u64(mod, 1);
         case TYPE_F32: return node_f32(mod, 1.0f);
         case TYPE_F64: return node_f64(mod, 1.0);
-        default:       return NULL;
+        default:       assert(false); return NULL;
     }
 }
 
@@ -370,7 +427,7 @@ const node_t* node_all_ones(mod_t* mod, const type_t* type) {
         case TYPE_U16: return node_u16(mod, -1);
         case TYPE_U32: return node_u32(mod, -1);
         case TYPE_U64: return node_u64(mod, -1);
-        default:       return NULL;
+        default:       assert(false); return NULL;
     }
 }
 
@@ -530,8 +587,26 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
     }
 }
 
+static inline const node_t* try_fold_tuple(size_t nops, const node_t** ops) {
+    const node_t* base = NULL;
+    for (size_t i = 0; i < nops; ++i) {
+        const node_t* op = ops[i];
+        if (op->tag != NODE_EXTRACT ||
+            (base && op->ops[0] != base) ||
+            op->ops[1]->tag != NODE_LITERAL ||
+            (size_t)node_value_u(op->ops[1]) != i)
+            return NULL;
+        base = op->ops[0];
+    }
+    return base;
+}
+
 const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const dbg_t* dbg) {
     if (nops == 1) return ops[0];
+    // (extract(t, 0), extract(t, 1), extract(t, 2), ...) <=> t
+    const node_t* base = try_fold_tuple(nops, ops);
+    if (base && base->type->tag == TYPE_TUPLE && base->type->nops == nops)
+        return base;
     const type_t* type_ops[nops];
     for (size_t i = 0; i < nops; ++i)
         type_ops[i] = ops[i]->type;
@@ -1292,12 +1367,6 @@ const node_t* node_not(mod_t* mod, const node_t* node, const dbg_t* dbg) {
 const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     if (node_is_const(node))
         return node_i1(mod, true);
-    if (node->tag == NODE_TUPLE || node->tag == NODE_ARRAY) {
-        const node_t* res = node_i1(mod, true);
-        for (size_t i = 0; i < node->nops; ++i)
-            res = node_and(mod, res, node_known(mod, node->ops[i], dbg), dbg);
-        return res;
-    }
     return make_node(mod, (node_t) {
         .tag  = NODE_KNOWN,
         .nops = 1,
@@ -1348,6 +1417,7 @@ fn_t* fn_cast(const node_t* node) {
 fn_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
     fn_t* fn = mpool_alloc(&mod->pool, sizeof(fn_t));
+    memset(fn, 0, sizeof(fn_t));
     const node_t** ops = mpool_alloc(&mod->pool, sizeof(node_t*) * 2);
     ops[0] = node_undef(mod, type->ops[1]);
     ops[1] = node_i1(mod, false);
@@ -1374,8 +1444,25 @@ const node_t* node_param(mod_t* mod, const fn_t* fn, const dbg_t* dbg) {
     });
 }
 
+static inline const node_t* try_fold_app(mod_t* mod, const node_t* fn, const node_t* arg) {
+    // TODO: Handle nested applications
+    if (fn->tag != NODE_FN || node_is_zero(fn->ops[1]))
+        return NULL;
+
+    node2node_t new_nodes = node2node_create(16);
+    type2type_t new_types = type2type_create(16);
+    node2node_insert(&new_nodes, node_param(mod, fn_cast(fn), NULL), arg);
+    const node_t* cond = node_rewrite(mod, fn->ops[1], &new_nodes, &new_types);
+    if (cond->tag == NODE_LITERAL && cond->box.i1 && fn->ops[0]->tag != NODE_UNDEF)
+        return node_rewrite(mod, fn->ops[0], &new_nodes, &new_types);
+    return NULL;
+}
+
 const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
     assert(fn->type->tag == TYPE_FN);
+    const node_t* folded = try_fold_app(mod, fn, arg);
+    if (folded)
+        return folded;
     const node_t* ops[] = { fn, arg };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
@@ -1458,17 +1545,36 @@ const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_type
 }
 
 const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types) {
+    node = node->rep ? node->rep : node;
     const node_t** found = node2node_lookup(new_nodes, node);
     if (found)
         return *found;
+
+    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
+    const node_t* new_node = NULL;
+    if (node->tag == NODE_FN) {
+        fn_t* new_fn = node_fn(mod, new_type, node->dbg);
+        fn_t* old_fn = fn_cast(node);
+        new_fn->is_exported  = old_fn->is_exported;
+        new_fn->is_imported  = old_fn->is_imported;
+        new_fn->is_intrinsic = old_fn->is_intrinsic;
+        new_node = &new_fn->node;
+        node2node_insert(new_nodes, node, new_node);
+    }
 
     const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i)
         new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types);
 
-    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
-    const node_t* new_node = node_rebuild(mod, node, new_ops, new_type);
-    node2node_insert(new_nodes, node, new_node);
+    if (node->tag == NODE_FN) {
+        fn_t* new_fn = fn_cast(new_node);
+        fn_bind(mod, new_fn, new_ops[0]);
+        fn_run_if(mod, new_fn, new_ops[1]);
+    } else {
+        new_node = node_rebuild(mod, node, new_ops, new_type);
+        node2node_insert(new_nodes, node, new_node);
+    }
+
     return new_node;
 }
 
@@ -1570,8 +1676,10 @@ void node_print(const node_t* node, bool colorize) {
                 break;
         }
     } else {
-        node_print_name(node, colorize);
-        printf(" = ");
+        if (node->nops > 0) {
+            node_print_name(node, colorize);
+            printf(" = ");
+        }
         type_print(node->type, colorize);
         const char* op = NULL;
         switch (node->tag) {
@@ -1605,16 +1713,19 @@ void node_print(const node_t* node, bool colorize) {
                 assert(false);
                 break;
         }
-        printf(" %s%s%s ", nprefix, op, suffix);
-        for (size_t i = 0; i < node->nops; ++i) {
-            if (node->ops[i]->nops == 0) {
-                // Print literals and undefs inline
-                node_print(node->ops[i], colorize);
-            } else {
-                node_print_name(node->ops[i], colorize);
+        printf(" %s%s%s", nprefix, op, suffix);
+        if (node->nops > 0) {
+            printf(" ");
+            for (size_t i = 0; i < node->nops; ++i) {
+                if (node->ops[i]->nops == 0) {
+                    // Print literals and undefs inline
+                    node_print(node->ops[i], colorize);
+                } else {
+                    node_print_name(node->ops[i], colorize);
+                }
+                if (i != node->nops - 1)
+                    printf(", ");
             }
-            if (i != node->nops - 1)
-                printf(", ");
         }
     }
 }

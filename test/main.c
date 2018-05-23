@@ -17,17 +17,18 @@ void check(jmp_buf env, bool cond, const char* expr, const char* file, int line)
 }
 
 bool cmp_elem(const void* a, const void* b) { return *(uint32_t*)a == *(uint32_t*)b; }
-uint32_t hash_elem(const void* elem) { return *(uint32_t*)elem % 23; }
+uint32_t hash_elem(const void* elem) { return *(uint32_t*)elem % 239; }
+HSET(elemset, uint32_t, cmp_elem, hash_elem)
 
-bool test_htable(void) {
+bool test_hset(void) {
     size_t N = 4000;
     size_t inc[3] = {3, 5, 7};
     uint32_t* values = malloc(sizeof(uint32_t) * N);
     for (size_t i = 0, j = 0; i < N; ++i, j += inc[j%3]) {
         values[i] = j;
     }
-    htable_t* table1 = htable_create(sizeof(uint32_t), 16, cmp_elem, hash_elem);
-    htable_t* table2 = htable_create(sizeof(uint32_t), 16, cmp_elem, hash_elem);
+    elemset_t set1 = elemset_create(16);
+    elemset_t set2 = elemset_create(16);
 
     jmp_buf env;
     int status = setjmp(env);
@@ -35,27 +36,25 @@ bool test_htable(void) {
         goto cleanup;
 
     for (size_t i = 0; i < N; ++i)
-        CHECK(htable_insert(table1, &values[i]));
+        CHECK(elemset_insert(&set1, values[i]));
     for (size_t i = N - 1; i >= N / 2; --i)
-        CHECK(htable_remove(table1, &values[i]));
+        CHECK(elemset_remove(&set1, values[i]));
     for (size_t i = N / 2; i < N; ++i)
-        CHECK(htable_lookup(table1, &values[i]) == INVALID_INDEX);
+        CHECK(elemset_lookup(&set1, values[i]) == NULL);
     for (size_t i = 0; i < N / 2; ++i)
-        CHECK(htable_lookup(table1, &values[i]) != INVALID_INDEX);
-    for (size_t i = 0; i < table1->cap; ++i) {
-        if (!(table1->hashes[i] & OCCUPIED_HASH_MASK))
-            continue;
-        CHECK(htable_insert(table2, ((uint32_t*)table1->elems) + i));
-    }
+        CHECK(elemset_lookup(&set1, values[i]) != NULL);
+    FORALL_HSET(set1, uint32_t, elem, {
+        CHECK(elemset_insert(&set2, elem));
+    })
     for (size_t i = 0; i < N / 2; ++i)
-        CHECK(htable_lookup(table2, &values[i]) != INVALID_INDEX);
+        CHECK(elemset_lookup(&set2, values[i]) != NULL);
 
-    CHECK(table1->nelems == N / 2);
-    CHECK(table2->nelems == N / 2);
+    CHECK(set1.table->nelems == N / 2);
+    CHECK(set2.table->nelems == N / 2);
 
 cleanup:
-    htable_destroy(table1);
-    htable_destroy(table2);
+    elemset_destroy(&set1);
+    elemset_destroy(&set2);
     free(values);
     return status == 0;
 }
@@ -196,6 +195,8 @@ bool test_tuples(void) {
     const node_t* ops2[3];
     const node_t* tuple1;
     const node_t* tuple2;
+    fn_t* fn;
+    const node_t* param;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -235,6 +236,14 @@ bool test_tuples(void) {
                 node_u32(mod, 1), ops2[1], NULL),
             node_u32(mod, 2), ops2[2], NULL)
         == tuple2);
+
+    fn = node_fn(mod, type_fn(mod, tuple1->type, type_i32(mod)), NULL);
+    param = node_param(mod, fn, NULL);
+
+    ops1[0] = node_extract(mod, param, node_i32(mod, 0), NULL);
+    ops1[1] = node_extract(mod, param, node_i32(mod, 1), NULL);
+    ops1[2] = node_extract(mod, param, node_i32(mod, 2), NULL);
+    CHECK(node_tuple(mod, 3, ops1, NULL) == param);
 
 cleanup:
     mod_destroy(mod);
@@ -454,36 +463,13 @@ bool test_binops(void) {
             NULL)
         == node_or(mod, a, b, NULL));
 
+    // (x == y) | (x >= y) <=> (x >= y)
     CHECK(
         node_or(mod,
             node_cmpeq(mod, x, y, NULL),
             node_cmpge(mod, x, y, NULL),
             NULL)
         == node_cmpge(mod, x, y, NULL));
-
-    // (x >= y) & (x >= 3) & (x + y >= 3) & (y <= 3) & (y >= 0) <=> (x >= 3) & (y <= 3) & (y >= 0)
-    // DOES NOT YET PASS
-    /*CHECK(
-        node_and(mod,
-            node_and(mod,
-                node_cmpge(mod, x, y, NULL),
-                node_cmpge(mod, x, node_i32(mod, 3), NULL),
-                NULL),
-            node_and(mod,
-                node_and(mod,
-                    node_cmpge(mod, node_add(mod, x, y, NULL), node_i32(mod, 3), NULL),
-                    node_cmple(mod, y, node_i32(mod, 3), NULL),
-                    NULL),
-                node_cmpge(mod, y, node_i32(mod, 0), NULL),
-                NULL),
-            NULL)
-        == node_and(mod,
-            node_cmpge(mod, x, node_i32(mod, 3), NULL),
-            node_and(mod,
-                node_cmpge(mod, y, node_i32(mod, 0), NULL),
-                node_cmple(mod, y, node_i32(mod, 3), NULL),
-                NULL),
-            NULL));*/
 
 cleanup:
     mod_destroy(mod);
@@ -560,6 +546,85 @@ cleanup:
     return status == 0;
 }
 
+bool test_opt(void) {
+    mod_t* mod = mod_create();
+
+    fn_t* pow, *when_zero, *when_nzero, *when_even, *when_odd, *outer;
+    const node_t* node_ops[2];
+    const node_t* x, *n;
+    const node_t* unit;
+    const node_t* param;
+    const node_t* modulo;
+    const node_t* cmp_zero, *cmp_even;
+    const node_t* pow_even, *pow_odd, *pow_half;
+    const type_t* pow_type, *bb_type;
+    const type_t* type_ops[2];
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    type_ops[0] = type_i32(mod);
+    type_ops[1] = type_i32(mod);
+    pow_type = type_fn(mod, type_tuple(mod, 2, type_ops), type_i32(mod));
+    bb_type  = type_fn(mod, type_tuple(mod, 0, NULL), type_i32(mod));
+    pow = node_fn(mod, pow_type, NULL);
+    when_zero  = node_fn(mod, bb_type, NULL);
+    when_nzero = node_fn(mod, bb_type, NULL);
+    when_odd   = node_fn(mod, bb_type, NULL);
+    when_even  = node_fn(mod, bb_type, NULL);
+    param = node_param(mod, pow, NULL);
+    x = node_extract(mod, param, node_i32(mod, 0), NULL);
+    n = node_extract(mod, param, node_i32(mod, 1), NULL);
+    cmp_zero = node_cmpeq(mod, n, node_i32(mod, 0), NULL);
+    modulo = node_mod(mod, n, node_i32(mod, 2), NULL);
+    cmp_even = node_cmpeq(mod, modulo, node_i32(mod, 0), NULL);
+    unit = node_tuple(mod, 0, NULL, NULL);
+
+    fn_bind(mod, pow, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, NULL));
+    fn_bind(mod, when_zero, node_i32(mod, 1));
+    fn_bind(mod, when_nzero, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, NULL));
+    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_sub(mod, n, node_i32(mod, 1), NULL), NULL), NULL);
+    pow_half = node_app(mod, &pow->node, node_div(mod, n, node_i32(mod, 2), NULL), NULL);
+    pow_even = node_mul(mod, pow_half, pow_half, NULL);
+    fn_bind(mod, when_even, pow_even);
+    fn_bind(mod, when_odd,  pow_odd);
+
+    outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    node_ops[0] = node_param(mod, outer, NULL);
+    node_ops[1] = node_i32(mod, 1);
+    fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL));
+
+    outer->is_exported = true;
+    fn_run_if(mod, pow, node_known(mod, n, NULL));
+    fn_run_if(mod, when_even,  node_i1(mod, false));
+    fn_run_if(mod, when_odd,   node_i1(mod, false));
+    fn_run_if(mod, when_zero,  node_i1(mod, false));
+    fn_run_if(mod, when_nzero, node_i1(mod, false));
+
+    FORALL_VEC(mod->fns, const fn_t*, fn, {
+        node_dump(&fn->node);
+        printf("\t");
+        if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+    })
+    mod_opt(&mod);
+
+    FORALL_HSET(mod->nodes, const node_t*, node, {
+        node_dump(node);
+    })
+    FORALL_VEC(mod->fns, const fn_t*, fn, {
+        node_dump(&fn->node);
+        printf("\t");
+        if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+    })
+    CHECK(mod->nodes.table->nelems == 4);
+
+cleanup:
+    mod_destroy(mod);
+    return status == 0;
+}
+
 typedef struct {
     const char* name;
     bool (*test_fn)(void);
@@ -585,7 +650,7 @@ void run_test(const test_t* test) {
 
 int main(int argc, char** argv) {
     test_t tests[] = {
-        {"htable",   test_htable},
+        {"hset",     test_hset},
         {"mpool",    test_mpool},
         {"types",    test_types},
         {"literals", test_literals},
@@ -595,7 +660,8 @@ int main(int argc, char** argv) {
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
         {"scope",    test_scope},
-        {"io",       test_io}
+        {"io",       test_io},
+        {"opt",      test_opt}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {
