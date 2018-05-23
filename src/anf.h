@@ -148,6 +148,8 @@ struct mod_s {
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
+bool mod_save(const mod_t* mod, const char*);
+bool mod_load(mod_t* mod, const char*);
 
 // Types
 size_t type_bitwidth(const type_t*);

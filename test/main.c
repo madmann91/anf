@@ -490,6 +490,16 @@ cleanup:
     return status == 0;
 }
 
+static inline fn_t* make_const_fn(mod_t* mod, const type_t* type) {
+    const type_t* inner_type = type_fn(mod, type, type);
+    fn_t* inner = node_fn(mod, inner_type, NULL);
+    fn_t* outer = node_fn(mod, type_fn(mod, type, inner_type), NULL);
+    const node_t* x = node_param(mod, outer, NULL);
+    fn_bind(mod, inner, x);
+    fn_bind(mod, outer, &inner->node);
+    return outer;
+}
+
 bool test_scope(void) {
     mod_t* mod = mod_create();
     scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
@@ -497,20 +507,16 @@ bool test_scope(void) {
 
     fn_t* inner, *outer;
     const node_t* x, *y;
-    const type_t* inner_type;
 
     jmp_buf env;
     int status = setjmp(env);
     if (status)
         goto cleanup;
 
-    inner_type = type_fn(mod, type_i32(mod), type_i32(mod));
-    inner = node_fn(mod, inner_type, NULL);
-    outer = node_fn(mod, type_fn(mod, type_i32(mod), inner_type), NULL);
+    outer = make_const_fn(mod, type_i32(mod));
+    inner = (fn_t*)outer->node.ops[0];
     x = node_param(mod, outer, NULL);
     y = node_param(mod, inner, NULL);
-    fn_bind(mod, inner, x);
-    fn_bind(mod, outer, &inner->node);
 
     scope.entry = outer;
     scope_compute(mod, &scope);
@@ -534,6 +540,22 @@ bool test_scope(void) {
 cleanup:
     node_set_destroy(&scope.nodes);
     node_set_destroy(&fvs);
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_io() {
+    mod_t* mod = mod_create();
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    make_const_fn(mod, type_i32(mod));
+    CHECK(mod_save(mod, "mod.anf"))
+
+cleanup:
     mod_destroy(mod);
     return status == 0;
 }
@@ -572,7 +594,8 @@ int main(int argc, char** argv) {
         {"select",   test_select},
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
-        {"scope",    test_scope}
+        {"scope",    test_scope},
+        {"io",       test_io}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {
