@@ -1661,8 +1661,10 @@ void node_print(const node_t* node, bool colorize) {
                 break;
         }
     } else {
-        node_print_name(node, colorize);
-        printf(" = ");
+        if (node->nops > 0) {
+            node_print_name(node, colorize);
+            printf(" = ");
+        }
         type_print(node->type, colorize);
         const char* op = NULL;
         switch (node->tag) {
@@ -1696,16 +1698,19 @@ void node_print(const node_t* node, bool colorize) {
                 assert(false);
                 break;
         }
-        printf(" %s%s%s ", nprefix, op, suffix);
-        for (size_t i = 0; i < node->nops; ++i) {
-            if (node->ops[i]->nops == 0) {
-                // Print literals and undefs inline
-                node_print(node->ops[i], colorize);
-            } else {
-                node_print_name(node->ops[i], colorize);
+        printf(" %s%s%s", nprefix, op, suffix);
+        if (node->nops > 0) {
+            printf(" ");
+            for (size_t i = 0; i < node->nops; ++i) {
+                if (node->ops[i]->nops == 0) {
+                    // Print literals and undefs inline
+                    node_print(node->ops[i], colorize);
+                } else {
+                    node_print_name(node->ops[i], colorize);
+                }
+                if (i != node->nops - 1)
+                    printf(", ");
             }
-            if (i != node->nops - 1)
-                printf(", ");
         }
     }
 }
