@@ -498,34 +498,108 @@ bool test_scope(void) {
     fn_bind(mod, inner, x);
     fn_bind(mod, outer, &inner->node);
     outer->is_exported = true;
-    mod_opt(&mod);
-
-    FORALL_HSET(mod->nodes, const node_t*, node, {
-        node_dump(node);
-    })
 
     scope.entry = outer;
     scope_compute(mod, &scope);
-    /*CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
     CHECK(node_set_lookup(&scope.nodes, &outer->node) != NULL);
     CHECK(node_set_lookup(&scope.nodes, x) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, y) != NULL);*/
+    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
     CHECK(scope.nodes.table->nelems == 4);
 
     scope.entry = inner;
     node_set_clear(&scope.nodes);
     scope_compute(mod, &scope);
-    /*CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, y) != NULL);*/
+    CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, y) != NULL);
     CHECK(scope.nodes.table->nelems == 2);
 
     scope_compute_fvs(&scope, &fvs);
-    //CHECK(node_set_lookup(&fvs, x) != NULL);
+    CHECK(node_set_lookup(&fvs, x) != NULL);
     CHECK(fvs.table->nelems == 1);
 
 cleanup:
     node_set_destroy(&scope.nodes);
     node_set_destroy(&fvs);
+    mod_destroy(mod);
+    return status == 0;
+}
+
+bool test_opt(void) {
+    mod_t* mod = mod_create();
+
+    fn_t* pow, *when_zero, *when_nzero, *when_even, *when_odd, *outer;
+    const node_t* node_ops[2];
+    const node_t* x, *n;
+    const node_t* unit;
+    const node_t* param;
+    const node_t* modulo;
+    const node_t* cmp_zero, *cmp_even;
+    const node_t* pow_even, *pow_odd, *pow_half;
+    const type_t* pow_type, *bb_type;
+    const type_t* type_ops[2];
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    type_ops[0] = type_i32(mod);
+    type_ops[1] = type_i32(mod);
+    pow_type = type_fn(mod, type_tuple(mod, 2, type_ops), type_i32(mod));
+    bb_type  = type_fn(mod, type_tuple(mod, 0, NULL), type_i32(mod));
+    pow = node_fn(mod, pow_type, NULL);
+    when_zero  = node_fn(mod, bb_type, NULL);
+    when_nzero = node_fn(mod, bb_type, NULL);
+    when_odd   = node_fn(mod, bb_type, NULL);
+    when_even  = node_fn(mod, bb_type, NULL);
+    param = node_param(mod, pow, NULL);
+    x = node_extract(mod, param, node_i32(mod, 0), NULL);
+    n = node_extract(mod, param, node_i32(mod, 1), NULL);
+    cmp_zero = node_cmpeq(mod, n, node_i32(mod, 0), NULL);
+    modulo = node_mod(mod, n, node_i32(mod, 2), NULL);
+    cmp_even = node_cmpeq(mod, modulo, node_i32(mod, 0), NULL);
+    unit = node_tuple(mod, 0, NULL, NULL);
+
+    fn_bind(mod, pow, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, NULL));
+    fn_bind(mod, when_zero, node_i32(mod, 1));
+    fn_bind(mod, when_nzero, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, NULL));
+    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_sub(mod, n, node_i32(mod, 1), NULL), NULL), NULL);
+    pow_half = node_app(mod, &pow->node, node_div(mod, n, node_i32(mod, 2), NULL), NULL);
+    pow_even = node_mul(mod, pow_half, pow_half, NULL);
+    fn_bind(mod, when_even, pow_even);
+    fn_bind(mod, when_odd,  pow_odd);
+
+    outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    node_ops[0] = node_param(mod, outer, NULL);
+    node_ops[1] = node_i32(mod, 1);
+    fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL));
+
+    outer->is_exported = true;
+    fn_run_if(mod, pow, node_known(mod, n, NULL));
+    fn_run_if(mod, when_even,  node_i1(mod, false));
+    fn_run_if(mod, when_odd,   node_i1(mod, false));
+    fn_run_if(mod, when_zero,  node_i1(mod, false));
+    fn_run_if(mod, when_nzero, node_i1(mod, false));
+
+    FORALL_VEC(mod->fns, const fn_t*, fn, {
+        node_dump(&fn->node);
+        printf("\t");
+        if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+    })
+    mod_opt(&mod);
+
+    FORALL_HSET(mod->nodes, const node_t*, node, {
+        node_dump(node);
+    })
+    FORALL_VEC(mod->fns, const fn_t*, fn, {
+        node_dump(&fn->node);
+        printf("\t");
+        if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+    })
+    CHECK(mod->nodes.table->nelems == 4);
+
+cleanup:
     mod_destroy(mod);
     return status == 0;
 }
@@ -564,7 +638,8 @@ int main(int argc, char** argv) {
         {"select",   test_select},
         {"bitcast",  test_bitcast},
         {"binops",   test_binops},
-        {"scope",    test_scope}
+        {"scope",    test_scope},
+        {"opt",      test_opt}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

@@ -1444,8 +1444,25 @@ const node_t* node_param(mod_t* mod, const fn_t* fn, const dbg_t* dbg) {
     });
 }
 
+static inline const node_t* try_fold_app(mod_t* mod, const node_t* fn, const node_t* arg) {
+    // TODO: Handle nested applications
+    if (fn->tag != NODE_FN || node_is_zero(fn->ops[1]))
+        return NULL;
+
+    node2node_t new_nodes = node2node_create(16);
+    type2type_t new_types = type2type_create(16);
+    node2node_insert(&new_nodes, node_param(mod, fn_cast(fn), NULL), arg);
+    const node_t* cond = node_rewrite(mod, fn->ops[1], &new_nodes, &new_types);
+    if (cond->tag == NODE_LITERAL && cond->box.i1 && fn->ops[0]->tag != NODE_UNDEF)
+        return node_rewrite(mod, fn->ops[0], &new_nodes, &new_types);
+    return NULL;
+}
+
 const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
     assert(fn->type->tag == TYPE_FN);
+    const node_t* folded = try_fold_app(mod, fn, arg);
+    if (folded)
+        return folded;
     const node_t* ops[] = { fn, arg };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
