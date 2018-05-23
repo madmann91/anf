@@ -314,6 +314,8 @@ bool node_is_const(const node_t* node) {
     if (node->tag == NODE_LITERAL ||
         node->tag == NODE_FN)
         return true;
+    if (node->tag == NODE_PARAM)
+        return false;
     for (size_t i = 0; i < node->nops; ++i) {
         if (!node_is_const(node->ops[i]))
             return false;
@@ -585,7 +587,7 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
     }
 }
 
-static inline const node_t* node_try_fold_ops(size_t nops, const node_t** ops) {
+static inline const node_t* try_fold_tuple(size_t nops, const node_t** ops) {
     const node_t* base = NULL;
     for (size_t i = 0; i < nops; ++i) {
         const node_t* op = ops[i];
@@ -602,7 +604,7 @@ static inline const node_t* node_try_fold_ops(size_t nops, const node_t** ops) {
 const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const dbg_t* dbg) {
     if (nops == 1) return ops[0];
     // (extract(t, 0), extract(t, 1), extract(t, 2), ...) <=> t
-    const node_t* base = node_try_fold_ops(nops, ops);
+    const node_t* base = try_fold_tuple(nops, ops);
     if (base && base->type->tag == TYPE_TUPLE && base->type->nops == nops)
         return base;
     const type_t* type_ops[nops];
@@ -1365,12 +1367,6 @@ const node_t* node_not(mod_t* mod, const node_t* node, const dbg_t* dbg) {
 const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     if (node_is_const(node))
         return node_i1(mod, true);
-    if (node->tag == NODE_TUPLE || node->tag == NODE_ARRAY) {
-        const node_t* res = node_i1(mod, true);
-        for (size_t i = 0; i < node->nops; ++i)
-            res = node_and(mod, res, node_known(mod, node->ops[i], dbg), dbg);
-        return res;
-    }
     return make_node(mod, (node_t) {
         .tag  = NODE_KNOWN,
         .nops = 1,
@@ -1421,6 +1417,7 @@ fn_t* fn_cast(const node_t* node) {
 fn_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
     fn_t* fn = mpool_alloc(&mod->pool, sizeof(fn_t));
+    memset(fn, 0, sizeof(fn_t));
     const node_t** ops = mpool_alloc(&mod->pool, sizeof(node_t*) * 2);
     ops[0] = node_undef(mod, type->ops[1]);
     ops[1] = node_i1(mod, false);
@@ -1531,6 +1528,7 @@ const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_type
 }
 
 const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types) {
+    node = node->rep ? node->rep : node;
     const node_t** found = node2node_lookup(new_nodes, node);
     if (found)
         return *found;
@@ -1549,12 +1547,12 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
 
     const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i)
-        new_ops[i] = node->ops[i] ? node_rewrite(mod, node->ops[i], new_nodes, new_types) : NULL;
+        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types);
 
     if (node->tag == NODE_FN) {
         fn_t* new_fn = fn_cast(new_node);
-        if (new_ops[0]) fn_bind(mod, new_fn, new_ops[0]);
-        if (new_ops[1]) fn_run_if(mod, new_fn, new_ops[1]);
+        fn_bind(mod, new_fn, new_ops[0]);
+        fn_run_if(mod, new_fn, new_ops[1]);
     } else {
         new_node = node_rebuild(mod, node, new_ops, new_type);
         node2node_insert(new_nodes, node, new_node);
