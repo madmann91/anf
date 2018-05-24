@@ -8,14 +8,14 @@
 #include "htable.h"
 #include "hash.h"
 
-#define FORALL_HMAP(hmap, key_t, key, value_t, value, body) \
+#define FORALL_HMAP(hmap, key_t, key, value_t, value, ...) \
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \
         if ((hmap).table->hashes[i] & OCCUPIED_HASH_MASK) { \
             struct pair_s { key_t key; value_t value; }; \
             struct pair_s* pair = ((struct pair_s*)(hmap).table->elems) + i; \
             key_t key     = pair->key; \
             value_t value = pair->value; \
-            body \
+            __VA_ARGS__ \
         } \
     }
 
@@ -55,11 +55,11 @@
     } \
     HMAP(hmap, key_t, value_t, hmap##_cmp, hmap##_hash)
 
-#define FORALL_HSET(hset, value_t, value, body) \
+#define FORALL_HSET(hset, value_t, value, ...) \
     for (size_t i = 0; i < (hset).table->cap; ++i) { \
         if ((hset).table->hashes[i] & OCCUPIED_HASH_MASK) { \
             value_t value = ((value_t*)(hset).table->elems)[i]; \
-            body \
+            __VA_ARGS__ \
         } \
     }
 
@@ -96,10 +96,10 @@
     } \
     HSET(hset, value_t, hset##_cmp, hset##_hash)
 
-#define FORALL_VEC(vec, value_t, value, body) \
+#define FORALL_VEC(vec, value_t, value, ...) \
     for (size_t i = 0; i < vec.nelems; ++i) { \
         value_t value = vec.elems[i]; \
-        body \
+        __VA_ARGS__ \
     }
 
 #define VEC(vec, value_t) \

@@ -151,7 +151,7 @@ void mod_destroy(mod_t*);
 bool mod_save(const mod_t* mod, const char*);
 mod_t* mod_load(const char*);
 
-void mod_import(const mod_t*, mod_t*);
+void mod_import(mod_t*, mod_t*);
 void mod_opt(mod_t**);
 
 // Types

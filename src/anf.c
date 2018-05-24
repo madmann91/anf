@@ -1444,25 +1444,9 @@ const node_t* node_param(mod_t* mod, const fn_t* fn, const dbg_t* dbg) {
     });
 }
 
-static inline const node_t* try_fold_app(mod_t* mod, const node_t* fn, const node_t* arg) {
-    // TODO: Handle nested applications
-    if (fn->tag != NODE_FN || node_is_zero(fn->ops[1]))
-        return NULL;
-
-    node2node_t new_nodes = node2node_create(16);
-    type2type_t new_types = type2type_create(16);
-    node2node_insert(&new_nodes, node_param(mod, fn_cast(fn), NULL), arg);
-    const node_t* cond = node_rewrite(mod, fn->ops[1], &new_nodes, &new_types);
-    if (cond->tag == NODE_LITERAL && cond->box.i1 && fn->ops[0]->tag != NODE_UNDEF)
-        return node_rewrite(mod, fn->ops[0], &new_nodes, &new_types);
-    return NULL;
-}
-
 const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
     assert(fn->type->tag == TYPE_FN);
-    const node_t* folded = try_fold_app(mod, fn, arg);
-    if (folded)
-        return folded;
+    assert(fn->type->ops[0] == arg->type);
     const node_t* ops[] = { fn, arg };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
@@ -1545,41 +1529,27 @@ const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_type
 }
 
 const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types) {
-    node = node->rep ? node->rep : node;
+    while (node->rep) node = node->rep;
     const node_t** found = node2node_lookup(new_nodes, node);
     if (found)
         return *found;
-
-    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
-    const node_t* new_node = NULL;
-    if (node->tag == NODE_FN) {
-        fn_t* new_fn = node_fn(mod, new_type, node->dbg);
-        fn_t* old_fn = fn_cast(node);
-        new_fn->is_exported  = old_fn->is_exported;
-        new_fn->is_imported  = old_fn->is_imported;
-        new_fn->is_intrinsic = old_fn->is_intrinsic;
-        new_node = &new_fn->node;
-        node2node_insert(new_nodes, node, new_node);
-    }
+    if (node->tag == NODE_FN)
+        return node;
 
     const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i)
         new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types);
 
-    if (node->tag == NODE_FN) {
-        fn_t* new_fn = fn_cast(new_node);
-        fn_bind(mod, new_fn, new_ops[0]);
-        fn_run_if(mod, new_fn, new_ops[1]);
-    } else {
-        new_node = node_rebuild(mod, node, new_ops, new_type);
-        node2node_insert(new_nodes, node, new_node);
-    }
+    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
+    const node_t* new_node = node_rebuild(mod, node, new_ops, new_type);
+    node2node_insert(new_nodes, node, new_node);
 
     return new_node;
 }
 
 void node_replace(const node_t* node, const node_t* with) {
     assert(node->type == with->type);
+    while (with->rep) with = with->rep;
     ((node_t*)node)->rep = with;
 }
 
