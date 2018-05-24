@@ -1,4 +1,4 @@
-OBJS=build/anf.o build/opt.o build/scope.o build/mpool.o build/htable.o
+OBJS=build/anf.o build/io.o build/opt.o build/scope.o build/mpool.o build/htable.o
 CFLAGS=-pedantic -std=c99 -Wall -Wextra
 
 ifdef RELEASE

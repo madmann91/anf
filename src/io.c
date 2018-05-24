@@ -31,7 +31,8 @@ HMAP_DEFAULT(idx2node, uint32_t, const node_t*)
 HMAP_DEFAULT(idx2type, uint32_t, const type_t*)
 
 static size_t locate_block(FILE* fp, uint32_t tag) {
-    while (fread(blk, sizeof(blk_t), 1, fp) == 1) {
+    blk_t blk;
+    while (fread(&blk, sizeof(blk_t), 1, fp) == 1) {
         if (blk.tag == tag)
             return blk.skip + ftell(fp);
         fseek(fp, blk.skip, SEEK_CUR);
@@ -56,12 +57,13 @@ static inline void finalize_block(FILE* fp, long off, uint32_t tag) {
 static inline void write_node(FILE* fp, const node_t* node, const node2idx_t* node2idx, const type2idx_t * type2idx, const dbg2idx_t* dbg2idx) {
     fwrite(&node->tag,  sizeof(uint32_t), 1, fp);
     fwrite(&node->nops, sizeof(uint32_t), 1, fp);
-    fwrite(&node->box,  sizeof(box_t), 1, fp);
+    fwrite(&node->box,  sizeof(box_t),    1, fp);
     for (size_t i = 0; i < node->nops; ++i)
         fwrite(node2idx_lookup(node2idx, node->ops[i]), sizeof(uint32_t), 1, fp);
     fwrite(type2idx_lookup(type2idx, node->type), sizeof(uint32_t), 1, fp);
-    fwrite(node2idx_lookup(node2idx, node->rep), sizeof(uint32_t), 1, fp);
-    uint32_t dbg_idx = node->dbg ? *dbg2idx_lookup(dbg2idx, node->dbg) : UINT32_C(0xFFFFFFFF);
+    uint32_t rep = node->rep ? *node2idx_lookup(node2idx, node->rep) : (uint32_t)-1;
+    fwrite(&rep, sizeof(uint32_t), 1, fp);
+    uint32_t dbg_idx = node->dbg ? *dbg2idx_lookup(dbg2idx, node->dbg) : (uint32_t)-1;
     fwrite(&dbg_idx, sizeof(uint32_t), 1, fp);
 }
 
@@ -74,20 +76,23 @@ static inline void write_type(FILE* fp, const type_t* type, const type2idx_t * t
     fwrite(&fast, sizeof(uint32_t), 1, fp);
 }
 
-static inline const dbg* read_dbg(FILE* fp, mod_t* mod) {
-    dbg_t* dbg = mpool_alloc(&mod->mpool, sizeof(dbg_t));
+static inline const dbg_t* read_dbg(FILE* fp, mod_t* mod) {
+    dbg_t* dbg = mpool_alloc(&mod->pool, sizeof(dbg_t));
 
     uint32_t name_len;
     fread(&name_len, sizeof(uint32_t), 1, fp);
-    dbg->name = mpool_alloc(&mod->mpool, sizeof(char) * (name_len + 1));
-    fwrite(dbg->name, sizeof(char), name_len, fp);
-    dbg->name[name_len] = 0;
+    char* name = mpool_alloc(&mod->pool, sizeof(char) * (name_len + 1));
+    fwrite(name, sizeof(char), name_len, fp);
+    name[name_len] = 0;
 
     uint32_t file_len;
     fread(&file_len, sizeof(uint32_t), 1, fp);
-    dbg->file = mpool_alloc(&mod->mpool, sizeof(char) * (file_len + 1));
-    fwrite(dbg->file, sizeof(char), file_len, fp);
-    dbg->file[file_len] = 0;
+    char* file = mpool_alloc(&mod->pool, sizeof(char) * (file_len + 1));
+    fwrite(file, sizeof(char), file_len, fp);
+    file[file_len] = 0;
+
+    dbg->name = name;
+    dbg->file = file;
 
     fread(&dbg->brow, sizeof(uint32_t), 1, fp);
     fread(&dbg->bcol, sizeof(uint32_t), 1, fp);
@@ -110,6 +115,14 @@ static inline void write_dbg(FILE* fp, const dbg_t* dbg) {
     fwrite(&dbg->ecol, sizeof(uint32_t), 1, fp);
 }
 
+static inline void insert_node_idx(const node_t* node, node2idx_t* node2idx, dbg2idx_t* dbg2idx, dbg_vec_t* dbg_vec) {
+    node2idx_insert(node2idx, node, node2idx->table->nelems);
+    if (node->dbg) {
+        dbg_vec_push(dbg_vec, node->dbg);
+        dbg2idx_insert(dbg2idx, node->dbg, dbg2idx->table->nelems);
+    }
+}
+
 bool mod_save(const mod_t* mod, const char* filename) {
     FILE* fp = fopen(filename, "wb");
     if (!fp)
@@ -121,11 +134,10 @@ bool mod_save(const mod_t* mod, const char* filename) {
     dbg_vec_t dbg_vec = dbg_vec_create(64);
 
     FORALL_HSET(mod->nodes, const node_t*, node, {
-        node2idx_insert(&node2idx, node, node2idx.table->nelems);
-        if (node->dbg) {
-            dbg_vec_push(&dbg_vec, node->dbg);
-            dbg2idx_insert(&dbg2idx, node->dbg, dbg2idx.table->nelems);
-        }
+        insert_node_idx(node, &node2idx, &dbg2idx, &dbg_vec);
+    })
+    FORALL_VEC(mod->fns, const fn_t*, fn, {
+        insert_node_idx(&fn->node, &node2idx, &dbg2idx, &dbg_vec);
     })
     FORALL_HSET(mod->types, const type_t*, type, {
         type2idx_insert(&type2idx, type, type2idx.table->nelems);
@@ -134,9 +146,6 @@ bool mod_save(const mod_t* mod, const char* filename) {
     hdr_t hdr = (hdr_t) {
         .magic = {'A', 'N', 'F'},
         .version = 1,
-        .nnodes = node2idx.table->nelems,
-        .ntypes = type2idx.table->nelems,
-        .ndbg   = dbg2idx.table->nelems
     };
 
     fwrite(&hdr, sizeof(hdr_t), 1, fp);
@@ -145,7 +154,7 @@ bool mod_save(const mod_t* mod, const char* filename) {
     uint32_t count;
 
     off = write_dummy_block(fp);
-    count = mod->nodes.table.nelems;
+    count = mod->nodes.table->nelems;
     fwrite(&count, sizeof(uint32_t), 1, fp);
     FORALL_HSET(mod->nodes, const node_t*, node, {
         write_node(fp, node, &node2idx, &type2idx, &dbg2idx);
@@ -153,7 +162,7 @@ bool mod_save(const mod_t* mod, const char* filename) {
     finalize_block(fp, off, BLK_NODES);
 
     off = write_dummy_block(fp);
-    count = mod->types.table.nelems;
+    count = mod->types.table->nelems;
     fwrite(&count, sizeof(uint32_t), 1, fp);
     FORALL_HSET(mod->types, const type_t*, type, {
         write_type(fp, type, &type2idx);
@@ -177,10 +186,10 @@ bool mod_save(const mod_t* mod, const char* filename) {
     return true;
 }
 
-bool mod_load(const mod_t* mod, const char* filename) {
+mod_t* mod_load(const char* filename) {
     FILE* fp = fopen(filename, "rb");
     if (!fp)
-        return false;
+        return NULL;
 
     hdr_t hdr;
     fread(&hdr, sizeof(hdr_t), 1, fp);
@@ -204,14 +213,16 @@ bool mod_load(const mod_t* mod, const char* filename) {
     ok = locate_block(fp, BLK_DBG);
     assert(ok);
 
+    mod_t* mod = mod_create();
+
     fread(&count, sizeof(uint32_t), 1, fp);
     for (uint32_t i = 0; i < count; ++i)
         idx2dbg_insert(&idx2dbg, i, read_dbg(fp, mod));
 
-    idx2_node_destroy(&idx2node);
-    idx2_type_destroy(&idx2type);
-    idx2_dbg_destroy(&idx2dbg2);
+    idx2node_destroy(&idx2node);
+    idx2type_destroy(&idx2type);
+    idx2dbg_destroy(&idx2dbg);
 
     fclose(fp);
-    return true;
+    return mod;
 }
