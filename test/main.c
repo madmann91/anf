@@ -549,6 +549,10 @@ cleanup:
 bool test_opt(void) {
     mod_t* mod = mod_create();
 
+    const fn_t* opt_outer;
+    const node_t* opt_y;
+    const node_t* pow0, *pow1, *pow2, *pow4, *pow5;
+
     fn_t* pow, *when_zero, *when_nzero, *when_even, *when_odd, *outer;
     const node_t* node_ops[2];
     const node_t* x, *n;
@@ -602,28 +606,41 @@ bool test_opt(void) {
 
     outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
     node_ops[0] = node_param(mod, outer, &dbg_y);
-    node_ops[1] = node_i32(mod, 2);
+    node_ops[1] = node_i32(mod, 5);
     fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL));
 
     outer->is_exported = true;
     fn_run_if(mod, pow, node_known(mod, n, NULL));
-    fn_run_if(mod, when_even,  node_i1(mod, true));
-    fn_run_if(mod, when_odd,   node_i1(mod, true));
-    fn_run_if(mod, when_zero,  node_i1(mod, true));
-    fn_run_if(mod, when_nzero, node_i1(mod, true));
+    fn_run_if(mod, when_even,  node_i1(mod, false));
+    fn_run_if(mod, when_odd,   node_i1(mod, false));
+    fn_run_if(mod, when_zero,  node_i1(mod, false));
+    fn_run_if(mod, when_nzero, node_i1(mod, false));
     mod_opt(&mod);
 
-    FORALL_HSET(mod->nodes, const node_t*, node, {
-        node_dump(node);
-    })
-    FORALL_VEC(mod->fns, const fn_t*, fn, {
-        node_dump(&fn->node);
-        printf("\t");
-        if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
-    })
-    CHECK(mod->nodes.table->nelems == 4);
+    CHECK(mod->fns.nelems == 1);
+    CHECK(mod->fns.elems[0]->is_exported);
+
+    opt_outer = mod->fns.elems[0];
+    opt_y = node_param(mod, opt_outer, NULL);
+    pow0 = node_i32(mod, 1);
+    pow1 = node_mul(mod, opt_y, pow0, NULL);
+    pow2 = node_mul(mod, pow1, pow1, NULL);
+    pow4 = node_mul(mod, pow2, pow2, NULL);
+    pow5 = node_mul(mod, opt_y, pow4, NULL);
+    CHECK(opt_outer->node.ops[0] == pow5);
 
 cleanup:
+    if (status) {
+        FORALL_HSET(mod->nodes, const node_t*, node, {
+            node_dump(node);
+        })
+        FORALL_VEC(mod->fns, const fn_t*, fn, {
+            node_dump(&fn->node);
+            printf("\t");
+            if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+        })
+    }
+
     mod_destroy(mod);
     return status == 0;
 }

@@ -15,11 +15,12 @@ static inline bool eval(mod_t* mod) {
     node_vec_t apps = node_vec_create(64);
     node2node_t new_nodes = node2node_create(16);
     type2type_t new_types = type2type_create(16);
+
     // Gather all the application nodes that need evaluation
     FORALL_VEC(mod->fns, const fn_t*, fn, {
-        if (node_is_zero(fn->node.ops[1]))
-            continue;
         bool always_inline = should_inline(fn);
+        if (node_is_zero(fn->node.ops[1]) && !always_inline)
+            continue;
         const node_t* param = node_param(mod, fn, NULL);
         use_t* use = fn->node.uses;
         while (use) {
@@ -35,18 +36,33 @@ static inline bool eval(mod_t* mod) {
             use = use->next;
         }
     })
-    // Generate a specialized version of the function for each call
+
+    // Generate a specialized version for each call
+    scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
+    node_set_t fvs = node_set_create(64);
     FORALL_VEC(apps, const node_t*, app, {
         const fn_t* fn = fn_cast(app->ops[0]);
         node2node_clear(&new_nodes);
         type2type_clear(&new_types);
-        node2node_insert(&new_nodes, node_param(mod, fn, NULL), app->ops[1]);
-        scope_t scope = { .entry = fn, .nodes = node_set_create(64) };
+        node_set_clear(&scope.nodes);
+        node_set_clear(&fvs);
+
+        // Keep free variables intact
+        scope.entry = fn;
         scope_compute(mod, &scope);
-        scope_rewrite(mod, &scope, &new_nodes, &new_types);
-        node_set_destroy(&scope.nodes);
+        scope_compute_fvs(&scope, &fvs);
+        FORALL_HSET(fvs, const node_t*, node, {
+            node2node_insert(&new_nodes, node, node);
+        })
+        // Replace parameter with argument but keep original function intact
+        node2node_insert(&new_nodes, &fn->node, &fn->node);
+        node2node_insert(&new_nodes, node_param(mod, fn, NULL), app->ops[1]);
+
         node_replace(app, node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types));
     })
+    node_set_destroy(&scope.nodes);
+    node_set_destroy(&fvs);
+
     node_vec_destroy(&apps);
     node2node_destroy(&new_nodes);
     type2type_destroy(&new_types);
@@ -54,44 +70,23 @@ static inline bool eval(mod_t* mod) {
 }
 
 void mod_import(mod_t* from, mod_t* to) {
+    assert(from != to);
     node2node_t new_nodes = node2node_create(from->nodes.table->cap / 2);
     type2type_t new_types = type2type_create(from->types.table->cap / 2);
 
-    scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
-    fn_vec_t fn_vec = fn_vec_create(64);
     FORALL_VEC(from->fns, const fn_t*, fn, {
-        if (!fn->is_exported)
+        if (!fn->is_exported || node2node_lookup(&new_nodes, &fn->node))
             continue;
-        scope.entry = fn;
-        scope_compute(from, &scope); 
-    })
-    // TODO: Only import the relevant functions
-    FORALL_VEC(from->fns, fn_t*, fn, {
-        /*if (node->tag != NODE_FN)
-            continue;
-        fn_t* fn = fn_cast(node);*/
-        fn_t* new_fn = node_fn(to, type_rewrite(to, fn->node.type, &new_types), fn->node.dbg);
-        new_fn->is_exported  = fn->is_exported;
-        new_fn->is_imported  = fn->is_imported;
-        new_fn->is_intrinsic = fn->is_intrinsic;
-        fn_vec_push(&fn_vec, fn);
-        node2node_insert(&new_nodes, &fn->node, &new_fn->node);
-    })
-    FORALL_VEC(fn_vec, const fn_t*, fn, {
-        fn_t* new_fn = fn_cast(*node2node_lookup(&new_nodes, &fn->node));
-        fn_bind  (to, new_fn, node_rewrite(to, fn->node.ops[0], &new_nodes, &new_types));
-        fn_run_if(to, new_fn, node_rewrite(to, fn->node.ops[1], &new_nodes, &new_types));
+        node_rewrite(to, &fn->node, &new_nodes, &new_types);
     })
 
-    fn_vec_destroy(&fn_vec);
-    node_set_destroy(&scope.nodes);
     node2node_destroy(&new_nodes);
     type2type_destroy(&new_types);
 }
 
 void mod_opt(mod_t** mod) {
-    bool todo = true; int n = 0;
-    while (todo || n++ < 10) {
+    bool todo = true;
+    while (todo) {
         // Import the old module into the new one.
         // This will trigger local folding rules.
         mod_t* new_mod = mod_create();
@@ -100,7 +95,7 @@ void mod_opt(mod_t** mod) {
         *mod = new_mod;
 
         todo = false;
-        /*todo |=*/ eval(*mod);
+        todo |= eval(*mod);
         // todo |= mem2reg(*mod);
     }
 }
