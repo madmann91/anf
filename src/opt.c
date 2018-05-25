@@ -40,17 +40,22 @@ static inline bool eval(mod_t* mod) {
     // Generate a specialized version for each call
     scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
     node_set_t fvs = node_set_create(64);
+    const fn_t* prev_fn = NULL;
     FORALL_VEC(apps, const node_t*, app, {
         const fn_t* fn = fn_cast(app->ops[0]);
         node2node_clear(&new_nodes);
         type2type_clear(&new_types);
-        node_set_clear(&scope.nodes);
-        node_set_clear(&fvs);
 
+        // Recompute the function scope when needed
+        if (fn != prev_fn) {
+            scope.entry = fn;
+            node_set_clear(&scope.nodes);
+            node_set_clear(&fvs);
+            scope_compute(mod, &scope);
+            scope_compute_fvs(&scope, &fvs);
+            prev_fn = fn;
+        }
         // Keep free variables intact
-        scope.entry = fn;
-        scope_compute(mod, &scope);
-        scope_compute_fvs(&scope, &fvs);
         FORALL_HSET(fvs, const node_t*, node, {
             node2node_insert(&new_nodes, node, node);
         })

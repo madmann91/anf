@@ -611,10 +611,6 @@ bool test_opt(void) {
 
     outer->is_exported = true;
     fn_run_if(mod, pow, node_known(mod, n, NULL));
-    fn_run_if(mod, when_even,  node_i1(mod, false));
-    fn_run_if(mod, when_odd,   node_i1(mod, false));
-    fn_run_if(mod, when_zero,  node_i1(mod, false));
-    fn_run_if(mod, when_nzero, node_i1(mod, false));
     mod_opt(&mod);
 
     CHECK(mod->fns.nelems == 1);
