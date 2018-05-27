@@ -44,25 +44,3 @@ void scope_compute_fvs(const scope_t* scope, node_set_t* fvs) {
     node_set_destroy(&done);
     node_vec_destroy(&worklist);
 }
-
-void scope_rewrite(mod_t* mod, scope_t* scope, node2node_t* new_nodes, type2type_t* new_types) {
-    fn_vec_t fn_vec = fn_vec_create(64);
-    FORALL_HSET(scope->nodes, const node_t*, node, {
-        if (node->tag != NODE_FN || node == &scope->entry->node)
-            continue;
-        fn_t* fn = fn_cast(node);
-        fn_t* new_fn = node_fn(mod, type_rewrite(mod, fn->node.type, new_types), fn->node.dbg);
-        new_fn->is_exported  = fn->is_exported;
-        new_fn->is_imported  = fn->is_imported;
-        new_fn->is_intrinsic = fn->is_intrinsic;
-        fn_vec_push(&fn_vec, fn);
-        node2node_insert(new_nodes, &fn->node, &new_fn->node);
-    })
-    FORALL_VEC(fn_vec, fn_t*, fn, {
-        fn_t* new_fn = fn_cast(*node2node_lookup(new_nodes, &fn->node));
-        fn_bind  (mod, new_fn, node_rewrite(mod, fn->node.ops[0], new_nodes, new_types));
-        fn_run_if(mod, new_fn, node_rewrite(mod, fn->node.ops[1], new_nodes, new_types));
-    })
-    fn_vec_destroy(&fn_vec);
-}
-

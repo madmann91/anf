@@ -6,6 +6,7 @@
 
 #include "anf.h"
 #include "hash.h"
+#include "scope.h"
 
 bool node_cmp(const void* ptr1, const void* ptr2) {
     const node_t* node1 = *(const node_t**)ptr1;
@@ -1444,15 +1445,15 @@ const node_t* node_param(mod_t* mod, const fn_t* fn, const dbg_t* dbg) {
     });
 }
 
-const node_t* node_app(mod_t* mod, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
-    assert(fn->type->tag == TYPE_FN);
-    assert(fn->type->ops[0] == arg->type);
-    const node_t* ops[] = { fn, arg };
+const node_t* node_app(mod_t* mod, const node_t* callee, const node_t* arg, const dbg_t* dbg) {
+    assert(callee->type->tag == TYPE_FN);
+    assert(callee->type->ops[0] == arg->type);
+    const node_t* ops[] = { callee, arg };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
         .nops = 2,
         .ops  = ops,
-        .type = fn->type->ops[1],
+        .type = callee->type->ops[1],
         .dbg  = dbg
     });
 }

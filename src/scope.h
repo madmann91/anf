@@ -12,6 +12,5 @@ struct scope_s {
 
 void scope_compute(mod_t*, scope_t*);
 void scope_compute_fvs(const scope_t*, node_set_t*);
-void scope_rewrite(mod_t*, scope_t*, node2node_t*, type2type_t*);
 
 #endif // SCOPE_H
