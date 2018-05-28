@@ -48,10 +48,10 @@
 
 #define HMAP_DEFAULT(hmap, key_t, value_t) \
     static uint32_t hmap##_hash(const void* ptr) { \
-        return hash_bytes(hash_init(), ptr, sizeof(value_t)); \
+        return hash_bytes(hash_init(), ptr, sizeof(key_t)); \
     } \
     static bool hmap##_cmp(const void* a, const void* b) { \
-        return !memcmp(a, b, sizeof(value_t)); \
+        return !memcmp(a, b, sizeof(key_t)); \
     } \
     HMAP(hmap, key_t, value_t, hmap##_cmp, hmap##_hash)
 
