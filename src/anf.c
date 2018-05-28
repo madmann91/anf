@@ -1688,6 +1688,10 @@ void node_print(const node_t* node, bool colorize) {
             case NODE_CMPLE:   op = "cmple";   break;
             case NODE_CMPNE:   op = "cmpne";   break;
             case NODE_CMPEQ:   op = "cmpeq";   break;
+            case NODE_WIDEN:   op = "widen";   break;
+            case NODE_TRUNC:   op = "trunc";   break;
+            case NODE_ITOF:    op = "itof";    break;
+            case NODE_FTOI:    op = "ftoi";    break;
             case NODE_ADD:     op = "add";     break;
             case NODE_SUB:     op = "sub";     break;
             case NODE_MUL:     op = "mul";     break;
