@@ -532,6 +532,11 @@ cleanup:
 
 bool test_io() {
     mod_t* mod = mod_create();
+    mod_t* loaded_mod = NULL;
+    mpool_t* pool = mpool_create(4096);
+
+    fn_t* fn1, *fn2;
+    const node_t* param1, *param2;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -540,9 +545,28 @@ bool test_io() {
 
     make_const_fn(mod, type_i32(mod));
     CHECK(mod_save(mod, "mod.anf"));
+    loaded_mod = mod_load("mod.anf", &pool);
+    CHECK(loaded_mod);
+    CHECK(loaded_mod->fns.nelems == 2);
+    fn1 = loaded_mod->fns.elems[0];
+    fn2 = loaded_mod->fns.elems[1];
+    param1 = node_param(loaded_mod, fn1, NULL);
+    param2 = node_param(loaded_mod, fn2, NULL);
+    if (node_count_uses(param2) != 0) {
+        const node_t* param = param2;
+        fn_t* fn = fn2;
+        param2 = param1;
+        param1 = param;
+        fn2 = fn1;
+        fn1 = fn;
+    }
+    CHECK(fn1->node.ops[0] == &fn2->node);
+    CHECK(fn2->node.ops[0] == param1);
 
 cleanup:
     mod_destroy(mod);
+    if (loaded_mod) mod_destroy(loaded_mod);
+    mpool_destroy(pool);
     return status == 0;
 }
 
@@ -605,16 +629,16 @@ bool test_opt(void) {
     fn_bind(mod, when_odd,  pow_odd);
 
     outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    outer->exported = true;
     node_ops[0] = node_param(mod, outer, &dbg_y);
     node_ops[1] = node_i32(mod, 5);
     fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL));
 
-    outer->is_exported = true;
     fn_run_if(mod, pow, node_known(mod, n, NULL));
     mod_opt(&mod);
 
     CHECK(mod->fns.nelems == 1);
-    CHECK(mod->fns.elems[0]->is_exported);
+    CHECK(mod->fns.elems[0]->exported);
 
     opt_outer = mod->fns.elems[0];
     opt_y = node_param(mod, opt_outer, NULL);

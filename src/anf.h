@@ -58,17 +58,16 @@ struct node_s {
 
 struct fn_s {
     const node_t node;
-
-    bool is_exported  : 1;
-    bool is_imported  : 1;
-    bool is_intrinsic : 1;
+    bool exported  : 1;
+    bool imported  : 1;
+    bool intrinsic : 1;
 };
 
 struct type_s {
     uint32_t tag;
     size_t   nops;
     const type_t** ops;
-    bool fast;
+    bool fast : 1;
 };
 
 enum node_tag_e {
@@ -149,7 +148,7 @@ struct mod_s {
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
 bool mod_save(const mod_t* mod, const char*);
-mod_t* mod_load(const char*);
+mod_t* mod_load(const char*, mpool_t**);
 
 void mod_import(mod_t*, mod_t*);
 void mod_opt(mod_t**);

@@ -1495,6 +1495,10 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_CMPLE:   return node_cmple(mod, ops[0], ops[1], node->dbg);
         case NODE_CMPNE:   return node_cmpne(mod, ops[0], ops[1], node->dbg);
         case NODE_CMPEQ:   return node_cmpeq(mod, ops[0], ops[1], node->dbg);
+        case NODE_WIDEN:   return node_widen(mod, ops[0], type, node->dbg);
+        case NODE_TRUNC:   return node_trunc(mod, ops[0], type, node->dbg);
+        case NODE_ITOF:    return node_itof(mod, ops[0], type, node->dbg);
+        case NODE_FTOI:    return node_ftoi(mod, ops[0], type, node->dbg);
         case NODE_ADD:     return node_add(mod, ops[0], ops[1], node->dbg);
         case NODE_SUB:     return node_sub(mod, ops[0], ops[1], node->dbg);
         case NODE_MUL:     return node_mul(mod, ops[0], ops[1], node->dbg);
@@ -1540,9 +1544,9 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
     if (node->tag == NODE_FN) {
         fn_t* fn = fn_cast(node);
         fn_t* new_fn = node_fn(mod, type_rewrite(mod, node->type, new_types), node->dbg);
-        new_fn->is_exported  = fn->is_exported;
-        new_fn->is_imported  = fn->is_imported;
-        new_fn->is_intrinsic = fn->is_intrinsic;
+        new_fn->exported  = fn->exported;
+        new_fn->imported  = fn->imported;
+        new_fn->intrinsic = fn->intrinsic;
         new_node = &new_fn->node;
         node2node_insert(new_nodes, node, new_node);
     }

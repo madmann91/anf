@@ -80,7 +80,7 @@ void mod_import(mod_t* from, mod_t* to) {
     type2type_t new_types = type2type_create(from->types.table->cap / 2);
 
     FORALL_VEC(from->fns, const fn_t*, fn, {
-        if (!fn->is_exported || node2node_lookup(&new_nodes, &fn->node))
+        if (!fn->exported || node2node_lookup(&new_nodes, &fn->node))
             continue;
         node_rewrite(to, &fn->node, &new_nodes, &new_types);
     })
