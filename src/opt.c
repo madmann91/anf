@@ -24,12 +24,13 @@ static inline bool is_eta_convertible(mod_t* mod, const fn_t* fn) {
     // with a permutation of their parameters are all eta-convertible
     if (fn->node.ops[0]->tag != NODE_APP)
         return false;
+    const node_t* app = fn->node->ops[0];
     const node_t* param = node_param(mod, fn, NULL);
     // The callee must be a known function or an extract from the function parameter
-    if (fn->node.ops[0]->ops[0]->tag != NODE_FN && !is_from_extract(fn->node.ops[0]->ops[0], param))
+    if (app->ops[0]->tag != NODE_FN && !is_from_extract(app->ops[0], param))
         return false;
     // The argument must be a shuffled version of the parameter
-    return is_tuple_shuffle(fn->node.ops[0]->ops[1], param);
+    return is_tuple_shuffle(app->ops[1], param);
 }
 
 static inline bool should_inline(const fn_t* fn) {
