@@ -1,6 +1,37 @@
 #include "anf.h"
 #include "scope.h"
 
+static bool is_from_extract(const node_t* node, const node_t* base) {
+    // Nodes of the form extract(...extract(base, ...)...)
+    return node == base || (node->tag == NODE_EXTRACT && is_from_extract(node->ops[0], base));
+}
+
+static bool is_tuple_shuffle(const node_t* node, const node_t* base) {
+    // Nodes of the form tuple(extract(base, ...), tuple(..., extract(base, ...), ...), ...)
+    if (is_from_extract(node, base))
+        return true;
+    if (node->tag != NODE_TUPLE)
+        return false;
+    for (size_t i = 0; i < node->nops; ++i) {
+        if (!is_tuple_shuffle(node->ops[i], base))
+            return false;
+    }
+    return true;
+}
+
+static inline bool is_eta_convertible(mod_t* mod, const fn_t* fn) {
+    // Functions whose bodies are only calling another function
+    // with a permutation of their parameters are all eta-convertible
+    if (fn->node.ops[0]->tag != NODE_APP)
+        return false;
+    const node_t* param = node_param(mod, fn, NULL);
+    // The callee must be a known function or an extract from the function parameter
+    if (fn->node.ops[0]->ops[0]->tag != NODE_FN && !is_from_extract(fn->node.ops[0]->ops[0], param))
+        return false;
+    // The argument must be a shuffled version of the parameter
+    return is_tuple_shuffle(fn->node.ops[0]->ops[1], param);
+}
+
 static inline bool should_inline(const fn_t* fn) {
     use_t* use = fn->node.uses;
     size_t n = 0;
@@ -11,14 +42,14 @@ static inline bool should_inline(const fn_t* fn) {
     return n <= 1;
 }
 
-static inline bool eval(mod_t* mod) {
+static inline bool partial_eval(mod_t* mod) {
     node_vec_t apps = node_vec_create(64);
     node2node_t new_nodes = node2node_create(16);
     type2type_t new_types = type2type_create(16);
 
     // Gather all the application nodes that need evaluation
     FORALL_VEC(mod->fns, const fn_t*, fn, {
-        bool always_inline = should_inline(fn);
+        bool always_inline = should_inline(fn) || is_eta_convertible(mod, fn);
         if (node_is_zero(fn->node.ops[1]) && !always_inline)
             continue;
         const node_t* param = node_param(mod, fn, NULL);
@@ -100,7 +131,7 @@ void mod_opt(mod_t** mod) {
         *mod = new_mod;
 
         todo = false;
-        todo |= eval(*mod);
+        todo |= partial_eval(*mod);
         // todo |= mem2reg(*mod);
     }
 }
