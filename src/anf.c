@@ -636,7 +636,6 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const dbg_
 }
 
 const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index, const dbg_t* dbg) {
-    assert(value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_ARRAY);
     assert(type_is_u(index->type) || type_is_i(index->type));
     const type_t* elem_type = NULL;
 
@@ -665,6 +664,10 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
         } else if (value->tag == NODE_UNDEF) {
             return node_undef(mod, elem_type);
         }
+    } else {
+        // Tolerate extracts for non aggregate types when the index is zero
+        assert(node_is_zero(index));
+        return value;
     }
 
     const node_t* ops[] = { value, index };
@@ -678,7 +681,6 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
 }
 
 const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, const node_t* elem, const dbg_t* dbg) {
-    assert(value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_ARRAY);
     assert(type_is_u(index->type) || type_is_i(index->type));
 
     if (value->type->tag == TYPE_TUPLE) {
@@ -704,6 +706,10 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
         } else if (value->tag == NODE_UNDEF) {
             return value;
         }
+    } else {
+        // Tolerate inserts for non aggregate types when the index is zero
+        assert(node_is_zero(index));
+        return elem;
     }
 
     const node_t* ops[] = { value, index, elem };
@@ -1533,11 +1539,14 @@ const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_type
     return new_type;
 }
 
-const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types) {
+const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types, bool rewrite_fns) {
     while (node->rep) node = node->rep;
     const node_t** found = node2node_lookup(new_nodes, node);
     if (found)
         return *found;
+
+    if (node->tag == NODE_FN && !rewrite_fns)
+        return node;
 
     const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
     const node_t* new_node = NULL;

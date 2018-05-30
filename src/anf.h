@@ -245,7 +245,7 @@ const node_t* node_app(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
 const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
-const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*);
+const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*, bool);
 void node_replace(const node_t*, const node_t*);
 
 // Uses

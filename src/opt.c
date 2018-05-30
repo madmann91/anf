@@ -33,7 +33,7 @@ static inline bool is_eta_convertible(mod_t* mod, const fn_t* fn) {
     return is_tuple_shuffle(app->ops[1], param);
 }
 
-static inline bool should_inline(const fn_t* fn) {
+static inline bool should_always_inline(const fn_t* fn) {
     use_t* use = fn->node.uses;
     size_t n = 0;
     while (use) {
@@ -43,14 +43,14 @@ static inline bool should_inline(const fn_t* fn) {
     return n <= 1;
 }
 
-static inline bool partial_eval(mod_t* mod) {
+static bool partial_eval(mod_t* mod) {
     node_vec_t apps = node_vec_create(64);
     node2node_t new_nodes = node2node_create(16);
     type2type_t new_types = type2type_create(16);
 
     // Gather all the application nodes that need evaluation
     FORALL_VEC(mod->fns, const fn_t*, fn, {
-        bool always_inline = should_inline(fn) || is_eta_convertible(mod, fn);
+        bool always_inline = should_always_inline(fn) || is_eta_convertible(mod, fn);
         if (node_is_zero(fn->node.ops[1]) && !always_inline)
             continue;
         const node_t* param = node_param(mod, fn, NULL);
@@ -95,7 +95,7 @@ static inline bool partial_eval(mod_t* mod) {
         node2node_insert(&new_nodes, &fn->node, &fn->node);
         node2node_insert(&new_nodes, node_param(mod, fn, NULL), app->ops[1]);
 
-        node_replace(app, node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types));
+        node_replace(app, node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types, true));
     })
     node_set_destroy(&scope.nodes);
     node_set_destroy(&fvs);
@@ -114,7 +114,7 @@ void mod_import(mod_t* from, mod_t* to) {
     FORALL_VEC(from->fns, const fn_t*, fn, {
         if (!fn->exported || node2node_lookup(&new_nodes, &fn->node))
             continue;
-        node_rewrite(to, &fn->node, &new_nodes, &new_types);
+        node_rewrite(to, &fn->node, &new_nodes, &new_types, true);
     })
 
     node2node_destroy(&new_nodes);
