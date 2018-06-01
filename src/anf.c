@@ -1562,7 +1562,7 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
 
     const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i)
-        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types);
+        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types, rewrite_fns);
 
     if (node->tag == NODE_FN) {
         fn_t* new_fn = fn_cast(new_node);
@@ -1579,6 +1579,8 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
 void node_replace(const node_t* node, const node_t* with) {
     assert(node->type == with->type);
     while (with->rep) with = with->rep;
+    if (with == node)
+        return;
     do {
         const node_t* rep = node->rep;
         ((node_t*)node)->rep = with;

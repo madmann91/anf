@@ -586,7 +586,7 @@ bool test_opt(void) {
     const node_t* cmp_zero, *cmp_even;
     const node_t* pow_even, *pow_odd, *pow_half;
     const type_t* pow_type, *bb_type;
-    const type_t* type_ops[2];
+    const type_t* type_ops[3];
     dbg_t dbg_x, dbg_n;
     dbg_t dbg_y;
 
@@ -601,7 +601,8 @@ bool test_opt(void) {
 
     type_ops[0] = type_i32(mod);
     type_ops[1] = type_i32(mod);
-    pow_type = type_fn(mod, type_tuple(mod, 2, type_ops), type_i32(mod));
+    type_ops[2] = type_tuple(mod, 0, NULL);
+    pow_type = type_fn(mod, type_tuple(mod, 3, type_ops), type_i32(mod));
     bb_type  = type_fn(mod, type_tuple(mod, 0, NULL), type_i32(mod));
     pow = node_fn(mod, pow_type, NULL);
     when_zero  = node_fn(mod, bb_type, NULL);
@@ -621,9 +622,10 @@ bool test_opt(void) {
     fn_bind(mod, when_nzero, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, NULL));
     node_ops[0] = x;
     node_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
-    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL), NULL);
+    node_ops[2] = node_tuple(mod, 0, NULL, NULL);
+    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL), NULL);
     node_ops[1] = node_div(mod, n, node_i32(mod, 2), NULL);
-    pow_half = node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL);
+    pow_half = node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL);
     pow_even = node_mul(mod, pow_half, pow_half, NULL);
     fn_bind(mod, when_even, pow_even);
     fn_bind(mod, when_odd,  pow_odd);
@@ -632,7 +634,7 @@ bool test_opt(void) {
     outer->exported = true;
     node_ops[0] = node_param(mod, outer, &dbg_y);
     node_ops[1] = node_i32(mod, 5);
-    fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 2, node_ops, NULL), NULL));
+    fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL));
 
     fn_run_if(mod, pow, node_known(mod, n, NULL));
     mod_opt(&mod);
