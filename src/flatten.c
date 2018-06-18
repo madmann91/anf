@@ -141,13 +141,15 @@ bool flatten_tuples(mod_t* mod) {
         flatten_node(mod, &fn->node, &flat_nodes, &flat_types);
     })
 
+    node2node_t new_nodes = node2node_create(64);
+    type2type_t new_types = type2type_create(64);
     FORALL_VEC(worklist, fn_t*, fn, {
         size_t index = 0;
         const node_t* flat_fn = *node2node_lookup(&flat_nodes, &fn->node);
         const node_t* wrapper = unflatten_node(mod, flat_fn, &index, fn->node.type, &flat_nodes, &flat_types);
         const node_t* unflat_param = node_param(mod, fn, fn->node.dbg);
-        node2node_t new_nodes = node2node_create(64);
-        type2type_t new_types = type2type_create(64);
+        node2node_clear(&new_nodes);
+        type2type_clear(&new_types);
         node2node_insert(&new_nodes, &fn->node, wrapper);
         node2node_insert(&new_nodes, unflat_param, unflat_param);
         use_t* use = fn->node.uses;
@@ -156,9 +158,9 @@ bool flatten_tuples(mod_t* mod) {
                 node_replace(use->user, node_rewrite(mod, use->user, &new_nodes, &new_types, false));
             use = use->next;
         }
-        node2node_destroy(&new_nodes);
-        type2type_destroy(&new_types);
     })
+    node2node_destroy(&new_nodes);
+    type2type_destroy(&new_types);
 
     bool todo = worklist.nelems > 0;
     fn_vec_destroy(&worklist);
