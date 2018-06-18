@@ -578,7 +578,8 @@ bool test_opt(void) {
     const node_t* pow0, *pow1, *pow2, *pow4, *pow5;
 
     fn_t* pow, *when_zero, *when_nzero, *when_even, *when_odd, *outer;
-    const node_t* node_ops[2];
+    const node_t* node_ops[3];
+    const node_t* node_false;
     const node_t* x, *n;
     const node_t* unit;
     const node_t* param;
@@ -599,6 +600,8 @@ bool test_opt(void) {
     dbg_n = (dbg_t) { .file = "", .name = "n" };
     dbg_y = (dbg_t) { .file = "", .name = "y" };
 
+    node_false = node_i1(mod, false);
+
     type_ops[0] = type_i32(mod);
     type_ops[1] = type_i32(mod);
     type_ops[2] = type_tuple(mod, 0, NULL);
@@ -617,15 +620,15 @@ bool test_opt(void) {
     cmp_even = node_cmpeq(mod, modulo, node_i32(mod, 0), NULL);
     unit = node_tuple(mod, 0, NULL, NULL);
 
-    fn_bind(mod, pow, 0, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, NULL));
+    fn_bind(mod, pow, 0, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, node_false, NULL));
     fn_bind(mod, when_zero, 0, node_i32(mod, 1));
-    fn_bind(mod, when_nzero, 0, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, NULL));
+    fn_bind(mod, when_nzero, 0, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, node_false, NULL));
     node_ops[0] = x;
     node_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
     node_ops[2] = node_tuple(mod, 0, NULL, NULL);
-    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL), NULL);
+    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), node_false, NULL), NULL);
     node_ops[1] = node_div(mod, n, node_i32(mod, 2), NULL);
-    pow_half = node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL);
+    pow_half = node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), node_false, NULL);
     pow_even = node_mul(mod, pow_half, pow_half, NULL);
     fn_bind(mod, when_even, 0, pow_even);
     fn_bind(mod, when_odd,  0, pow_odd);
@@ -634,7 +637,7 @@ bool test_opt(void) {
     outer->exported = true;
     node_ops[0] = node_param(mod, outer, &dbg_y);
     node_ops[1] = node_i32(mod, 5);
-    fn_bind(mod, outer, 0, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL));
+    fn_bind(mod, outer, 0, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), node_false, NULL));
 
     fn_bind(mod, pow, 1, node_known(mod, n, NULL));
     mod_opt(&mod);

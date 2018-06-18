@@ -1446,13 +1446,13 @@ const node_t* node_param(mod_t* mod, const fn_t* fn, const dbg_t* dbg) {
     });
 }
 
-const node_t* node_app(mod_t* mod, const node_t* callee, const node_t* arg, const dbg_t* dbg) {
+const node_t* node_app(mod_t* mod, const node_t* callee, const node_t* arg, const node_t* cond, const dbg_t* dbg) {
     assert(callee->type->tag == TYPE_FN);
     assert(callee->type->ops[0] == arg->type);
-    const node_t* ops[] = { callee, arg };
+    const node_t* ops[] = { callee, arg, cond };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
-        .nops = 2,
+        .nops = 3,
         .ops  = ops,
         .type = callee->type->ops[1],
         .dbg  = dbg
@@ -1512,7 +1512,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_RSHFT:   return node_rshft(mod, ops[0], ops[1], node->dbg);
         case NODE_SELECT:  return node_select(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_PARAM:   return node_param(mod, fn_cast(ops[0]), node->dbg);
-        case NODE_APP:     return node_app(mod, ops[0], ops[1], node->dbg);
+        case NODE_APP:     return node_app(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_KNOWN:   return node_known(mod, ops[0], node->dbg);
         default:
             assert(false);

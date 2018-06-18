@@ -238,7 +238,7 @@ void fn_bind(mod_t*, fn_t*, size_t, const node_t*);
 fn_t* fn_cast(const node_t*);
 fn_t* node_fn(mod_t*, const type_t*, const dbg_t*);
 const node_t* node_param(mod_t*, const fn_t*, const dbg_t*);
-const node_t* node_app(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_app(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Rebuild/Rewrite/Replace
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
