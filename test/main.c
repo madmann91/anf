@@ -481,8 +481,8 @@ static inline fn_t* make_const_fn(mod_t* mod, const type_t* type) {
     fn_t* inner = node_fn(mod, inner_type, NULL);
     fn_t* outer = node_fn(mod, type_fn(mod, type, inner_type), NULL);
     const node_t* x = node_param(mod, outer, NULL);
-    fn_bind(mod, inner, x);
-    fn_bind(mod, outer, &inner->node);
+    fn_bind(mod, inner, 0, x);
+    fn_bind(mod, outer, 0, &inner->node);
     return outer;
 }
 
@@ -617,9 +617,9 @@ bool test_opt(void) {
     cmp_even = node_cmpeq(mod, modulo, node_i32(mod, 0), NULL);
     unit = node_tuple(mod, 0, NULL, NULL);
 
-    fn_bind(mod, pow, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, NULL));
-    fn_bind(mod, when_zero, node_i32(mod, 1));
-    fn_bind(mod, when_nzero, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, NULL));
+    fn_bind(mod, pow, 0, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, NULL));
+    fn_bind(mod, when_zero, 0, node_i32(mod, 1));
+    fn_bind(mod, when_nzero, 0, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, NULL));
     node_ops[0] = x;
     node_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
     node_ops[2] = node_tuple(mod, 0, NULL, NULL);
@@ -627,16 +627,16 @@ bool test_opt(void) {
     node_ops[1] = node_div(mod, n, node_i32(mod, 2), NULL);
     pow_half = node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL);
     pow_even = node_mul(mod, pow_half, pow_half, NULL);
-    fn_bind(mod, when_even, pow_even);
-    fn_bind(mod, when_odd,  pow_odd);
+    fn_bind(mod, when_even, 0, pow_even);
+    fn_bind(mod, when_odd,  0, pow_odd);
 
     outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
     outer->exported = true;
     node_ops[0] = node_param(mod, outer, &dbg_y);
     node_ops[1] = node_i32(mod, 5);
-    fn_bind(mod, outer, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL));
+    fn_bind(mod, outer, 0, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), NULL));
 
-    fn_run_if(mod, pow, node_known(mod, n, NULL));
+    fn_bind(mod, pow, 1, node_known(mod, n, NULL));
     mod_opt(&mod);
 
     CHECK(mod->fns.nelems == 1);

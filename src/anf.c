@@ -1402,18 +1402,13 @@ const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true,
     });
 }
 
-void fn_bind(mod_t* mod, fn_t* fn, const node_t* call) {
-    assert(fn->node.type->ops[1] == call->type);
-    unregister_use(0, fn->node.ops[0], &fn->node);
-    fn->node.ops[0] = call;
-    register_use(mod, 0, fn->node.ops[0], &fn->node);
-}
-
-void fn_run_if(mod_t* mod, fn_t* fn, const node_t* cond) {
-    assert(cond->type->tag == TYPE_I1);
-    unregister_use(1, fn->node.ops[1], &fn->node);
-    fn->node.ops[1] = cond;
-    register_use(mod, 1, fn->node.ops[1], &fn->node);
+void fn_bind(mod_t* mod, fn_t* fn, size_t i, const node_t* op) {
+    assert(i != 0 || fn->node.type->ops[1] == op->type);
+    assert(i != 1 || op->type->tag == TYPE_I1);
+    assert(i < 2);
+    unregister_use(i, fn->node.ops[i], &fn->node);
+    fn->node.ops[i] = op;
+    register_use(mod, i, fn->node.ops[i], &fn->node);
 }
 
 fn_t* fn_cast(const node_t* node) {
@@ -1566,8 +1561,8 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
 
     if (node->tag == NODE_FN) {
         fn_t* new_fn = fn_cast(new_node);
-        fn_bind(mod, new_fn, new_ops[0]);
-        fn_run_if(mod, new_fn, new_ops[1]);
+        fn_bind(mod, new_fn, 0, new_ops[0]);
+        fn_bind(mod, new_fn, 1, new_ops[1]);
     } else {
         new_node = node_rebuild(mod, node, new_ops, new_type);
         node2node_insert(new_nodes, node, new_node);

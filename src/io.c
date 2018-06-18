@@ -160,8 +160,8 @@ static inline void read_fn_ops(FILE* fp, mod_t* mod, uint32_t i, idx2node_t* idx
     uint32_t run_if_idx;
     fread(&run_if_idx, sizeof(uint32_t), 1, fp);
     fn_t* fn = fn_cast(*idx2node_lookup(idx2node,i));
-    fn_bind(mod, fn, *idx2node_lookup(idx2node, body_idx));
-    fn_run_if(mod, fn, *idx2node_lookup(idx2node, run_if_idx));
+    fn_bind(mod, fn, 0, *idx2node_lookup(idx2node, body_idx));
+    fn_bind(mod, fn, 1, *idx2node_lookup(idx2node, run_if_idx));
     fseek(fp, sizeof(uint32_t) * 3, SEEK_CUR);
 }
 

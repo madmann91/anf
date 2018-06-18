@@ -76,10 +76,10 @@ static const node_t* flatten_node(mod_t* mod, const node_t* node, node2node_t* f
         const node_t* flat_param = node_param(mod, flat_fn, flat_fn->node.dbg);
         size_t index = 0;
         const node_t* unflat_arg = unflatten_node(mod, flat_param, &index, node->type->ops[0], flat_nodes, flat_types);
-        fn_bind(mod, flat_fn, node_app(mod, node, unflat_arg, flat_fn->node.dbg));
+        fn_bind(mod, flat_fn, 0, node_app(mod, node, unflat_arg, flat_fn->node.dbg));
         if (node->tag == NODE_FN) {
             node2node_insert(flat_nodes, node, new_node);
-            fn_run_if(mod, flat_fn, node_rewrite(mod, node->ops[1], flat_nodes, flat_types, false));
+            fn_bind(mod, flat_fn, 1, node_rewrite(mod, node->ops[1], flat_nodes, flat_types, false));
         }
     } else {
         assert(false);
@@ -108,8 +108,8 @@ static const node_t* unflatten_node(mod_t* mod, const node_t* node, size_t* inde
         fn_t* unflat_fn = node_fn(mod, unflat_type, flat_fn->dbg);
         const node_t* unflat_param = node_param(mod, unflat_fn, flat_fn->dbg);
         const node_t* flat_arg = flatten_node(mod, unflat_param, flat_nodes, flat_types);
-        fn_run_if(mod, unflat_fn, node_i1(mod, true));
-        fn_bind(mod, unflat_fn, node_app(mod, flat_fn, flat_arg, unflat_fn->node.dbg));
+        fn_bind(mod, unflat_fn, 0, node_app(mod, flat_fn, flat_arg, unflat_fn->node.dbg));
+        fn_bind(mod, unflat_fn, 1, node_i1(mod, true));
         new_node = &unflat_fn->node;
     } else {
         new_node = node_extract(mod, node, node_i32(mod, *index++), node->dbg);
@@ -153,7 +153,7 @@ bool flatten_tuples(mod_t* mod) {
         }
         node2node_destroy(&new_nodes);
         type2type_destroy(&new_types);
-        fn_run_if(mod, fn, node_i1(mod, true));
+        fn_bind(mod, fn, 1, node_i1(mod, true));
     })
 
     bool todo = worklist.nelems > 0;
