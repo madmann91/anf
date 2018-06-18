@@ -32,20 +32,9 @@ void mod_opt(mod_t** mod) {
     bool todo = true;
     while (todo) {
         todo = false;
-        todo |= flatten_tuples(*mod);
-        mod_cleanup(mod);
-
-        FORALL_HSET((*mod)->nodes, const node_t*, node, {
-            node_dump(node);
-        })
-        FORALL_VEC((*mod)->fns, const fn_t*, fn, {
-            node_dump(&fn->node);
-            printf("\t");
-            if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
-        })
-        getchar();
-
-        todo |= partial_eval(*mod);
-        mod_cleanup(mod);
+        if (flatten_tuples(*mod))
+            mod_cleanup(mod), todo = true;
+        if (partial_eval(*mod))
+            mod_cleanup(mod), todo = true;
     }
 }

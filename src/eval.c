@@ -50,19 +50,22 @@ bool partial_eval(mod_t* mod) {
 
     // Gather all the application nodes that need evaluation
     FORALL_VEC(mod->fns, const fn_t*, fn, {
-        bool always_inline = should_always_inline(fn) || is_eta_convertible(mod, fn);
-        if (node_is_zero(fn->node.ops[1]) && !always_inline)
-            continue;
+        bool always_inline  = node_is_one(fn->node.ops[1]) || should_always_inline(fn) || is_eta_convertible(mod, fn);
+        bool zero_cond      = node_is_zero(fn->node.ops[1]);
         const node_t* param = node_param(mod, fn, NULL);
         use_t* use = fn->node.uses;
         while (use) {
             const node_t* user = use->user;
             if (use->index == 0 && !user->rep && user->tag == NODE_APP) {
-                node2node_clear(&new_nodes);
-                type2type_clear(&new_types);
-                node2node_insert(&new_nodes, param, user->ops[1]);
-                const node_t* cond = node_rewrite(mod, fn->node.ops[1], &new_nodes, &new_types, false);
-                if (always_inline || (cond->tag == NODE_LITERAL && cond->box.i1))
+                bool run = always_inline;
+                if (!run && !zero_cond) {
+                    node2node_clear(&new_nodes);
+                    type2type_clear(&new_types);
+                    node2node_insert(&new_nodes, param, user->ops[1]);
+                    const node_t* cond = node_rewrite(mod, fn->node.ops[1], &new_nodes, &new_types, false);
+                    run = (cond->tag == NODE_LITERAL && cond->box.i1);
+                }
+                if (run)
                     node_vec_push(&apps, user);
             }
             use = use->next;
@@ -78,7 +81,7 @@ bool partial_eval(mod_t* mod) {
         node2node_clear(&new_nodes);
         type2type_clear(&new_types);
 
-        // Recompute the function scope when needed
+        // Recompute the function scope only when needed
         if (fn != prev_fn) {
             scope.entry = fn;
             node_set_clear(&scope.nodes);

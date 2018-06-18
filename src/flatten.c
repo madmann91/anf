@@ -1,4 +1,5 @@
 #include "anf.h"
+#include "scope.h"
 
 static const type_t* flatten_type(mod_t*, const type_t*, type2type_t*);
 static const node_t* flatten_node(mod_t*, const node_t*, node2node_t*, type2type_t*);
@@ -76,10 +77,15 @@ static const node_t* flatten_node(mod_t* mod, const node_t* node, node2node_t* f
         const node_t* flat_param = node_param(mod, flat_fn, flat_fn->node.dbg);
         size_t index = 0;
         const node_t* unflat_arg = unflatten_node(mod, flat_param, &index, node->type->ops[0], flat_nodes, flat_types);
-        fn_bind(mod, flat_fn, 0, node_app(mod, node, unflat_arg, node_i1(mod, true), flat_fn->node.dbg));
         if (node->tag == NODE_FN) {
+            // Inline the function body when it is known
+            const node_t* body = fn_inline(mod, fn_cast(node), unflat_arg);
+            fn_bind(mod, flat_fn, 0, body);
+            // Insert the flattened node in the map now, as it may be needed when rewriting
             node2node_insert(flat_nodes, node, new_node);
             fn_bind(mod, flat_fn, 1, node_rewrite(mod, node->ops[1], flat_nodes, flat_types, false));
+        } else {
+            fn_bind(mod, flat_fn, 0, node_app(mod, node, unflat_arg, node_i1(mod, true), flat_fn->node.dbg));
         }
     } else {
         assert(false);
@@ -112,7 +118,7 @@ static const node_t* unflatten_node(mod_t* mod, const node_t* node, size_t* inde
         fn_bind(mod, unflat_fn, 1, node_i1(mod, true));
         new_node = &unflat_fn->node;
     } else {
-        new_node = node_extract(mod, node, node_i32(mod, *index++), node->dbg);
+        new_node = node_extract(mod, node, node_i32(mod, (*index)++), node->dbg);
     }
     assert(new_node);
     return new_node;
@@ -146,14 +152,12 @@ bool flatten_tuples(mod_t* mod) {
         node2node_insert(&new_nodes, unflat_param, unflat_param);
         use_t* use = fn->node.uses;
         while (use) {
-            printf("user: ");node_dump(use->user);
             if (use->user != flat_fn->ops[0])
                 node_replace(use->user, node_rewrite(mod, use->user, &new_nodes, &new_types, false));
             use = use->next;
         }
         node2node_destroy(&new_nodes);
         type2type_destroy(&new_types);
-        fn_bind(mod, fn, 1, node_i1(mod, true));
     })
 
     bool todo = worklist.nelems > 0;

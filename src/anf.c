@@ -1416,6 +1416,26 @@ fn_t* fn_cast(const node_t* node) {
     return (fn_t*)node;
 }
 
+const node_t* fn_inline(mod_t* mod, const fn_t* fn, const node_t* arg) {
+    node2node_t new_nodes = node2node_create(64);
+    type2type_t new_types = type2type_create(64);
+    scope_t scope = { .entry = fn, .nodes = node_set_create(64) };
+    node_set_t fvs = node_set_create(64);
+    scope_compute(mod, &scope);
+    scope_compute_fvs(&scope, &fvs);
+    FORALL_HSET(fvs, const node_t*, node, {
+        node2node_insert(&new_nodes, node, node);
+    })
+    node2node_insert(&new_nodes, &fn->node, &fn->node);
+    node2node_insert(&new_nodes, node_param(mod, fn, NULL), arg);
+    const node_t* body = node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types, true);
+    node2node_destroy(&new_nodes);
+    type2type_destroy(&new_types);
+    node_set_destroy(&scope.nodes);
+    node_set_destroy(&fvs);
+    return body;
+}
+
 fn_t* node_fn(mod_t* mod, const type_t* type, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
     fn_t* fn = mpool_alloc(&mod->pool, sizeof(fn_t));
