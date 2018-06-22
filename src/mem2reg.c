@@ -59,25 +59,26 @@ static const node_t* store_value(mod_t* mod, const node_t* base, const node_t* p
     }
 }
 
-static bool can_promote(const node_t* node) {
+static bool can_promote(const node_t* node, node_set_t* replaced_loads) {
     // Promotion is possible if all uses are (transitively):
     // load, store (as pointer operand), dealloc and offset
+    // Once promotion has been performed, removal is possible
+    // if all users that are loads have been replaced.
     use_t* use = node->uses;
     while (use) {
         switch (use->user->tag) {
             case NODE_DEALLOC:
-            case NODE_LOAD:
                 return true;
-            case NODE_OFFSET:
-                break;
+            case NODE_LOAD:
+                return replaced_loads ? node_set_lookup(replaced_loads, node) != NULL : true;
             case NODE_STORE:
-                if (use->index != 1)
-                    return false;
+                return use->index == 1;
+            case NODE_OFFSET:
                 break;
             default:
                 return false;
         }
-        if (!can_promote(use->user))
+        if (!can_promote(use->user, replaced_loads))
             return false;
         use = use->next;
     }
@@ -86,7 +87,8 @@ static bool can_promote(const node_t* node) {
 
 bool mem2reg(mod_t* mod) {
     node2state_t node2state = node2state_create(64);
-    mpool_t* state_pool = mpool_create(4096);    
+    node_set_t replaced_loads = node_set_create(64);
+    mpool_t* state_pool = mpool_create(4096);
 
     // Scan nodes to find allocs
     FORALL_HSET(mod->nodes, const node_t*, node, {
@@ -94,7 +96,7 @@ bool mem2reg(mod_t* mod) {
             continue;
         const node_t* mem = node_extract(mod, node, node_i32(mod, 0), NULL);
         const node_t* ptr = node_extract(mod, node, node_i32(mod, 1), NULL);
-        if (!can_promote(ptr))
+        if (!can_promote(ptr, NULL))
             continue;
         state_t* state = mpool_alloc(&state_pool, sizeof(state_t));
         state->alloc = ptr;
@@ -104,14 +106,13 @@ bool mem2reg(mod_t* mod) {
 
     // Remove loads from known pointers
     bool todo = true;
-    size_t eliminated_loads = 0;
     while (todo) {
         todo = false;
         FORALL_HSET(mod->nodes, const node_t*, node, {
             // Skip nodes with no memory operand and allocs
             if (!node_has_mem(node) || node->tag == NODE_ALLOC)
                 continue;
-            // Skip params and already discovered nodes
+            // Skip already discovered nodes
             const node_t* out_mem = node_out_mem(mod, node);
             const node_t* in_mem  = node_in_mem(node);
             if (node2state_lookup(&node2state, out_mem))
@@ -124,13 +125,13 @@ bool mem2reg(mod_t* mod) {
             switch (node->tag) {
                 case NODE_LOAD:
                     {
-                        const node_t* alloc = find_alloc(node->ops[1]);
+                        const node_t* alloc  = find_alloc(node->ops[1]);
                         const state_t* state = alloc ? find_state(&node2state, in_mem, alloc) : NULL;
                         if (state) {
                             const node_t* val = load_value(mod, state->val, node->ops[1], node->dbg);
                             const node_t* ops[] = { node->ops[0], val };
                             node_replace(node, node_tuple(mod, 2, ops, node->dbg));
-                            eliminated_loads++;
+                            node_set_insert(&replaced_loads, node);
                         }
                         to = from;
                     }
@@ -168,7 +169,19 @@ bool mem2reg(mod_t* mod) {
         });
     }
 
+    // Remove allocs that are no longer necessary (only stores)
+    FORALL_HSET(mod->nodes, const node_t*, node, {
+        if (node->tag != NODE_ALLOC)
+            continue;
+        const node_t* ptr = node_extract(mod, node, node_i32(mod, 1), NULL);
+        if (can_promote(ptr, &replaced_loads)) {
+            const node_t* ops[] = { node->ops[0], node_undef(mod, node->type->ops[1]) };
+            node_replace(node, node_tuple(mod, 2, ops, node->dbg));
+        }
+    })
+
     mpool_destroy(state_pool);
     node2state_destroy(&node2state);
-    return eliminated_loads > 0;
+    node_set_destroy(&replaced_loads);
+    return replaced_loads.table->nelems > 0;
 }

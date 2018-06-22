@@ -1434,6 +1434,8 @@ const node_t* node_alloc(mod_t* mod, const node_t* mem, const type_t* type, cons
 const node_t* node_dealloc(mod_t* mod, const node_t* mem, const node_t* ptr, const dbg_t* dbg) {
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
+    if (ptr->tag == NODE_UNDEF)
+        return mem;
     assert(ptr->tag == NODE_EXTRACT && ptr->ops[0]->tag == NODE_ALLOC);
     const node_t* ops[] = { mem, ptr };
     return make_node(mod, (node_t) {
@@ -1448,6 +1450,10 @@ const node_t* node_dealloc(mod_t* mod, const node_t* mem, const node_t* ptr, con
 const node_t* node_load(mod_t* mod, const node_t* mem, const node_t* ptr, const dbg_t* dbg) {
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
+    if (ptr->tag == NODE_UNDEF) {
+        const node_t* ops[] = { mem, node_undef(mod, ptr->type->ops[0]) };
+        return node_tuple(mod, 2, ops, dbg);
+    }
     const type_t* type_ops[] = { mem->type, ptr->type->ops[0] };
     const type_t* load_type = type_tuple(mod, 2, type_ops);
     const node_t* ops[] = { mem, ptr };
@@ -1464,6 +1470,8 @@ const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
     assert(val->type == ptr->type->ops[0]);
+    if (ptr->tag == NODE_UNDEF)
+        return mem;
     const node_t* ops[] = { mem, ptr, val };
     return make_node(mod, (node_t) {
         .tag  = NODE_STORE,
@@ -1477,6 +1485,8 @@ const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const
 const node_t* node_offset(mod_t* mod, const node_t* ptr, const node_t* index, const dbg_t* dbg) {
     assert(ptr->type->tag == TYPE_PTR);
     assert(type_is_i(index->type) || type_is_u(index->type));
+    if (ptr->tag == NODE_UNDEF)
+        return ptr;
     const node_t* ops[] = { ptr, index };
     return make_node(mod, (node_t) {
         .tag  = NODE_OFFSET,
