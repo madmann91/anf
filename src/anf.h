@@ -72,6 +72,11 @@ struct type_s {
 
 enum node_tag_e {
     NODE_UNDEF,
+    NODE_ALLOC,
+    NODE_DEALLOC,
+    NODE_LOAD,
+    NODE_STORE,
+    NODE_OFFSET,
     NODE_LITERAL,
     NODE_TUPLE,
     NODE_ARRAY,
@@ -117,6 +122,8 @@ enum type_tag_e {
     TYPE_U64,
     TYPE_F32,
     TYPE_F64,
+    TYPE_MEM,
+    TYPE_PTR,
     TYPE_TUPLE,
     TYPE_ARRAY,
     TYPE_FN
@@ -170,6 +177,8 @@ const type_t* type_u32(mod_t*);
 const type_t* type_u64(mod_t*);
 const type_t* type_f32(mod_t*);
 const type_t* type_f64(mod_t*);
+const type_t* type_mem(mod_t*);
+const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
@@ -228,6 +237,13 @@ const node_t* node_xor(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_not(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
+
+// Memory operations
+const node_t* node_alloc(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_dealloc(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_load(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_store(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_offset(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Misc.
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);

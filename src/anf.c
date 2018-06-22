@@ -173,6 +173,11 @@ const type_t* type_u32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYP
 const type_t* type_u64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U64, .nops = 0, .ops = NULL }); }
 const type_t* type_f32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32, .nops = 0, .ops = NULL }); }
 const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64, .nops = 0, .ops = NULL }); }
+const type_t* type_mem(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_MEM, .nops = 0, .ops = NULL }); }
+
+const type_t* type_ptr(mod_t* mod, const type_t* op) {
+    return make_type(mod, (type_t) { .tag = TYPE_TUPLE, .nops = 1, .ops = &op });
+}
 
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
     if (nops == 1) return ops[0];
@@ -1371,6 +1376,74 @@ const node_t* node_not(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     return node_xor(mod, node_all_ones(mod, node->type), node, dbg);
 }
 
+const node_t* node_alloc(mod_t* mod, const node_t* mem, const type_t* type, const dbg_t* dbg) {
+    assert(mem->type->tag == TYPE_MEM);
+    const type_t* type_ops[] = { mem->type, type_ptr(mod, type) };
+    const type_t* alloc_type = type_tuple(mod, 2, type_ops);
+    return make_node(mod, (node_t) {
+        .tag  = NODE_ALLOC,
+        .nops = 0,
+        .ops  = NULL,
+        .type = alloc_type,
+        .dbg  = dbg
+    });
+}
+
+const node_t* node_dealloc(mod_t* mod, const node_t* mem, const node_t* ptr, const dbg_t* dbg) {
+    assert(mem->type->tag == TYPE_MEM);
+    assert(ptr->type->tag == TYPE_PTR);
+    assert(ptr->tag == NODE_EXTRACT && ptr->ops[0]->tag == NODE_ALLOC);
+    const node_t* ops[] = { mem, ptr };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_DEALLOC,
+        .nops = 2,
+        .ops  = ops,
+        .type = mem->type,
+        .dbg  = dbg
+    });
+}
+
+const node_t* node_load(mod_t* mod, const node_t* mem, const node_t* ptr, const dbg_t* dbg) {
+    assert(mem->type->tag == TYPE_MEM);
+    assert(ptr->type->tag == TYPE_PTR);
+    const type_t* type_ops[] = { mem->type, ptr->type->ops[0] };
+    const type_t* load_type = type_tuple(mod, 2, type_ops);
+    const node_t* ops[] = { mem, ptr };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_LOAD,
+        .nops = 2,
+        .ops  = ops,
+        .type = load_type,
+        .dbg  = dbg
+    });
+}
+
+const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const node_t* val, const dbg_t* dbg) {
+    assert(mem->type->tag == TYPE_MEM);
+    assert(ptr->type->tag == TYPE_PTR);
+    const node_t* ops[] = { mem, ptr, val };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_STORE,
+        .nops = 3,
+        .ops  = ops,
+        .type = mem->type,
+        .dbg  = dbg
+    });
+}
+
+const node_t* node_offset(mod_t* mod, const node_t* ptr, const node_t* index, const dbg_t* dbg) {
+    assert(ptr->type->tag == TYPE_PTR);
+    assert(type_is_i(index->type) || type_is_u(index->type));
+    const node_t* ops[] = { ptr, index };
+    return make_node(mod, (node_t) {
+        .tag  = NODE_OFFSET,
+        .nops = 2,
+        .ops  = ops,
+        .type = ptr->type,
+        .dbg  = dbg
+    });
+}
+
 const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     if (node_is_const(node))
         return node_i1(mod, true);
@@ -1492,6 +1565,8 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
         case TYPE_U64:   return type_u64(mod);
         case TYPE_F32:   return type_f32(mod);
         case TYPE_F64:   return type_f64(mod);
+        case TYPE_MEM:   return type_mem(mod);
+        case TYPE_PTR:   return type_ptr(mod, ops[0]);
         case TYPE_TUPLE: return type_tuple(mod, type->nops, ops);
         case TYPE_ARRAY: return type_array(mod, ops[0]);
         case TYPE_FN:    return type_fn(mod, ops[0], ops[1]);
@@ -1504,6 +1579,10 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
 const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, const type_t* type) {
     switch (node->tag) {
         case NODE_LITERAL: return make_literal(mod, type, node->box);
+        case NODE_DEALLOC: return node_dealloc(mod, ops[0], ops[1], node->dbg);
+        case NODE_LOAD:    return node_load(mod, ops[0], ops[1], node->dbg);
+        case NODE_STORE:   return node_store(mod, ops[0], ops[1], ops[2], node->dbg);
+        case NODE_OFFSET:  return node_offset(mod, ops[0], ops[1], node->dbg);
         case NODE_UNDEF:   return node_undef(mod, type);
         case NODE_TUPLE:   return node_tuple(mod, node->nops, ops, node->dbg);
         case NODE_ARRAY:   return node_array(mod, node->nops, ops, node->dbg);
@@ -1534,6 +1613,11 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_PARAM:   return node_param(mod, fn_cast(ops[0]), node->dbg);
         case NODE_APP:     return node_app(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_KNOWN:   return node_known(mod, ops[0], node->dbg);
+        case NODE_ALLOC:
+            assert(type->tag == TYPE_TUPLE);
+            assert(type->ops[0]->tag == TYPE_MEM);
+            assert(type->ops[1]->tag == TYPE_PTR);
+            return node_alloc(mod, ops[0], type->ops[1]->ops[0], node->dbg);
         default:
             assert(false);
             return NULL;
@@ -1638,6 +1722,11 @@ void type_print(const type_t* type, bool colorize) {
         case TYPE_U64: printf("%su64%s", prefix, suffix); break;
         case TYPE_F32: printf("%sf32%s", prefix, suffix); break;
         case TYPE_F64: printf("%sf64%s", prefix, suffix); break;
+        case TYPE_MEM: printf("%smem%s", prefix, suffix); break;
+        case TYPE_PTR:
+            type_print(type->ops[0], colorize);
+            printf("*");
+            break;
         case TYPE_TUPLE:
             printf("(");
             for (size_t i = 0; i < type->nops; ++i) {
@@ -1704,6 +1793,11 @@ void node_print(const node_t* node, bool colorize) {
         const char* op = NULL;
         switch (node->tag) {
             case NODE_UNDEF:   op = "undef";   break;
+            case NODE_ALLOC:   op = "alloc";   break;
+            case NODE_DEALLOC: op = "dealloc"; break;
+            case NODE_LOAD:    op = "load";    break;
+            case NODE_STORE:   op = "store";   break;
+            case NODE_OFFSET:  op = "offset";  break;
             case NODE_TUPLE:   op = "tuple";   break;
             case NODE_ARRAY:   op = "array";   break;
             case NODE_EXTRACT: op = "extract"; break;
