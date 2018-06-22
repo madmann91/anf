@@ -670,6 +670,64 @@ cleanup:
     return status == 0;
 }
 
+bool test_mem(void) {
+    mod_t* mod = mod_create();
+
+    const node_t* node_ops[2];
+    const type_t* type_ops[2];
+    const type_t* fn_type;
+    fn_t* fn;
+    const node_t* param;
+    const node_t* res;
+    const node_t* alloc;
+    const node_t* mem;
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    type_ops[0] = type_mem(mod);
+    type_ops[1] = type_i32(mod);
+    fn_type = type_fn(mod, type_mem(mod), type_tuple(mod, 2, type_ops));
+    fn = node_fn(mod, fn_type, NULL);
+    param = node_param(mod, fn, NULL);
+    res = node_alloc(mod, param, type_i32(mod), NULL);
+    alloc = node_extract(mod, res, node_i32(mod, 1), NULL);
+    mem = node_extract(mod, res, node_i32(mod, 0), NULL);
+    mem = node_store(mod, mem, alloc, node_i32(mod, 42), NULL);
+    res = node_load(mod, mem, alloc, NULL);
+    mem = node_extract(mod, res, node_i32(mod, 0), NULL);
+    res = node_extract(mod, res, node_i32(mod, 1), NULL);
+    mem = node_dealloc(mod, mem, alloc, NULL);
+    node_ops[0] = mem;
+    node_ops[1] = res;
+    fn_bind(mod, fn, 0, node_tuple(mod, 2, node_ops, NULL));
+
+    fn->exported = true;
+
+    mod_opt(&mod);
+
+    CHECK(mod->fns.nelems == 1);
+    CHECK(mod->fns.elems[0]->exported);
+    CHECK(node_extract(mod, mod->fns.elems[0]->node.ops[0], node_i32(mod, 1), NULL) == node_i32(mod, 42));
+
+cleanup:
+    if (status) {
+        FORALL_HSET(mod->nodes, const node_t*, node, {
+            node_dump(node);
+        })
+        FORALL_VEC(mod->fns, const fn_t*, fn, {
+            node_dump(&fn->node);
+            printf("\t");
+            if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+        })
+    }
+
+    mod_destroy(mod);
+    return status == 0;
+}
+
 typedef struct {
     const char* name;
     bool (*test_fn)(void);
@@ -706,7 +764,8 @@ int main(int argc, char** argv) {
         {"binops",   test_binops},
         {"scope",    test_scope},
         {"io",       test_io},
-        {"opt",      test_opt}
+        {"opt",      test_opt},
+        {"mem",      test_mem}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

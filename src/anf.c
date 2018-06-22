@@ -176,7 +176,7 @@ const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYP
 const type_t* type_mem(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_MEM, .nops = 0, .ops = NULL }); }
 
 const type_t* type_ptr(mod_t* mod, const type_t* op) {
-    return make_type(mod, (type_t) { .tag = TYPE_TUPLE, .nops = 1, .ops = &op });
+    return make_type(mod, (type_t) { .tag = TYPE_PTR, .nops = 1, .ops = &op });
 }
 
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
@@ -730,7 +730,7 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
 const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, const dbg_t* dbg) {
     assert(type_is_prim(type));
     assert(type_is_prim(value->type));
-    assert(type_bitwidth(value->type) == type_bitwidth(type));
+    assert((value->type->tag == TYPE_PTR && type->tag == TYPE_PTR) || type_bitwidth(value->type) == type_bitwidth(type));
     while (value->tag == NODE_BITCAST && value->type != type)
         value = value->ops[0];
     if (value->type == type)
@@ -1376,14 +1376,56 @@ const node_t* node_not(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     return node_xor(mod, node_all_ones(mod, node->type), node, dbg);
 }
 
+bool node_has_mem(const node_t* node) {
+    return node->tag == NODE_ALLOC ||
+           node->tag == NODE_DEALLOC ||
+           node->tag == NODE_LOAD ||
+           node->tag == NODE_STORE;
+}
+
+const node_t* node_in_mem(const node_t* node) {
+    assert(node_has_mem(node));
+    return node->ops[0];
+}
+
+const node_t* node_out_mem(mod_t* mod, const node_t* node) {
+    switch (node->tag) {
+        case NODE_ALLOC:
+        case NODE_LOAD:
+            return node_extract(mod, node, node_i32(mod, 0), node->dbg);
+        case NODE_STORE:
+        case NODE_DEALLOC:
+            return node;
+        default:
+            assert(false);
+            return NULL;
+    }
+}
+
+const node_t* node_from_mem(const node_t* node) {
+    assert(node->type->tag == TYPE_MEM);
+    switch (node->tag) {
+        case NODE_EXTRACT:
+            if (node->ops[0]->tag == NODE_LOAD ||
+                node->ops[0]->tag == NODE_ALLOC)
+                return node->ops[0];
+            return NULL;
+        case NODE_STORE:
+        case NODE_DEALLOC:
+            return node;
+        default:
+            return NULL;
+    }
+}
+
 const node_t* node_alloc(mod_t* mod, const node_t* mem, const type_t* type, const dbg_t* dbg) {
     assert(mem->type->tag == TYPE_MEM);
     const type_t* type_ops[] = { mem->type, type_ptr(mod, type) };
     const type_t* alloc_type = type_tuple(mod, 2, type_ops);
     return make_node(mod, (node_t) {
         .tag  = NODE_ALLOC,
-        .nops = 0,
-        .ops  = NULL,
+        .nops = 1,
+        .ops  = &mem,
         .type = alloc_type,
         .dbg  = dbg
     });
@@ -1421,6 +1463,7 @@ const node_t* node_load(mod_t* mod, const node_t* mem, const node_t* ptr, const 
 const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const node_t* val, const dbg_t* dbg) {
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
+    assert(val->type == ptr->type->ops[0]);
     const node_t* ops[] = { mem, ptr, val };
     return make_node(mod, (node_t) {
         .tag  = NODE_STORE,

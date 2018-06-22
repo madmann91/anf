@@ -3,6 +3,7 @@
 
 bool flatten_tuples(mod_t*);
 bool partial_eval(mod_t*);
+bool mem2reg(mod_t*);
 
 void mod_import(mod_t* from, mod_t* to) {
     assert(from != to);
@@ -33,6 +34,8 @@ void mod_opt(mod_t** mod) {
     while (todo) {
         todo = false;
         if (flatten_tuples(*mod))
+            mod_cleanup(mod), todo = true;
+        if (mem2reg(*mod))
             mod_cleanup(mod), todo = true;
         if (partial_eval(*mod))
             mod_cleanup(mod), todo = true;

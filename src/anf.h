@@ -159,6 +159,7 @@ mod_t* mod_load(const char*, mpool_t**);
 
 void mod_import(mod_t*, mod_t*);
 void mod_opt(mod_t**);
+void mod_cleanup(mod_t**);
 
 // Types
 size_t type_bitwidth(const type_t*);
@@ -239,6 +240,10 @@ const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
 // Memory operations
+bool node_has_mem(const node_t*);
+const node_t* node_in_mem(const node_t*);
+const node_t* node_out_mem(mod_t*, const node_t*);
+const node_t* node_from_mem(const node_t*);
 const node_t* node_alloc(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_dealloc(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_load(mod_t*, const node_t*, const node_t*, const dbg_t*);
