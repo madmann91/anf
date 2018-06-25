@@ -1485,14 +1485,24 @@ const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const
 const node_t* node_offset(mod_t* mod, const node_t* ptr, const node_t* index, const dbg_t* dbg) {
     assert(ptr->type->tag == TYPE_PTR);
     assert(type_is_i(index->type) || type_is_u(index->type));
+    const type_t* type = NULL;
+    const type_t* pointee_type = ptr->type->ops[0];
+    if (pointee_type->tag == TYPE_ARRAY)
+        type = pointee_type->ops[0];
+    else if (pointee_type->tag == TYPE_TUPLE) {
+        assert(index->tag == NODE_LITERAL);
+        type = pointee_type->ops[index->box.u64];
+    }
+    assert(type);
+    type = type_ptr(mod, type);
     if (ptr->tag == NODE_UNDEF)
-        return ptr;
+        return node_undef(mod, type);
     const node_t* ops[] = { ptr, index };
     return make_node(mod, (node_t) {
         .tag  = NODE_OFFSET,
         .nops = 2,
         .ops  = ops,
-        .type = ptr->type,
+        .type = type,
         .dbg  = dbg
     });
 }

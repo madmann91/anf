@@ -681,6 +681,8 @@ bool test_mem(void) {
     const node_t* res;
     const node_t* alloc;
     const node_t* mem;
+    const node_t* ptr;
+    const node_t* val;
 
     jmp_buf env;
     int status = setjmp(env);
@@ -692,11 +694,15 @@ bool test_mem(void) {
     fn_type = type_fn(mod, type_mem(mod), type_tuple(mod, 2, type_ops));
     fn = node_fn(mod, fn_type, NULL);
     param = node_param(mod, fn, NULL);
-    res = node_alloc(mod, param, type_i32(mod), NULL);
+    node_ops[0] = node_i32(mod, 5);
+    node_ops[1] = node_i32(mod, 42);
+    val = node_tuple(mod, 2, node_ops, NULL);
+    res = node_alloc(mod, param, val->type, NULL);
     alloc = node_extract(mod, res, node_i32(mod, 1), NULL);
     mem = node_extract(mod, res, node_i32(mod, 0), NULL);
-    mem = node_store(mod, mem, alloc, node_i32(mod, 42), NULL);
-    res = node_load(mod, mem, alloc, NULL);
+    mem = node_store(mod, mem, alloc, val, NULL);
+    ptr = node_offset(mod, alloc, node_i32(mod, 1), NULL);
+    res = node_load(mod, mem, ptr, NULL);
     mem = node_extract(mod, res, node_i32(mod, 0), NULL);
     res = node_extract(mod, res, node_i32(mod, 1), NULL);
     mem = node_dealloc(mod, mem, alloc, NULL);
