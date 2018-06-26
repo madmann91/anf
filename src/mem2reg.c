@@ -13,7 +13,7 @@ struct state_s {
 HMAP_DEFAULT(node2state, const node_t*, const state_t*)
 VEC(state_vec, state_t*)
 
-static const node_t* ancestor_mem(const node_t* mem) {
+static const node_t* mem_ancestor(const node_t* mem) {
     const node_t* node = node_from_mem(mem);
     return node ? node_in_mem(node) : NULL;
 }
@@ -37,7 +37,7 @@ static const state_t* find_state(const node2state_t* node2state, const node_t* m
         const state_t* state = *found;
         if (state->alloc == alloc)
             return state;
-        mem = ancestor_mem(mem);
+        mem = mem_ancestor(mem);
     }
 }
 
@@ -66,7 +66,7 @@ static const node_t* store_value(mod_t* mod, const node_t* base, const node_t* p
     }
 }
 
-/*static void extract_mems(node_vec_t* mems, const node_t* node) {
+static void extract_mems(node_vec_t* mems, const node_t* node) {
     if (node->tag == NODE_TUPLE) {
         for (size_t i = 0; i < node->nops; ++i)
             extract_mems(mems, node->ops[i]);
@@ -75,7 +75,7 @@ static const node_t* store_value(mod_t* mod, const node_t* base, const node_t* p
     }
 }
 
-const node_t* lowest_ancestor(const node_vec_t* mems) {
+const node_t* lowest_common_mem_ancestor(const node_vec_t* mems) {
     node_set_t mem_set = node_set_create();
     FORALL_VEC((*mems), const node_t*, node, {
         node_set_insert(&mem_set, node);
@@ -117,7 +117,7 @@ static fn_t* transform_fn(mod_t* mod, const fn_t* fn, node2state_t* node2state) 
     })
 
     // Compute the LCA of all these mems
-    const node_t* lca = lowest_ancestor(&in_mems);
+    const node_t* lca = lowest_common_mem_ancestor(&in_mems);
     if (!lca)
         goto cleanup;
 
@@ -131,7 +131,7 @@ cleanup:
     node_vec_destroy(&in_mems);
     node_set_destroy(&scope.nodes);
     return new_fn;
-}*/
+}
 
 static bool can_promote(const node_t* node, bool ignore_replaced) {
     // Promotion is possible if all uses are (transitively):
