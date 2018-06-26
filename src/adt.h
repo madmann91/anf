@@ -56,6 +56,11 @@
         size_t index = htable_lookup(map->table, &k, hash(&k)); \
         struct pair_s { key_t key; const value_t value; };\
         return index != INVALID_INDEX ? &((struct pair_s*)map->table->elems)[index].value : NULL; \
+    } \
+    static inline void hmap##_swap(hmap##_t* a, hmap##_t* b) { \
+        hmap##_t tmp = *a; \
+        *a = *b; \
+        *b = tmp; \
     }
 
 #define HMAP_DEFAULT(hmap, key_t, value_t) \
@@ -105,6 +110,11 @@
     static inline const value_t* hset##_lookup(const hset##_t* set, value_t v) { \
         size_t index = htable_lookup(set->table, &v, hash(&v)); \
         return index != INVALID_INDEX ? &((const value_t*)set->table->elems)[index] : NULL; \
+    } \
+    static inline void hset##_swap(hset##_t* a, hset##_t* b) { \
+        hset##_t tmp = *a; \
+        *a = *b; \
+        *b = tmp; \
     }
 
 #define HSET_DEFAULT(hset, value_t) \
@@ -164,6 +174,11 @@
                 return &vec->elems[i]; \
         } \
         return NULL; \
+    } \
+    static inline void vec##_swap(vec##_t* a, vec##_t* b) { \
+        vec##_t tmp = *a; \
+        *a = *b; \
+        *b = tmp; \
     }
 
 #endif // ADT_H

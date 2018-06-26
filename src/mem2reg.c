@@ -82,8 +82,8 @@ const node_t* lowest_common_mem_ancestor(const node_vec_t* mems) {
     })
     node_set_t copy_set = node_set_copy(&mem_set);
     node2rank_t node2rank = node2rank_create();
-    lca_compute_ranks(&copy_set, &node2rank, ancestor_mem);
-    const node_t* lca = lca_compute(&mem_set, &copy_set, &node2rank, ancestor_mem);
+    lca_compute_ranks(&copy_set, &node2rank, mem_ancestor);
+    const node_t* lca = lca_compute(&mem_set, &copy_set, &node2rank, mem_ancestor);
     node2rank_destroy(&node2rank);
     node_set_destroy(&mem_set);
     node_set_destroy(&copy_set);
