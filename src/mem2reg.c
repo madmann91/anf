@@ -96,6 +96,7 @@ static fn_t* transform_fn(mod_t* mod, const fn_t* fn, node2state_t* node2state) 
 
     fn_t* new_fn = NULL;
     node_vec_t in_mems = node_vec_create();
+    node_set_t allocs  = node_set_create();
 
     scope_t scope = { .entry = fn, .nodes = node_set_create() };
     scope_compute(mod, &scope);
@@ -121,14 +122,32 @@ static fn_t* transform_fn(mod_t* mod, const fn_t* fn, node2state_t* node2state) 
     if (!lca)
         goto cleanup;
 
-    // Add all allocs that are in between the LCA and the final mem
-    // Add all allocs that have been changed inside the scope
+    // Add all allocs that are in between the LCA and the mems
+    const state_t* lca_state = *node2state_lookup(node2state, lca);
+    FORALL_VEC(in_mems, const node_t*, mem, {
+        const state_t* state = *node2state_lookup(node2state, mem);
+        while (state != lca_state) {
+            node_set_insert(&allocs, state->alloc);
+            mem   = mem_ancestor(mem);
+            state = *node2state_lookup(node2state, mem);
+        }
+    });
+
+    // For recursive calls, add all allocs that have been changed inside the scope
+    FORALL_HSET(scope.nodes, const node_t*, node, {
+        if (node->tag == NODE_STORE) {
+            // const node_t* alloc = find_alloc(node->ops[1]);
+            // TODO
+        }
+    })
+
     // For each added alloc, create a new parameter
     // Call original function with added parameters and add parameters to state map
     // TODO
 
 cleanup:
     node_vec_destroy(&in_mems);
+    node_set_destroy(&allocs);
     node_set_destroy(&scope.nodes);
     return new_fn;
 }
@@ -186,18 +205,17 @@ bool mem2reg(mod_t* mod) {
             // Skip nodes with no memory operand and allocs
             if (!node_has_mem(node) || node->tag == NODE_ALLOC)
                 continue;
-            // Skip already discovered nodes
             const node_t* out_mem = node_out_mem(mod, node);
             const node_t* in_mem  = node_in_mem(node);
-            if (node2state_lookup(&node2state, out_mem))
-                continue;
             const state_t** from = node2state_lookup(&node2state, in_mem);
-            const state_t* to = NULL;
+            const state_t** to   = node2state_lookup(&node2state, out_mem);
+            const state_t* res;
             switch (node->tag) {
                 case NODE_LOAD:
                     {
-                        // Information on the previous state is required at this point
-                        if (!from)
+                        // Information on the previous state is required at this point.
+                        // We also skip nodes that have already been replaced.
+                        if (node->rep || !from)
                             continue;
                         const node_t* alloc  = find_alloc(node->ops[1]);
                         const state_t* state = alloc ? find_state(&node2state, in_mem, alloc) : NULL;
@@ -207,56 +225,64 @@ bool mem2reg(mod_t* mod) {
                             node_replace(node, node_tuple(mod, 2, ops, node->dbg));
                             eliminated_loads++;
                         }
-                        to = *from;
+                        res = *from;
                     }
                     break;
                 case NODE_STORE:
                     {
+                        if (to)
+                            continue;
                         const node_t* alloc = find_alloc(node->ops[1]);
                         // The pointer is not an allocation
                         if (!alloc) {
                             // It is safe to say that the allocs are unchanged
                             if (from) {
-                                to = *from;
+                                res = *from;
                                 break;
                             }
                             // No progress can be made without any previous state
                             continue;
                         }
+                        
                         // If the store overrides the alloc's value completely, no need for previous state
                         if (node->ops[1] == alloc) {
                             state_t* store = mpool_alloc(&state_pool, sizeof(state_t));
                             store->alloc = alloc;
                             store->val = node->ops[2];
-                            to = store;
-                        } else {
-                            // Partially update the stored value in the alloc
-                            const state_t* state = find_state(&node2state, in_mem, alloc);
-                            if (state) {
-                                const node_t* val = store_value(mod, state->val, node->ops[1], node->ops[2], node->dbg);
-                                state_t* store = mpool_alloc(&state_pool, sizeof(state_t));
-                                store->alloc = alloc;
-                                store->val = val;
-                                to = store;
-                            }
+                            res = store;
+                            break;
                         }
+                        // Partially update the stored value in the alloc
+                        const state_t* state = find_state(&node2state, in_mem, alloc);
+                        if (state) {
+                            const node_t* val = store_value(mod, state->val, node->ops[1], node->ops[2], node->dbg);
+                            state_t* store = mpool_alloc(&state_pool, sizeof(state_t));
+                            store->alloc = alloc;
+                            store->val = val;
+                            res = store;
+                            break;
+                        }
+                        // There is no state that contains information about this allocation. No progress is possible.
+                        continue;
                     }
                     break;
                 case NODE_DEALLOC:
                     {
+                        // Skip nodes that have been processed already
+                        if (to)
+                            continue;
                         state_t* dealloc = mpool_alloc(&state_pool, sizeof(state_t));
                         dealloc->alloc = node->ops[1];
                         dealloc->val = node_undef(mod, node->ops[1]->type->ops[0]);
-                        to = dealloc;
+                        res = dealloc;
                     }
                     break;
                 default:
                     assert(false);
                     break;
             }
-            assert(to);
-            node2state_insert(&node2state, out_mem, to);
-            todo = true;
+            assert(res);
+            todo |= node2state_insert(&node2state, out_mem, res);
         });
     }
 
