@@ -1,6 +1,6 @@
-#include "lca.h"
+#include <stdint.h>
 
-#include <limits.h>
+#include "lca.h"
 
 static const node_t* node_set_first(const node_set_t* cur) {
     FORALL_HSET(*cur, const node_t*, node, {
