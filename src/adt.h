@@ -8,6 +8,10 @@
 #include "htable.h"
 #include "hash.h"
 
+#define VEC_DEFAULT_CAP  64
+#define HMAP_DEFAULT_CAP 64
+#define HSET_DEFAULT_CAP 64
+
 #define FORALL_HMAP(hmap, key_t, key, value_t, value, ...) \
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \
         if ((hmap).table->hashes[i] & OCCUPIED_HASH_MASK) { \
@@ -21,10 +25,18 @@
 
 #define HMAP(hmap, key_t, value_t, cmp, hash) \
     typedef struct { htable_t* table; } hmap##_t; \
-    static inline hmap##_t hmap##_create(size_t cap) { \
+    static inline hmap##_t hmap##_create_with_cap(size_t cap) { \
         struct pair_s { key_t key; value_t value; }; \
         return (hmap##_t) { \
             .table = htable_create(sizeof(struct pair_s), cap, cmp) \
+        }; \
+    } \
+    static inline hmap##_t hmap##_create(void) { \
+        return hmap##_create_with_cap(HMAP_DEFAULT_CAP); \
+    } \
+    static inline hmap##_t hmap##_copy(const hmap##_t* map) { \
+        return (hmap##_t) { \
+            .table = htable_copy(map->table) \
         }; \
     } \
     static inline void hmap##_destroy(hmap##_t* map) { \
@@ -65,9 +77,17 @@
 
 #define HSET(hset, value_t, cmp, hash) \
     typedef struct { htable_t* table; } hset##_t; \
-    static inline hset##_t hset##_create(size_t cap) { \
+    static inline hset##_t hset##_create_with_cap(size_t cap) { \
         return (hset##_t) { \
             .table = htable_create(sizeof(value_t), cap, cmp) \
+        }; \
+    } \
+    static inline hset##_t hset##_create(void) { \
+        return hset##_create_with_cap(HSET_DEFAULT_CAP); \
+    } \
+    static inline hset##_t hset##_copy(const hset##_t* set) { \
+        return (hset##_t) { \
+            .table = htable_copy(set->table) \
         }; \
     } \
     static inline void hset##_destroy(hset##_t* set) { \
@@ -104,13 +124,15 @@
 
 #define VEC(vec, value_t) \
     typedef struct { size_t cap; size_t nelems; value_t* elems; } vec##_t; \
-    static inline vec##_t vec##_create(size_t cap) { \
-        assert(cap > 0); \
+    static inline vec##_t vec##_create_with_cap(size_t cap) { \
         return (vec##_t) { \
             .cap = cap, \
             .nelems = 0, \
             .elems = malloc(sizeof(value_t) * cap) \
         }; \
+    } \
+    static inline vec##_t vec##_create(void) { \
+        return vec##_create_with_cap(VEC_DEFAULT_CAP); \
     } \
     static inline void vec##_destroy(vec##_t* vec) { \
         free(vec->elems); \

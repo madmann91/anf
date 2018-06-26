@@ -231,10 +231,10 @@ bool mod_save(const mod_t* mod, const char* filename) {
     if (!fp)
         return false;
 
-    dbg2idx_t dbg2idx   = dbg2idx_create(64);
-    node2idx_t node2idx = node2idx_create(64);
-    type2idx_t type2idx = type2idx_create(64);
-    dbg_vec_t dbg_vec = dbg_vec_create(64);
+    dbg2idx_t dbg2idx   = dbg2idx_create();
+    node2idx_t node2idx = node2idx_create();
+    type2idx_t type2idx = type2idx_create();
+    dbg_vec_t dbg_vec = dbg_vec_create();
 
     hdr_t hdr = (hdr_t) {
         .magic = {'A', 'N', 'F'},
@@ -328,9 +328,9 @@ mod_t* mod_load(const char* filename, mpool_t** dbg_pool) {
         return false;
     }
 
-    idx2dbg_t idx2dbg   = idx2dbg_create(64);
-    idx2type_t idx2type = idx2type_create(1);
-    idx2node_t idx2node = idx2node_create(64);
+    idx2dbg_t idx2dbg   = idx2dbg_create();
+    idx2type_t idx2type = idx2type_create();
+    idx2node_t idx2node = idx2node_create();
     mod_t* mod = mod_create();
 
     uint32_t count;

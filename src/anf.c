@@ -64,10 +64,10 @@ uint32_t type_hash(const void* ptr) {
 
 mod_t* mod_create(void) {
     mod_t* mod = malloc(sizeof(mod_t));
-    mod->pool  = mpool_create(4096);
-    mod->nodes = internal_node_set_create(256);
-    mod->types = internal_type_set_create(64);
-    mod->fns   = fn_vec_create(64);
+    mod->pool  = mpool_create();
+    mod->nodes = internal_node_set_create();
+    mod->types = internal_type_set_create();
+    mod->fns   = fn_vec_create();
     return mod;
 }
 
@@ -144,6 +144,14 @@ bool type_is_f(const type_t* type) {
     }
 }
 
+bool type_contains(const type_t* type, const type_t* op) {
+    for (size_t i = 0; i < type->nops; ++i) {
+        if (type_contains(type->ops[i], op))
+            return true;
+    }
+    return false;
+}
+
 static inline const type_t* make_type(mod_t* mod, const type_t type) {
     const type_t** lookup = internal_type_set_lookup(&mod->types, &type);
     if (lookup)
@@ -175,8 +183,9 @@ const type_t* type_f32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYP
 const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64, .nops = 0, .ops = NULL }); }
 const type_t* type_mem(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_MEM, .nops = 0, .ops = NULL }); }
 
-const type_t* type_ptr(mod_t* mod, const type_t* op) {
-    return make_type(mod, (type_t) { .tag = TYPE_PTR, .nops = 1, .ops = &op });
+const type_t* type_ptr(mod_t* mod, const type_t* pointee) {
+    assert(pointee->tag != TYPE_MEM);
+    return make_type(mod, (type_t) { .tag = TYPE_PTR, .nops = 1, .ops = &pointee });
 }
 
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
@@ -185,6 +194,7 @@ const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
 }
 
 const type_t* type_array(mod_t* mod, const type_t* elem_type) {
+    assert(elem_type->tag != TYPE_MEM);
     return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type });
 }
 
@@ -1553,10 +1563,10 @@ fn_t* fn_cast(const node_t* node) {
 }
 
 const node_t* fn_inline(mod_t* mod, const fn_t* fn, const node_t* arg) {
-    node2node_t new_nodes = node2node_create(64);
-    type2type_t new_types = type2type_create(64);
-    scope_t scope = { .entry = fn, .nodes = node_set_create(64) };
-    node_set_t fvs = node_set_create(64);
+    node2node_t new_nodes = node2node_create();
+    type2type_t new_types = type2type_create();
+    scope_t scope = { .entry = fn, .nodes = node_set_create() };
+    node_set_t fvs = node_set_create();
     scope_compute(mod, &scope);
     scope_compute_fvs(&scope, &fvs);
     FORALL_HSET(fvs, const node_t*, node, {

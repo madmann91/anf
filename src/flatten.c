@@ -125,9 +125,9 @@ static const node_t* unflatten_node(mod_t* mod, const node_t* node, size_t* inde
 }
 
 bool flatten_tuples(mod_t* mod) {
-    node2node_t flat_nodes = node2node_create(64);
-    type2type_t flat_types = type2type_create(64);
-    fn_vec_t worklist = fn_vec_create(mod->fns.nelems);
+    node2node_t flat_nodes = node2node_create();
+    type2type_t flat_types = type2type_create();
+    fn_vec_t worklist = fn_vec_create_with_cap(mod->fns.nelems);
 
     FORALL_VEC(mod->fns, fn_t*, fn, {
         if (fn->imported || fn->exported || fn->intrinsic)
@@ -141,8 +141,8 @@ bool flatten_tuples(mod_t* mod) {
         flatten_node(mod, &fn->node, &flat_nodes, &flat_types);
     })
 
-    node2node_t new_nodes = node2node_create(64);
-    type2type_t new_types = type2type_create(64);
+    node2node_t new_nodes = node2node_create();
+    type2type_t new_types = type2type_create();
     FORALL_VEC(worklist, fn_t*, fn, {
         size_t index = 0;
         const node_t* flat_fn = *node2node_lookup(&flat_nodes, &fn->node);

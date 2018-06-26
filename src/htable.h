@@ -29,5 +29,6 @@ bool htable_insert(htable_t*, const void*, uint32_t);
 bool htable_remove(htable_t*, const void*, uint32_t);
 void htable_remove_by_index(htable_t*, size_t);
 size_t htable_lookup(htable_t*, const void*, uint32_t);
+htable_t* htable_copy(const htable_t*);
 
 #endif // HTABLE_H

@@ -7,8 +7,8 @@ bool mem2reg(mod_t*);
 
 void mod_import(mod_t* from, mod_t* to) {
     assert(from != to);
-    node2node_t new_nodes = node2node_create(from->nodes.table->cap / 2);
-    type2type_t new_types = type2type_create(from->types.table->cap / 2);
+    node2node_t new_nodes = node2node_create_with_cap(from->nodes.table->cap / 2);
+    type2type_t new_types = type2type_create_with_cap(from->types.table->cap / 2);
 
     FORALL_VEC(from->fns, const fn_t*, fn, {
         if (!fn->exported || node2node_lookup(&new_nodes, &fn->node))

@@ -214,3 +214,16 @@ size_t htable_lookup(htable_t* table, const void* elem, uint32_t hash) {
         index = index >= table->cap ? 0 : index;
     }
 }
+
+htable_t* htable_copy(const htable_t* from) {
+    htable_t* table = malloc(sizeof(htable_t));
+    table->esize   = from->esize;
+    table->cap     = from->cap;
+    table->nelems  = from->nelems;
+    table->elems   = malloc(from->esize * from->cap);
+    table->hashes  = malloc(sizeof(uint32_t) * from->cap);
+    table->cmp_fn  = from->cmp_fn;
+    memcpy(table->elems,  from->elems,  from->esize * from->cap);
+    memcpy(table->hashes, from->hashes, sizeof(uint32_t) * from->cap);
+    return table;
+}

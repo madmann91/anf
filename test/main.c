@@ -27,8 +27,8 @@ bool test_hset(void) {
     for (size_t i = 0, j = 0; i < N; ++i, j += inc[j%3]) {
         values[i] = j;
     }
-    elemset_t set1 = elemset_create(16);
-    elemset_t set2 = elemset_create(16);
+    elemset_t set1 = elemset_create();
+    elemset_t set2 = elemset_create();
 
     jmp_buf env;
     int status = setjmp(env);
@@ -60,7 +60,7 @@ cleanup:
 }
 
 bool test_mpool(void) {
-    mpool_t* pool = mpool_create(1024 * 1024);
+    mpool_t* pool = mpool_create_with_cap(1024 * 1024);
 
     jmp_buf env;
     int status = setjmp(env);
@@ -488,8 +488,8 @@ static inline fn_t* make_const_fn(mod_t* mod, const type_t* type) {
 
 bool test_scope(void) {
     mod_t* mod = mod_create();
-    scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
-    node_set_t fvs = node_set_create(64);
+    scope_t scope = { .entry = NULL, .nodes = node_set_create() };
+    node_set_t fvs = node_set_create();
 
     fn_t* inner, *outer;
     const node_t* x, *y;
@@ -533,7 +533,7 @@ cleanup:
 bool test_io() {
     mod_t* mod = mod_create();
     mod_t* loaded_mod = NULL;
-    mpool_t* pool = mpool_create(4096);
+    mpool_t* pool = mpool_create();
 
     fn_t* fn1, *fn2;
     const node_t* param1, *param2;

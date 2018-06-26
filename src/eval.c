@@ -44,9 +44,9 @@ static inline bool should_always_inline(const fn_t* fn) {
 }
 
 bool partial_eval(mod_t* mod) {
-    node_vec_t apps = node_vec_create(64);
-    node2node_t new_nodes = node2node_create(16);
-    type2type_t new_types = type2type_create(16);
+    node_vec_t apps = node_vec_create();
+    node2node_t new_nodes = node2node_create();
+    type2type_t new_types = type2type_create();
 
     // Gather all the application nodes that need evaluation
     FORALL_VEC(mod->fns, const fn_t*, fn, {
@@ -73,8 +73,8 @@ bool partial_eval(mod_t* mod) {
     })
 
     // Generate a specialized version for each call
-    scope_t scope = { .entry = NULL, .nodes = node_set_create(64) };
-    node_set_t fvs = node_set_create(64);
+    scope_t scope = { .entry = NULL, .nodes = node_set_create() };
+    node_set_t fvs = node_set_create();
     const fn_t* prev_fn = NULL;
     FORALL_VEC(apps, const node_t*, app, {
         const fn_t* fn = fn_cast(app->ops[0]);
