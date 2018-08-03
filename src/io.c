@@ -352,7 +352,7 @@ mod_t* mod_load(const char* filename, mpool_t** dbg_pool) {
     for (uint32_t i = 0; i < count; ++i)
         idx2type_insert(&idx2type, i, read_type(fp, mod, &idx2type));
 
-    // Then, read functions (but not their body/runif)
+    // Then, read functions (but not their operands)
     ok = locate_block(fp, BLK_FNS);
     (void)ok;assert(ok);
     fread(&count, sizeof(uint32_t), 1, fp);
