@@ -68,6 +68,7 @@ struct type_s {
     size_t   nops;
     const type_t** ops;
     bool fast : 1;
+    uint32_t var : 31;
 };
 
 enum node_tag_e {
@@ -126,7 +127,9 @@ enum type_tag_e {
     TYPE_PTR,
     TYPE_TUPLE,
     TYPE_ARRAY,
-    TYPE_FN
+    TYPE_FN,
+    TYPE_NORET,
+    TYPE_VAR
 };
 
 bool type_cmp(const void*, const void*);
@@ -185,6 +188,8 @@ const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
+const type_t* type_noret(mod_t*);
+const type_t* type_var(mod_t*, uint32_t);
 
 // Values
 uint64_t node_value_u(const node_t*);

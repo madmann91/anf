@@ -42,7 +42,8 @@ bool type_cmp(const void* ptr1, const void* ptr2) {
     const type_t* type2 = *(const type_t**)ptr2;
     if (type1->tag  != type2->tag ||
         type1->nops != type2->nops ||
-        type1->fast != type2->fast)
+        type1->fast != type2->fast ||
+        type1->var  != type2->var)
         return false;
     for (size_t i = 0; i < type1->nops; ++i) {
         if (type1->ops[i] != type2->ops[i])
@@ -200,6 +201,14 @@ const type_t* type_array(mod_t* mod, const type_t* elem_type) {
 const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     const type_t* ops[] = { from, to };
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
+}
+
+const type_t* type_noret(mod_t* mod) {
+    return make_type(mod, (type_t) { .tag = TYPE_NORET, .nops = 0, .ops = NULL });
+}
+
+const type_t* type_var(mod_t* mod, uint32_t var) {
+    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .ops = NULL, .var = var });
 }
 
 static inline void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
@@ -1297,6 +1306,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
             if (left->ops[1] == right) return left->ops[0];
         }
     }
+    // Factorizations
     bool left_factorizable = node_is_distributive(right->tag, tag, left->type);
     if (left_factorizable && right->ops[0]->tag == NODE_LITERAL && right->ops[1] == left) {
         const node_t* one = is_bitwise ? node_all_ones(mod, left->type) : node_one(mod, left->type);
@@ -1314,8 +1324,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         return make_binop(mod, left->tag, K, right, dbg);
     }
     bool both_factorizable = left_factorizable & right_factorizable;
-    // Factorization should not be applied to booleans, as this would break normal forms (CNF/DNF)
-    if (both_factorizable && left->type->tag != TYPE_I1) {
+    if (both_factorizable) {
         const node_t* l1 = left->ops[0];
         const node_t* l2 = left->ops[1];
         const node_t* r1 = right->ops[0];
@@ -1331,7 +1340,6 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         if (l2 == r2)
             return make_binop(mod, left->tag, make_binop(mod, tag, l1, r1, dbg), l2, dbg);
     }
-
     // Logical implications
     if (left->type->tag == TYPE_I1) {
         if (tag == NODE_AND) {
