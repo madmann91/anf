@@ -352,7 +352,6 @@ cleanup:
 bool test_binops(void) {
     mod_t* mod = mod_create();
     fn_t* fn;
-    const type_t* param_types[2];
     const node_t* param;
     const node_t* x, *y;
     const node_t* a, *b;
@@ -424,9 +423,7 @@ bool test_binops(void) {
             NULL)
         == node_f32(mod, 1.0f));
 
-    param_types[0] = type_i32(mod);
-    param_types[1] = type_i32(mod);
-    fn = node_fn(mod, type_fn(mod, type_tuple(mod, 2, param_types), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_tuple_args(mod, 2, type_i32(mod), type_i32(mod)), type_i32(mod)), NULL);
     param = node_param(mod, fn, NULL);
     x = node_extract(mod, param, node_i32(mod, 0), NULL);
     y = node_extract(mod, param, node_i32(mod, 1), NULL);
@@ -587,7 +584,6 @@ bool test_opt(void) {
     const node_t* cmp_zero, *cmp_even;
     const node_t* pow_even, *pow_odd, *pow_half;
     const type_t* pow_type, *bb_type;
-    const type_t* type_ops[3];
     dbg_t dbg_x, dbg_n;
     dbg_t dbg_y;
 
@@ -602,10 +598,7 @@ bool test_opt(void) {
 
     node_false = node_i1(mod, false);
 
-    type_ops[0] = type_i32(mod);
-    type_ops[1] = type_i32(mod);
-    type_ops[2] = type_tuple(mod, 0, NULL);
-    pow_type = type_fn(mod, type_tuple(mod, 3, type_ops), type_i32(mod));
+    pow_type = type_fn(mod, type_tuple_args(mod, 3, type_i32(mod), type_i32(mod), type_tuple(mod, 0, NULL)), type_i32(mod));
     bb_type  = type_fn(mod, type_tuple(mod, 0, NULL), type_i32(mod));
     pow = node_fn(mod, pow_type, NULL);
     when_zero  = node_fn(mod, bb_type, NULL);
@@ -673,8 +666,6 @@ cleanup:
 bool test_mem(void) {
     mod_t* mod = mod_create();
 
-    const node_t* node_ops[2];
-    const type_t* type_ops[2];
     const type_t* fn_type;
     fn_t* fn;
     const node_t* param;
@@ -689,14 +680,10 @@ bool test_mem(void) {
     if (status)
         goto cleanup;
 
-    type_ops[0] = type_mem(mod);
-    type_ops[1] = type_i32(mod);
-    fn_type = type_fn(mod, type_mem(mod), type_tuple(mod, 2, type_ops));
+    fn_type = type_fn(mod, type_mem(mod), type_tuple_args(mod, 2, type_mem(mod), type_i32(mod)));
     fn = node_fn(mod, fn_type, NULL);
     param = node_param(mod, fn, NULL);
-    node_ops[0] = node_i32(mod, 5);
-    node_ops[1] = node_i32(mod, 42);
-    val = node_tuple(mod, 2, node_ops, NULL);
+    val = node_tuple_args(mod, 2, NULL, node_i32(mod, 5), node_i32(mod, 42));
     res = node_alloc(mod, param, val->type, NULL);
     alloc = node_extract(mod, res, node_i32(mod, 1), NULL);
     mem = node_extract(mod, res, node_i32(mod, 0), NULL);
@@ -706,9 +693,7 @@ bool test_mem(void) {
     mem = node_extract(mod, res, node_i32(mod, 0), NULL);
     res = node_extract(mod, res, node_i32(mod, 1), NULL);
     mem = node_dealloc(mod, mem, alloc, NULL);
-    node_ops[0] = mem;
-    node_ops[1] = res;
-    fn_bind(mod, fn, 0, node_tuple(mod, 2, node_ops, NULL));
+    fn_bind(mod, fn, 0, node_tuple_args(mod, 2, NULL, mem, res));
 
     fn->exported = true;
 

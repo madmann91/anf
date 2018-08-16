@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "anf.h"
 #include "hash.h"
@@ -191,6 +192,16 @@ const type_t* type_ptr(mod_t* mod, const type_t* pointee) {
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {
     if (nops == 1) return ops[0];
     return make_type(mod, (type_t) { .tag = TYPE_TUPLE, .nops = nops, .ops = ops });
+}
+
+const type_t* type_tuple_args(mod_t* mod, size_t nops, ...) {
+    const type_t* ops[nops];
+    va_list args;
+    va_start(args, nops);
+    for (size_t i = 0; i < nops; ++i)
+        ops[i] = va_arg(args, const type_t*);
+    va_end(args);
+    return type_tuple(mod, nops, ops);
 }
 
 const type_t* type_array(mod_t* mod, const type_t* elem_type) {
@@ -656,6 +667,26 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const dbg_
         .type = type_array(mod, elem_type),
         .dbg  = dbg
     });
+}
+
+const node_t* node_tuple_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
+    const node_t* ops[nops];
+    va_list args;
+    va_start(args, dbg);
+    for (size_t i = 0; i < nops; ++i)
+        ops[i] = va_arg(args, const node_t*);
+    va_end(args);
+    return node_tuple(mod, nops, ops, dbg);
+}
+
+const node_t* node_array_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
+    const node_t* ops[nops];
+    va_list args;
+    va_start(args, dbg);
+    for (size_t i = 0; i < nops; ++i)
+        ops[i] = va_arg(args, const node_t*);
+    va_end(args);
+    return node_array(mod, nops, ops, dbg);
 }
 
 const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index, const dbg_t* dbg) {
