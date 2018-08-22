@@ -108,7 +108,8 @@ enum node_tag_e {
     NODE_FN,
     NODE_PARAM,
     NODE_APP,
-    NODE_KNOWN
+    NODE_KNOWN,
+    NODE_SUBST
 };
 
 enum type_tag_e {
