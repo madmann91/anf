@@ -1201,7 +1201,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     (void)is_shft;
     assert(is_bitwise || left->type->tag != TYPE_I1);
     assert((!is_bitwise && !is_shft) || !type_is_f(left->type));
-    assert(tag != NODE_MOD || !type_is_f(left->type));
+    assert(tag != NODE_REM || !type_is_f(left->type));
 
     // Constant folding
     if (left->tag == NODE_LITERAL && right->tag == NODE_LITERAL) {
@@ -1212,7 +1212,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
             case NODE_SUB:   BINOP(left->type->tag, BINOP_IUF (-,  res, left->box, right->box)) break;
             case NODE_MUL:   BINOP(left->type->tag, BINOP_IUF (*,  res, left->box, right->box)) break;
             case NODE_DIV:   BINOP(left->type->tag, BINOP_IUF (/,  res, left->box, right->box)) break;
-            case NODE_MOD:   BINOP(left->type->tag, BINOP_IU  (%,  res, left->box, right->box)) break;
+            case NODE_REM:   BINOP(left->type->tag, BINOP_IU  (%,  res, left->box, right->box)) break;
             case NODE_AND:   BINOP(left->type->tag, BINOP_I1IU(&,  res, left->box, right->box)) break;
             case NODE_OR:    BINOP(left->type->tag, BINOP_I1IU(|,  res, left->box, right->box)) break;
             case NODE_XOR:   BINOP(left->type->tag, BINOP_I1IU(^,  res, left->box, right->box)) break;
@@ -1280,7 +1280,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // a * 1 <=> a
         if (tag == NODE_DIV || tag == NODE_MUL) return left;
         // a % 1 <=> 0
-        if (tag == NODE_MOD) return node_zero(mod, left->type);
+        if (tag == NODE_REM) return node_zero(mod, left->type);
     }
     if (left == right) {
         // a & a <=> a
@@ -1289,7 +1289,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         // a ^ a <=> 0
         // a % a <=> 0
         // a - a <=> 0
-        if (tag == NODE_XOR || tag == NODE_MOD || tag == NODE_SUB) return node_zero(mod, left->type);
+        if (tag == NODE_XOR || tag == NODE_REM || tag == NODE_SUB) return node_zero(mod, left->type);
         // a / a <=> 1
         if (tag == NODE_DIV) return node_one(mod, left->type);
     }
@@ -1413,7 +1413,7 @@ NODE_BINOP(add, NODE_ADD)
 NODE_BINOP(sub, NODE_SUB)
 NODE_BINOP(mul, NODE_MUL)
 NODE_BINOP(div, NODE_DIV)
-NODE_BINOP(mod, NODE_MOD)
+NODE_BINOP(rem, NODE_REM)
 NODE_BINOP(and, NODE_AND)
 NODE_BINOP(or,  NODE_OR)
 NODE_BINOP(xor, NODE_XOR)
@@ -1714,7 +1714,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_SUB:     return node_sub(mod, ops[0], ops[1], node->dbg);
         case NODE_MUL:     return node_mul(mod, ops[0], ops[1], node->dbg);
         case NODE_DIV:     return node_div(mod, ops[0], ops[1], node->dbg);
-        case NODE_MOD:     return node_mod(mod, ops[0], ops[1], node->dbg);
+        case NODE_REM:     return node_rem(mod, ops[0], ops[1], node->dbg);
         case NODE_AND:     return node_and(mod, ops[0], ops[1], node->dbg);
         case NODE_OR:      return node_or(mod, ops[0], ops[1], node->dbg);
         case NODE_XOR:     return node_xor(mod, ops[0], ops[1], node->dbg);

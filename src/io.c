@@ -126,10 +126,10 @@ static inline void write_dbg(FILE* fp, const dbg_t* dbg) {
     fwrite(dbg->name, sizeof(char), name_len, fp);
     fwrite(&file_len, sizeof(uint32_t), 1, fp);
     fwrite(dbg->file, sizeof(char), file_len, fp);
-    fwrite(&dbg->brow, sizeof(uint32_t), 1, fp);
-    fwrite(&dbg->bcol, sizeof(uint32_t), 1, fp);
-    fwrite(&dbg->erow, sizeof(uint32_t), 1, fp);
-    fwrite(&dbg->ecol, sizeof(uint32_t), 1, fp);
+    fwrite(&dbg->loc.brow, sizeof(uint32_t), 1, fp);
+    fwrite(&dbg->loc.bcol, sizeof(uint32_t), 1, fp);
+    fwrite(&dbg->loc.erow, sizeof(uint32_t), 1, fp);
+    fwrite(&dbg->loc.ecol, sizeof(uint32_t), 1, fp);
 }
 
 static inline const node_t* read_node(FILE* fp, mod_t* mod, const idx2node_t* idx2node, const idx2type_t* idx2type, const idx2dbg_t* idx2dbg) {
@@ -218,10 +218,10 @@ static inline const dbg_t* read_dbg(FILE* fp, mpool_t** dbg_pool) {
     dbg->name = name;
     dbg->file = file;
 
-    fread(&dbg->brow, sizeof(uint32_t), 1, fp);
-    fread(&dbg->bcol, sizeof(uint32_t), 1, fp);
-    fread(&dbg->erow, sizeof(uint32_t), 1, fp);
-    fread(&dbg->ecol, sizeof(uint32_t), 1, fp);
+    fread(&dbg->loc.brow, sizeof(uint32_t), 1, fp);
+    fread(&dbg->loc.bcol, sizeof(uint32_t), 1, fp);
+    fread(&dbg->loc.erow, sizeof(uint32_t), 1, fp);
+    fread(&dbg->loc.ecol, sizeof(uint32_t), 1, fp);
 
     return dbg;
 }

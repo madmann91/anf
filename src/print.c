@@ -89,41 +89,9 @@ void node_print(const node_t* node, bool colorize) {
         type_print(node->type, colorize);
         const char* op = NULL;
         switch (node->tag) {
-            case NODE_UNDEF:   op = "undef";   break;
-            case NODE_ALLOC:   op = "alloc";   break;
-            case NODE_DEALLOC: op = "dealloc"; break;
-            case NODE_LOAD:    op = "load";    break;
-            case NODE_STORE:   op = "store";   break;
-            case NODE_OFFSET:  op = "offset";  break;
-            case NODE_TUPLE:   op = "tuple";   break;
-            case NODE_ARRAY:   op = "array";   break;
-            case NODE_EXTRACT: op = "extract"; break;
-            case NODE_INSERT:  op = "insert";  break;
-            case NODE_CMPGT:   op = "cmpgt";   break;
-            case NODE_CMPGE:   op = "cmpge";   break;
-            case NODE_CMPLT:   op = "cmplt";   break;
-            case NODE_CMPLE:   op = "cmple";   break;
-            case NODE_CMPNE:   op = "cmpne";   break;
-            case NODE_CMPEQ:   op = "cmpeq";   break;
-            case NODE_WIDEN:   op = "widen";   break;
-            case NODE_TRUNC:   op = "trunc";   break;
-            case NODE_ITOF:    op = "itof";    break;
-            case NODE_FTOI:    op = "ftoi";    break;
-            case NODE_ADD:     op = "add";     break;
-            case NODE_SUB:     op = "sub";     break;
-            case NODE_MUL:     op = "mul";     break;
-            case NODE_DIV:     op = "div";     break;
-            case NODE_MOD:     op = "mod";     break;
-            case NODE_AND:     op = "and";     break;
-            case NODE_OR:      op = "or";      break;
-            case NODE_XOR:     op = "xor";     break;
-            case NODE_LSHFT:   op = "lshft";   break;
-            case NODE_RSHFT:   op = "rshft";   break;
-            case NODE_SELECT:  op = "select";  break;
-            case NODE_FN:      op = "fn";      break;
-            case NODE_PARAM:   op = "param";   break;
-            case NODE_APP:     op = "app";     break;
-            case NODE_KNOWN:   op = "known";   break;
+#define NODE(name, str) case name: op = str; break;
+            NODE_LIST(NODE)
+#undef NODE
             default:
                 assert(false);
                 break;

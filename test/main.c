@@ -7,6 +7,7 @@
 #include "mpool.h"
 #include "anf.h"
 #include "scope.h"
+#include "lex.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -382,10 +383,10 @@ bool test_binops(void) {
     CHECK(node_mul(mod, param, node_i32(mod, 1), NULL) == param);
     CHECK(node_div(mod, param, node_i32(mod, 1), NULL) == param);
     CHECK(node_add(mod, param, node_i32(mod, 0), NULL) == param);
-    CHECK(node_mod(mod, param, node_i32(mod, 1), NULL) == node_i32(mod, 0));
+    CHECK(node_rem(mod, param, node_i32(mod, 1), NULL) == node_i32(mod, 0));
     CHECK(node_sub(mod, param, param, NULL) == node_i32(mod, 0));
     CHECK(node_div(mod, param, param, NULL) == node_i32(mod, 1));
-    CHECK(node_mod(mod, param, param, NULL) == node_i32(mod, 0));
+    CHECK(node_rem(mod, param, param, NULL) == node_i32(mod, 0));
     CHECK(node_mul(mod, param, node_i32(mod, 0), NULL) == node_i32(mod, 0));
 
     CHECK(node_and(mod, param, node_i32(mod, 0), NULL) == node_i32(mod, 0));
@@ -609,7 +610,7 @@ bool test_opt(void) {
     x = node_extract(mod, param, node_i32(mod, 0), &dbg_x);
     n = node_extract(mod, param, node_i32(mod, 1), &dbg_n);
     cmp_zero = node_cmpeq(mod, n, node_i32(mod, 0), NULL);
-    modulo = node_mod(mod, n, node_i32(mod, 2), NULL);
+    modulo = node_rem(mod, n, node_i32(mod, 2), NULL);
     cmp_even = node_cmpeq(mod, modulo, node_i32(mod, 0), NULL);
     unit = node_tuple(mod, 0, NULL, NULL);
 
@@ -723,6 +724,54 @@ cleanup:
     return status == 0;
 }
 
+static void lex_error_fn(lex_t* lex, const char* str) {
+    fprintf(stderr, "%s (%zu, %zu): %s", lex->file, lex->row, lex->col, str);
+}
+
+bool test_lex(void) {
+    const char* str =
+        "hello if\' ^ /* this is a multi-\n"
+        " line comment */ else world!  | // another comment \n"
+        " (- ), < * \" +: var; / def=% >something & 0b010010110 0xFFe45 10.3e+7";
+    uint32_t tags[] = {
+        TOK_ID, TOK_IF, TOK_SQUO, TOK_XOR,
+        TOK_ELSE, TOK_ID, TOK_NOT, TOK_OR,
+        TOK_LPAR, TOK_SUB, TOK_RPAR, TOK_COM, TOK_LT, TOK_MUL, TOK_DQUO,
+        TOK_ADD, TOK_COL, TOK_VAR, TOK_SEM, TOK_DIV, TOK_DEF, TOK_EQ, TOK_MOD,
+        TOK_GT, TOK_ID, TOK_AND, TOK_LIT_I, TOK_LIT_I, TOK_LIT_F, TOK_EOF
+    };
+    size_t num_tags = sizeof(tags) / sizeof(tags[0]);
+    char* buf = malloc(strlen(str) + 1);
+    lex_t l = {
+        .tmp = 0,
+        .str = buf,
+        .size = strlen(str),
+        .file = "inline string",
+        .row  = 1,
+        .col  = 1,
+        .error_fn = lex_error_fn,
+    };
+    strcpy(buf, str);
+
+    jmp_buf env;
+    int status = setjmp(env);
+    if (status)
+        goto cleanup;
+
+    size_t n = 0;
+    while (true) {
+        tok_t tok = lex(&l);
+        CHECK(n < num_tags && tags[n] == tok.tag);
+        n++;
+        if (tok.tag == TOK_EOF)
+            break;
+    }
+
+cleanup:
+    free(buf);
+    return status == 0;
+}
+
 typedef struct {
     const char* name;
     bool (*test_fn)(void);
@@ -760,7 +809,8 @@ int main(int argc, char** argv) {
         {"scope",    test_scope},
         {"io",       test_io},
         {"opt",      test_opt},
-        {"mem",      test_mem}
+        {"mem",      test_mem},
+        {"lex",      test_lex}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {

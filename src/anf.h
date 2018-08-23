@@ -7,7 +7,67 @@
 #include "mpool.h"
 #include "adt.h"
 
+#define NODE_LIST(f) \
+    f(NODE_UNDEF,   "undef") \
+    f(NODE_ALLOC,   "alloc") \
+    f(NODE_DEALLOC, "dealloc") \
+    f(NODE_LOAD,    "load") \
+    f(NODE_STORE,   "store") \
+    f(NODE_OFFSET,  "offset") \
+    f(NODE_LITERAL, "literal") \
+    f(NODE_TUPLE,   "tuple") \
+    f(NODE_ARRAY,   "array") \
+    f(NODE_EXTRACT, "extract") \
+    f(NODE_INSERT,  "insert") \
+    f(NODE_BITCAST, "bitcast") \
+    f(NODE_CMPGT,   "cmpgt") \
+    f(NODE_CMPGE,   "cmpge") \
+    f(NODE_CMPLT,   "cmplt") \
+    f(NODE_CMPLE,   "cmple") \
+    f(NODE_CMPNE,   "cmpne") \
+    f(NODE_CMPEQ,   "cmpeq") \
+    f(NODE_WIDEN,   "widen") \
+    f(NODE_TRUNC,   "trunc") \
+    f(NODE_ITOF,    "itof") \
+    f(NODE_FTOI,    "ftoi") \
+    f(NODE_ADD,     "add") \
+    f(NODE_SUB,     "sub") \
+    f(NODE_MUL,     "mul") \
+    f(NODE_DIV,     "div") \
+    f(NODE_REM,     "rem") \
+    f(NODE_AND,     "and") \
+    f(NODE_OR,      "or") \
+    f(NODE_XOR,     "xor") \
+    f(NODE_LSHFT,   "lshft") \
+    f(NODE_RSHFT,   "rshft") \
+    f(NODE_SELECT,  "select") \
+    f(NODE_FN,      "fn") \
+    f(NODE_PARAM,   "param") \
+    f(NODE_APP,     "app") \
+    f(NODE_KNOWN,   "known")
+
+#define TYPE_LIST(f) \
+    f(TYPE_I1,    "i1") \
+    f(TYPE_I8,    "i8") \
+    f(TYPE_I16,   "i16") \
+    f(TYPE_I32,   "i32") \
+    f(TYPE_I64,   "i64") \
+    f(TYPE_U8,    "u8") \
+    f(TYPE_U16,   "u16") \
+    f(TYPE_U32,   "u32") \
+    f(TYPE_U64,   "u64") \
+    f(TYPE_F32,   "f32") \
+    f(TYPE_F64,   "f64") \
+    f(TYPE_MEM,   "mem") \
+    f(TYPE_PTR,   "ptr") \
+    f(TYPE_TUPLE, "tuple") \
+    f(TYPE_ARRAY, "array") \
+    f(TYPE_FN,    "fn") \
+    f(TYPE_NORET, "noret") \
+    f(TYPE_VAR,   "var")
+
 typedef union  box_u  box_t;
+typedef struct loc_s  loc_t;
 typedef struct dbg_s  dbg_t;
 typedef struct use_s  use_t;
 typedef struct node_s node_t;
@@ -29,13 +89,17 @@ union box_u {
     double   f64;
 };
 
-struct dbg_s {
-    const char* name;
-    const char* file;
+struct loc_s {
     size_t brow;
     size_t bcol;
     size_t erow;
     size_t ecol;
+};
+
+struct dbg_s {
+    const char* name;
+    const char* file;
+    loc_t       loc;
 };
 
 struct use_s {
@@ -72,65 +136,15 @@ struct type_s {
 };
 
 enum node_tag_e {
-    NODE_UNDEF,
-    NODE_ALLOC,
-    NODE_DEALLOC,
-    NODE_LOAD,
-    NODE_STORE,
-    NODE_OFFSET,
-    NODE_LITERAL,
-    NODE_TUPLE,
-    NODE_ARRAY,
-    NODE_EXTRACT,
-    NODE_INSERT,
-    NODE_BITCAST,
-    NODE_CMPGT,
-    NODE_CMPGE,
-    NODE_CMPLT,
-    NODE_CMPLE,
-    NODE_CMPNE,
-    NODE_CMPEQ,
-    NODE_WIDEN,
-    NODE_TRUNC,
-    NODE_ITOF,
-    NODE_FTOI,
-    NODE_ADD,
-    NODE_SUB,
-    NODE_MUL,
-    NODE_DIV,
-    NODE_MOD,
-    NODE_AND,
-    NODE_OR,
-    NODE_XOR,
-    NODE_LSHFT,
-    NODE_RSHFT,
-    NODE_SELECT,
-    NODE_FN,
-    NODE_PARAM,
-    NODE_APP,
-    NODE_KNOWN,
-    NODE_SUBST
+#define NODE(name, str) name,
+    NODE_LIST(NODE)
+#undef NODE
 };
 
 enum type_tag_e {
-    TYPE_I1,
-    TYPE_I8,
-    TYPE_I16,
-    TYPE_I32,
-    TYPE_I64,
-    TYPE_U8,
-    TYPE_U16,
-    TYPE_U32,
-    TYPE_U64,
-    TYPE_F32,
-    TYPE_F64,
-    TYPE_MEM,
-    TYPE_PTR,
-    TYPE_TUPLE,
-    TYPE_ARRAY,
-    TYPE_FN,
-    TYPE_NORET,
-    TYPE_VAR
+#define TYPE(name, str) name,
+    TYPE_LIST(TYPE)
+#undef TYPE
 };
 
 bool type_cmp(const void*, const void*);
@@ -242,7 +256,7 @@ const node_t* node_add(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_sub(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_mul(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_div(mod_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_mod(mod_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_rem(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_and(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_or(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_xor(mod_t*, const node_t*, const node_t*, const dbg_t*);
