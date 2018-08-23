@@ -35,13 +35,30 @@ static inline bool eat_nl_or_semi(parser_t* parser) {
     return new_line;
 }
 
-static inline bool expect(parser_t* parser, uint32_t tag) {
+static char* tok2str_quotes(uint32_t tag, char* buf) {
+    if (tag == TOK_LIT_I ||
+        tag == TOK_LIT_F ||
+        tag == TOK_STR ||
+        tag == TOK_ID ||
+        tag == TOK_NL ||
+        tag == TOK_ERR ||
+        tag == TOK_EOF)
+        return tok2str(tag, buf);
+    buf[0] = '\'';
+    tok2str(tag, buf + 1);
+    size_t len = strlen(buf);
+    buf[len] = '\'';
+    buf[len + 1] = 0;
+    return buf;
+}
+
+static inline bool expect(parser_t* parser, const char* ctx, uint32_t tag) {
     assert(tag != TOK_ID);
     bool status = true;
     if (parser->ahead.tag != tag) {
-        char buf1[TOK2STR_BUF_SIZE];
-        char buf2[TOK2STR_BUF_SIZE];
-        parse_error(parser, "expected '%s', got '%s'", tok2str(tag, buf1), parser->ahead.tag == TOK_ID ? parser->ahead.str : tok2str(parser->ahead.tag, buf2));
+        char buf1[TOK2STR_BUF_SIZE + 2];
+        char buf2[TOK2STR_BUF_SIZE + 2];
+        parse_error(parser, "expected %s in %s, but got %s", tok2str_quotes(tag, buf1), ctx, parser->ahead.tag == TOK_ID ? parser->ahead.str : tok2str_quotes(parser->ahead.tag, buf2));
         status = false;
     }
     next(parser);
@@ -138,7 +155,7 @@ static ast_t* parse_tuple(parser_t* parser) {
             break;
         eat_nl(parser);
     }
-    expect(parser, TOK_RPAREN);
+    expect(parser, "tuple", TOK_RPAREN);
     return finalize_ast(parser, ast);
 }
 
@@ -153,7 +170,7 @@ static ast_t* parse_block(parser_t* parser) {
         if (!eat_nl_or_semi(parser))
             break;
     }
-    expect(parser, TOK_RBRACE);
+    expect(parser, "statement block", TOK_RBRACE);
     return finalize_ast(parser, ast);
 }
 
@@ -170,10 +187,10 @@ static ast_t* parse_def(parser_t* parser) {
 
 static ast_t* parse_mod(parser_t* parser) {
     ast_t* ast = create_ast(parser, AST_MOD);
-    expect(parser, TOK_MOD);
+    expect(parser, "module", TOK_MOD);
     ast->data.mod.id = parse_id(parser);
     eat_nl(parser);
-    expect(parser, TOK_LBRACE);
+    expect(parser, "module contents", TOK_LBRACE);
     eat_nl_or_semi(parser);
     while (parser->ahead.tag != TOK_RBRACE) {
         ast_t* def = parse_def(parser);
@@ -182,7 +199,7 @@ static ast_t* parse_mod(parser_t* parser) {
         if (!eat_nl_or_semi(parser))
             break;
     }
-    expect(parser, TOK_RBRACE);
+    expect(parser, "module contents", TOK_RBRACE);
     return finalize_ast(parser, ast);
 }
 

@@ -730,7 +730,7 @@ static void lex_error_fn(lex_t* lex, const char* str) {
 }
 
 static void parser_error_fn(parser_t* parser, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lex->file, parser->lex->row, parser->lex->col, str);
+    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lex->file, parser->ahead.loc.brow, parser->ahead.loc.bcol, str);
 }
 
 bool test_lex(void) {
@@ -781,7 +781,8 @@ bool test_parser(void) {
     const char* str =
         "mod hello {\n"
         "    def identity(x) {\n"
-        "        (x, y)\n"
+        "        (x, y, \n"
+        "        {x ; y})\n"
         "    }\n"
         "}";
     char* buf = malloc(strlen(str) + 1);

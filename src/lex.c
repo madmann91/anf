@@ -9,10 +9,10 @@
 static inline void eat(lex_t* lex) {
     assert(lex->size > 0);
     if (*lex->str == '\n') {
-        lex->row = 1;
-        lex->col++;
-    } else {
         lex->row++;
+        lex->col = 1;
+    } else {
+        lex->col++;
     }
     lex->str++;
     lex->size--;
