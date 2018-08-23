@@ -8,36 +8,39 @@
 #define TOK2STR_BUF_SIZE 32
 
 #define TOK_LIST(f) \
-    f(TOK_LIT_I, "integer literal") \
-    f(TOK_LIT_F, "floating point literal") \
-    f(TOK_STR,   "string literal") \
-    f(TOK_ID,    "identifier") \
-    f(TOK_DEF,   "def") \
-    f(TOK_VAR,   "var") \
-    f(TOK_IF,    "if") \
-    f(TOK_ELSE,  "else") \
+    f(TOK_LIT_I,  "integer literal") \
+    f(TOK_LIT_F,  "floating point literal") \
+    f(TOK_STR,    "string literal") \
+    f(TOK_ID,     "identifier") \
+    f(TOK_NL,     "new line") \
+    f(TOK_DEF,    "def") \
+    f(TOK_VAR,    "var") \
+    f(TOK_IF,     "if") \
+    f(TOK_ELSE,   "else") \
     f(TOK_MOD,    "mod") \
-    f(TOK_SQUO,  "\'") \
-    f(TOK_DQUO,  "\"") \
-    f(TOK_LPAR,  "(") \
-    f(TOK_RPAR,  ")") \
-    f(TOK_COM,   ",") \
-    f(TOK_COL,   ":") \
-    f(TOK_SEM,   ";") \
-    f(TOK_ADD,   "+") \
-    f(TOK_SUB,   "-") \
-    f(TOK_MUL,   "*") \
-    f(TOK_DIV,   "/") \
-    f(TOK_REM,   "%") \
-    f(TOK_AND,   "&") \
-    f(TOK_OR,    "|") \
-    f(TOK_XOR,   "^") \
-    f(TOK_NOT,   "!") \
-    f(TOK_LT,    "<") \
-    f(TOK_GT,    ">") \
-    f(TOK_EQ,    "=") \
-    f(TOK_ERR,   "invalid token") \
-    f(TOK_EOF,   "eof")
+    f(TOK_SQUOTE, "\'") \
+    f(TOK_DQUOTE, "\"") \
+    f(TOK_LPAREN, "(") \
+    f(TOK_RPAREN, ")") \
+    f(TOK_LBRACE, "{") \
+    f(TOK_RBRACE, "}") \
+    f(TOK_LANGLE, "<") \
+    f(TOK_RANGLE, ">") \
+    f(TOK_COMMA,  ",") \
+    f(TOK_COLON,  ":") \
+    f(TOK_SEMI,   ";") \
+    f(TOK_ADD,    "+") \
+    f(TOK_SUB,    "-") \
+    f(TOK_MUL,    "*") \
+    f(TOK_DIV,    "/") \
+    f(TOK_REM,    "%") \
+    f(TOK_AND,    "&") \
+    f(TOK_OR,     "|") \
+    f(TOK_XOR,    "^") \
+    f(TOK_NOT,    "!") \
+    f(TOK_EQ,     "=") \
+    f(TOK_ERR,    "invalid token") \
+    f(TOK_EOF,    "eof")
 
 typedef union  lit_u lit_t;
 typedef struct tok_s tok_t;
@@ -66,6 +69,7 @@ struct lex_s {
     const char* file;
     size_t      row;
     size_t      col;
+    size_t      errs;
     char*       str;
     size_t      size;
     void        (*error_fn)(lex_t*, const char*);

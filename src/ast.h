@@ -11,19 +11,25 @@ typedef struct parser_s   parser_t;
 enum ast_tag_e {
     AST_LIT,
     AST_ID,
-    AST_TUPLE,
+    AST_MOD,
     AST_DEF,
     AST_VAR,
-    AST_MOD
+    AST_BLOCK,
+    AST_TUPLE,
+    AST_ERR
 };
 
 struct ast_s {
     uint32_t tag;
     union {
         const char*  str;
-        box_t        lit;
+        lit_t        lit;
         struct {
-            const char*  name;
+            ast_t*       id;
+            ast_list_t*  asts;
+        } mod;
+        struct {
+            ast_t*       id;
             ast_t*       param;
             ast_t*       body;
         } def;
@@ -32,9 +38,11 @@ struct ast_s {
             ast_t*       value;
         } var;
         struct {
-            const char*  name;
-            ast_list_t*  asts;
-        } mod;
+            ast_list_t*  stmts;
+        } block;
+        struct {
+            ast_list_t*  args;
+        } tuple;
     } data;
     loc_t loc;
 };
@@ -45,6 +53,7 @@ struct ast_list_s {
 };
 
 struct parser_s {
+    size_t    errs;
     loc_t     prev_loc;
     tok_t     ahead;
     lex_t*    lex;

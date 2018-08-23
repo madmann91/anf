@@ -7,6 +7,7 @@
 #define ERR_BUF_SIZE 256
 
 static inline void eat(lex_t* lex) {
+    assert(lex->size > 0);
     if (*lex->str == '\n') {
         lex->row = 1;
         lex->col++;
@@ -27,7 +28,7 @@ static inline bool accept(lex_t* lex, char c) {
 }
 
 static inline void eat_spaces(lex_t* lex) {
-    while (lex->size > 0 && isspace(*lex->str)) eat(lex);
+    while (lex->size > 0 && *lex->str != '\n' && isspace(*lex->str)) eat(lex);
 }
 
 static void eat_comments(lex_t* lex) {
@@ -125,24 +126,27 @@ tok_t lex(lex_t* lex) {
         if (lex->size == 0)
             return (tok_t) { .tag = TOK_EOF, .loc = make_loc(lex, brow, bcol) };
 
-        if (accept(lex, '\'')) return (tok_t) { .tag = TOK_SQUO, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '\"')) return (tok_t) { .tag = TOK_DQUO, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '('))  return (tok_t) { .tag = TOK_LPAR, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ')'))  return (tok_t) { .tag = TOK_RPAR, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ':'))  return (tok_t) { .tag = TOK_COL , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ','))  return (tok_t) { .tag = TOK_COM , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ';'))  return (tok_t) { .tag = TOK_SEM , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '+'))  return (tok_t) { .tag = TOK_ADD , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '-'))  return (tok_t) { .tag = TOK_SUB , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '*'))  return (tok_t) { .tag = TOK_MUL , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '%'))  return (tok_t) { .tag = TOK_MOD , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '&'))  return (tok_t) { .tag = TOK_AND , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '|'))  return (tok_t) { .tag = TOK_OR  , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '^'))  return (tok_t) { .tag = TOK_XOR , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '!'))  return (tok_t) { .tag = TOK_NOT , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '<'))  return (tok_t) { .tag = TOK_LT  , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '>'))  return (tok_t) { .tag = TOK_GT  , .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '='))  return (tok_t) { .tag = TOK_EQ  , .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '\n')) return (tok_t) { .tag = TOK_NL,     .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '\'')) return (tok_t) { .tag = TOK_SQUOTE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '\"')) return (tok_t) { .tag = TOK_DQUOTE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '('))  return (tok_t) { .tag = TOK_LPAREN, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ')'))  return (tok_t) { .tag = TOK_RPAREN, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '{'))  return (tok_t) { .tag = TOK_LBRACE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '}'))  return (tok_t) { .tag = TOK_RBRACE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '<'))  return (tok_t) { .tag = TOK_LANGLE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '>'))  return (tok_t) { .tag = TOK_RANGLE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ':'))  return (tok_t) { .tag = TOK_COLON,  .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ','))  return (tok_t) { .tag = TOK_COMMA,  .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ';'))  return (tok_t) { .tag = TOK_SEMI,   .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '+'))  return (tok_t) { .tag = TOK_ADD,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '-'))  return (tok_t) { .tag = TOK_SUB,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '*'))  return (tok_t) { .tag = TOK_MUL,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '%'))  return (tok_t) { .tag = TOK_MOD,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '&'))  return (tok_t) { .tag = TOK_AND,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '|'))  return (tok_t) { .tag = TOK_OR,     .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '^'))  return (tok_t) { .tag = TOK_XOR,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '!'))  return (tok_t) { .tag = TOK_NOT,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '='))  return (tok_t) { .tag = TOK_EQ,     .loc = make_loc(lex, brow, bcol) };
 
         if (accept(lex, '/')) {
             if (accept(lex, '*')) {
@@ -151,6 +155,7 @@ tok_t lex(lex_t* lex) {
             }
             if (accept(lex, '/')) {
                 while (lex->size > 0 && *lex->str != '\n') eat(lex);
+                if (lex->size > 0) eat(lex);
                 continue;
             }
             return (tok_t) { .tag = TOK_DIV , .loc = make_loc(lex, brow, bcol) };
@@ -158,7 +163,7 @@ tok_t lex(lex_t* lex) {
 
         if (isalpha(*lex->str)) {
             const char* beg = lex->str;
-            while (isalnum(*lex->str)) eat(lex);
+            while (isalnum(*lex->str) || *lex->str == '_') eat(lex);
             char* end = lex->str;
             lex->tmp = *end;
             *end = 0;
@@ -181,6 +186,7 @@ tok_t lex(lex_t* lex) {
 
 void lex_error(lex_t* lex, const char* fmt, ...) {
     char buf[ERR_BUF_SIZE];
+    lex->errs++;
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, ERR_BUF_SIZE, fmt, args);
