@@ -75,6 +75,24 @@ static const node_t* insert_offsets(mod_t* mod, const node_t* value, const node_
     return node_insert(mod, extracts, ptr->ops[1], insert_offsets(mod, value, elem, ptr->ops[0], depth - 1, dbg), dbg);
 }
 
+static inline const node_t* find_base_ptr(const node_t* ptr, size_t depth) {
+    // Removes the offset contained in ptr, depth times
+    while (depth > 0) {
+        assert(ptr->tag == NODE_OFFSET);
+        ptr = ptr->ops[0];
+        depth--;
+    }
+    return ptr;
+}
+
+static inline bool is_pointer_prefix(const node_t* ptr1, size_t depth1, const node_t* ptr2, size_t depth2) {
+    // Returns true if one of the two arguments is a pointer prefix for the other
+    // Example:
+    // offset(offset(ptr, 3), 4) is a prefix of offset(offset(offset(ptr, 3), 4), 5)
+    bool dir = depth2 >= depth1;
+    return find_base_ptr(dir ? ptr2 : ptr1, dir ? depth2 - depth1 : depth1 - depth2) == (dir ? ptr1 : ptr2);
+}
+
 static const node_t* try_resolve_load(mod_t* mod, const node_set_t* allocs, const node_t* node, const node_t* load, const node_t* alloc, size_t depth) {
     // Try to find a value for a load instruction by following the thread of memory objects in reverse order
     while (true) {
@@ -86,7 +104,7 @@ static const node_t* try_resolve_load(mod_t* mod, const node_set_t* allocs, cons
             size_t parent_depth = 0;
             const node_t* parent_alloc = find_alloc(allocs, parent->ops[1], &parent_depth);
 
-            if (alloc == parent_alloc) {
+            if (alloc == parent_alloc && is_pointer_prefix(load->ops[1], depth, parent->ops[1], parent_depth)) {
                 if (depth >= parent_depth) {
                     const node_t* value = parent->tag == NODE_LOAD ? node_extract(mod, parent, node_i32(mod, 1), NULL) : parent->ops[2];
                     return extract_offsets(mod, value, load->ops[1], depth - parent_depth, load->dbg);
@@ -95,7 +113,7 @@ static const node_t* try_resolve_load(mod_t* mod, const node_set_t* allocs, cons
                     const node_t* value = try_resolve_load(mod, allocs, parent, load, alloc, depth);
                     if (!value)
                         return NULL;
-                    return insert_offsets(mod, value, node->ops[2], parent->ops[1], parent_depth - depth, load->dbg);
+                    return insert_offsets(mod, value, parent->ops[2], parent->ops[1], parent_depth - depth, load->dbg);
                 }
             }
         } else if (parent->tag == NODE_ALLOC) {
