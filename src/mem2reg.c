@@ -88,7 +88,7 @@ static inline const node_t* find_base_ptr(const node_t* ptr, size_t depth) {
 static inline bool is_pointer_prefix(const node_t* ptr1, size_t depth1, const node_t* ptr2, size_t depth2) {
     // Returns true if one of the two arguments is a pointer prefix for the other
     // Example:
-    // offset(offset(ptr, 3), 4) is a prefix of offset(offset(offset(ptr, 3), 4), 5)
+    // offset(offset(ptr, 3), 4) (depth = 2) is a prefix of offset(offset(offset(ptr, 3), 4), 5) (depth = 3)
     bool dir = depth2 >= depth1;
     return find_base_ptr(dir ? ptr2 : ptr1, dir ? depth2 - depth1 : depth1 - depth2) == (dir ? ptr1 : ptr2);
 }
@@ -182,7 +182,7 @@ static void find_mem_params(mod_t* mod, const node_t* param, node_vec_t* mems) {
 
 bool mem2reg(mod_t* mod) {
     node_set_t allocs   = node_set_create();
-    state_vec_t states  = state_vec_create(); 
+    state_vec_t states  = state_vec_create();
     fn2state_t fn2state = fn2state_create();
     mpool_t* pool       = mpool_create();
     size_t elim_loads = 0;
