@@ -58,9 +58,21 @@ static const node_t* extract_offsets(mod_t* mod, const node_t* value, const node
     // p3 = offset p2, 9
     // extract_offsets with ptr = p2, depth = 3:
     // extract(extract(extract(value, 5), 3), 9)
+    return depth == 0 ? value : node_extract(mod, extract_offsets(mod, value, ptr->ops[0], depth - 1, dbg), ptr->ops[1], dbg);
+}
+
+static const node_t* insert_offsets(mod_t* mod, const node_t* value, const node_t* elem, const node_t* ptr, size_t depth, const dbg_t* dbg) {
+    // Recursively inserts values inside an aggregate to match the offset of a pointer
+    // Example:
+    // p1 = offset p, 5
+    // p2 = offset p1, 3
+    // p3 = offset p2, 9
+    // insert_offsets with ptr = p2, depth = 3:
+    // insert(value, 5, insert(extract(value, 5), 3, insert(extract(extract(value, 5), 3), 9, elem))))
     if (depth == 0)
-        return value;
-    return node_extract(mod, extract_offsets(mod, value, ptr->ops[0], depth - 1, dbg), ptr->ops[0], dbg);
+        return elem;
+    const node_t* extracts = extract_offsets(mod, value, ptr->ops[0], depth - 1, dbg);
+    return node_insert(mod, extracts, ptr->ops[1], insert_offsets(mod, value, elem, ptr->ops[0], depth - 1, dbg), dbg);
 }
 
 static const node_t* try_resolve_load(mod_t* mod, const node_set_t* allocs, const node_t* node, const node_t* load, const node_t* alloc, size_t depth) {
@@ -71,35 +83,47 @@ static const node_t* try_resolve_load(mod_t* mod, const node_set_t* allocs, cons
 
         const node_t* parent = node_from_mem(node_in_mem(node));
         if (parent->tag == NODE_LOAD || parent->tag == NODE_STORE) {
-            size_t parent_depth;
-            const node_t* parent_alloc = find_alloc(allocs, parent, &parent_depth);
+            size_t parent_depth = 0;
+            const node_t* parent_alloc = find_alloc(allocs, parent->ops[1], &parent_depth);
 
             if (alloc == parent_alloc) {
                 if (depth >= parent_depth) {
                     const node_t* value = parent->tag == NODE_LOAD ? node_extract(mod, parent, node_i32(mod, 1), NULL) : parent->ops[2];
-                    extract_offsets(mod, value, load->ops[1], depth - parent_depth, load->dbg);
-                    return value;
-                } else {
+                    return extract_offsets(mod, value, load->ops[1], depth - parent_depth, load->dbg);
+                } else if (parent->tag == NODE_STORE) {
                     // The value is only partially specified, we need to recurse
-                    
+                    const node_t* value = try_resolve_load(mod, allocs, parent, load, alloc, depth);
+                    if (!value)
+                        return NULL;
+                    return insert_offsets(mod, value, node->ops[2], parent->ops[1], parent_depth - depth, load->dbg);
                 }
             }
+        } else if (parent->tag == NODE_ALLOC) {
+            assert(alloc->tag == NODE_EXTRACT);
+            if (alloc->ops[0] == parent)
+                return node_undef(mod, load->type->ops[1]);
+        } else if (parent->tag == NODE_DEALLOC) {
+            if (parent->ops[1] == alloc)
+                return node_undef(mod, load->type->ops[1]);
         }
 
         node = parent;
     }
 }
 
-static void find_loads_stores(mod_t* mod, const node_set_t* allocs, const node_t* mem, node_set_t* loads, node_set_t* stores) {
+static size_t find_loads_stores(mod_t* mod, const node_set_t* allocs, const node_t* mem, node_set_t* loads, node_set_t* stores) {
     // Follow the thread of memory objects and record all loads/stores along the way
     assert(mem->type->tag == TYPE_MEM);
+    size_t elim_loads = 0;
     const use_t* use = mem->uses;
     while (use) {
         const node_t* node = use->user;
-        if (!node_has_mem(node)) continue;
+        use = use->next;
+        if (!node_has_mem(node))
+            continue;
 
         if (node->tag == NODE_LOAD || node->tag == NODE_STORE) {
-            size_t depth;
+            size_t depth = 0;
             const node_t* alloc = find_alloc(allocs, node->ops[1], &depth);
             if (alloc) {
                 if (node->tag == NODE_LOAD) {
@@ -107,17 +131,25 @@ static void find_loads_stores(mod_t* mod, const node_set_t* allocs, const node_t
                     const node_t* load_value = try_resolve_load(mod, allocs, node, node, alloc, depth);
                     if (!load_value)
                         node_set_insert(loads, node);
-                    else
-                        node_replace(node, load_value);
+                    else {
+                        elim_loads++;
+                        node_replace(node, node_tuple_args(mod, 2, node->dbg, node->ops[0], load_value));
+                    }
                 } else {
                     node_set_insert(stores, node);
                 }
             }
         }
 
-        find_loads_stores(mod, allocs, node_out_mem(mod, node), loads, stores);
-        use = use->next;
+        // Do not recurse if there is only one use
+        if (!use) {
+            mem = node_out_mem(mod, node);
+            use = mem->uses;
+        } else {
+            find_loads_stores(mod, allocs, node_out_mem(mod, node), loads, stores);
+        }
     }
+    return elim_loads;
 }
 
 static void find_mem_params(mod_t* mod, const node_t* param, node_vec_t* mems) {
@@ -139,8 +171,11 @@ bool mem2reg(mod_t* mod) {
 
     // Gather all allocations amenable to promotion
     FORALL_HSET(mod->nodes, const node_t*, node, {
-        if (node->tag == NODE_ALLOC && can_promote_or_remove(node, true))
-            node_set_insert(&allocs, node);
+        if (node->tag == NODE_ALLOC) {
+            const node_t* ptr = node_extract(mod, node, node_i32(mod, 1), NULL);
+            if (can_promote_or_remove(ptr, true))
+                node_set_insert(&allocs, node);
+        }
     })
 
     // Create (loads/stores) record for every function
@@ -155,7 +190,7 @@ bool mem2reg(mod_t* mod) {
         mems.nelems = 0;
         find_mem_params(mod, node_param(mod, fn, NULL), &mems);
         FORALL_VEC(mems, const node_t*, mem, {
-            find_loads_stores(mod, &allocs, mem, &state->loads, &state->stores);
+            elim_loads += find_loads_stores(mod, &allocs, mem, &state->loads, &state->stores);
         })
     })
     node_vec_destroy(&mems);
