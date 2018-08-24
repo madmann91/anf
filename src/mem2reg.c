@@ -32,19 +32,22 @@ static bool can_promote_or_remove(const node_t* node, bool only_promote) {
     use_t* use = node->uses;    
     while (use) {
         switch (use->user->tag) {
-            case NODE_DEALLOC:
-                return true;
+            case NODE_DEALLOC: break;
             case NODE_LOAD:
-                return only_promote || node->rep != NULL;
+                if (!only_promote && node->rep != NULL)
+                    return false;
+                break;
             case NODE_STORE:
-                return use->index == 1;
+                if (use->index != 1)
+                    return false;
+                break;
             case NODE_OFFSET:
+                if (!can_promote_or_remove(use->user, only_promote))
+                    return false;
                 break;
             default:
                 return false;
         }
-        if (!can_promote_or_remove(use->user, only_promote))
-            return false;
         use = use->next;
     }
     return true;
