@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "anf.h"
+#include "ast.h"
 
 void type_print(const type_t* type, bool colorize) {
     const char* prefix = colorize ? "\33[;34;1m" : "";
@@ -49,6 +50,11 @@ void type_print(const type_t* type, bool colorize) {
             assert(false);
             break;
     }
+}
+
+void type_dump(const type_t* type) {
+    type_print(type, true);
+    printf("\n");
 }
 
 static inline void node_print_name(const node_t* node, bool colorize) {
@@ -113,12 +119,87 @@ void node_print(const node_t* node, bool colorize) {
     }
 }
 
-void type_dump(const type_t* type) {
-    type_print(type, true);
+void node_dump(const node_t* node) {
+    node_print(node, true);
     printf("\n");
 }
 
-void node_dump(const node_t* node) {
-    node_print(node, true);
+static inline void print_indent(size_t indent) {
+    for (size_t i = 0; i < indent; ++i)
+        putc(' ', stdout);
+}
+
+static inline void ast_print_list(const ast_list_t* list, size_t indent, bool colorize, const char* sep, bool new_line) {
+    while (list) {
+        ast_print(list->ast, indent, colorize);
+        if (list->next) {
+            printf(sep);
+            if (new_line) print_indent(indent);
+        }
+        list = list->next;
+    }
+}
+
+void ast_print(ast_t* ast, size_t indent, bool colorize) {
+    const char* eprefix = colorize ? "\33[;31;1m" : "";
+    const char* kprefix = colorize ? "\33[;34;1m" : "";
+    const char* lprefix = colorize ? "\33[;36;1m" : "";
+    const char* suffix  = colorize ? "\33[0m"     : "";
+    const size_t indent_inc = 4;
+    switch (ast->tag) {
+        case AST_ID:  printf("%s", ast->data.id.str);                       break;
+        case AST_LIT: printf("%s%s%s", lprefix, ast->data.lit.str, suffix); break;
+        case AST_MOD:
+            printf("%smod%s %s {\n", kprefix, suffix, ast->data.mod.id->data.id.str);
+            indent += indent_inc;
+            print_indent(indent);
+            ast_print_list(ast->data.mod.decls, indent, colorize, "\n", true);
+            indent -= indent_inc;
+            printf("\n");
+            print_indent(indent);
+            printf("}");
+            break;
+        case AST_DEF:
+            printf("%sdef%s %s", kprefix, suffix, ast->data.mod.id->data.id.str);
+            if (ast->data.def.param) {
+                ast_print(ast->data.def.param, indent, colorize);
+                printf(" ");
+            } else
+                printf(" = ");
+            ast_print(ast->data.def.value, indent, colorize);
+            break;
+        case AST_VAR:
+        case AST_VAL:
+            printf(ast->tag == AST_VAR ? "%svar%s " : "%sval%s ", kprefix, suffix);
+            ast_print(ast->data.varl.ptrn, indent, colorize);
+            printf(" = ");
+            ast_print(ast->data.varl.value, indent, colorize);
+            break;
+        case AST_BLOCK:
+            printf("{\n");
+            indent += indent_inc;
+            print_indent(indent);
+            ast_print_list(ast->data.block.stmts, indent, colorize, "\n", true);
+            indent -= indent_inc;
+            printf("\n");
+            print_indent(indent);
+            printf("}");
+            break;
+        case AST_TUPLE:
+            printf("(");
+            ast_print_list(ast->data.tuple.args, indent, colorize, ", ", false);
+            printf(")");
+            break;
+        case AST_ERR:
+            printf("%s<syntax error>%s", eprefix, suffix);
+            break;
+        default:
+            assert(false);
+            break;
+    }
+}
+
+void ast_dump(ast_t* ast) {
+    ast_print(ast, 0, true);
     printf("\n");
 }

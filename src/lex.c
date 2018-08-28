@@ -90,12 +90,14 @@ static tok_t parse_lit(lex_t* lex, size_t brow, size_t bcol) {
         return (tok_t) {
             .tag = TOK_LIT_F,
             .lit = { .fval = strtod(beg, NULL) },
+            .str = beg,
             .loc = make_loc(lex, brow, bcol)
         };
     }
     return (tok_t) {
         .tag = TOK_LIT_I,
         .lit = { .ival = strtoull(beg, NULL, base) },
+        .str = beg,
         .loc = make_loc(lex, brow, bcol)
     };
 }
@@ -169,6 +171,7 @@ tok_t lex(lex_t* lex) {
             *end = 0;
             if (!strcmp(beg, "def"))  return (tok_t) { .tag = TOK_DEF,  .loc = make_loc(lex, brow, bcol) };
             if (!strcmp(beg, "var"))  return (tok_t) { .tag = TOK_VAR,  .loc = make_loc(lex, brow, bcol) };
+            if (!strcmp(beg, "val"))  return (tok_t) { .tag = TOK_VAL,  .loc = make_loc(lex, brow, bcol) };
             if (!strcmp(beg, "if"))   return (tok_t) { .tag = TOK_IF,   .loc = make_loc(lex, brow, bcol) };
             if (!strcmp(beg, "else")) return (tok_t) { .tag = TOK_ELSE, .loc = make_loc(lex, brow, bcol) };
             if (!strcmp(beg, "mod"))  return (tok_t) { .tag = TOK_MOD,  .loc = make_loc(lex, brow, bcol) };

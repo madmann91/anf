@@ -15,6 +15,7 @@
     f(TOK_NL,     "new line") \
     f(TOK_DEF,    "def") \
     f(TOK_VAR,    "var") \
+    f(TOK_VAL,    "val") \
     f(TOK_IF,     "if") \
     f(TOK_ELSE,   "else") \
     f(TOK_MOD,    "mod") \

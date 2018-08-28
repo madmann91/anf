@@ -1,19 +1,18 @@
 #ifndef AST_H
 #define AST_H
 
-#include "anf.h"
 #include "lex.h"
 
 typedef struct ast_s      ast_t;
 typedef struct ast_list_s ast_list_t;
-typedef struct parser_s   parser_t;
 
 enum ast_tag_e {
-    AST_LIT,
     AST_ID,
+    AST_LIT,
     AST_MOD,
     AST_DEF,
     AST_VAR,
+    AST_VAL,
     AST_BLOCK,
     AST_TUPLE,
     AST_ERR
@@ -22,26 +21,32 @@ enum ast_tag_e {
 struct ast_s {
     uint32_t tag;
     union {
-        const char*  str;
-        lit_t        lit;
         struct {
-            ast_t*       id;
-            ast_list_t*  asts;
+            const char* str;
+        } id;
+        struct {
+            const char* str;
+            lit_t       value;
+            bool        integer;
+        } lit;
+        struct {
+            ast_t*      id;
+            ast_list_t* decls;
         } mod;
         struct {
-            ast_t*       id;
-            ast_t*       param;
-            ast_t*       body;
+            ast_t*      id;
+            ast_t*      param;
+            ast_t*      value;
         } def;
         struct {
-            ast_t*       ptrn;
-            ast_t*       value;
-        } var;
+            ast_t*      ptrn;
+            ast_t*      value;
+        } varl;
         struct {
-            ast_list_t*  stmts;
+            ast_list_t* stmts;
         } block;
         struct {
-            ast_list_t*  args;
+            ast_list_t* args;
         } tuple;
     } data;
     loc_t loc;
@@ -52,16 +57,12 @@ struct ast_list_s {
     ast_list_t* next;
 };
 
-struct parser_s {
-    size_t    errs;
-    loc_t     prev_loc;
-    tok_t     ahead;
-    lex_t*    lex;
-    mpool_t** pool;
-    void      (*error_fn)(parser_t*, const char*);
-};
+bool ast_is_decl(ast_t*);
+bool ast_is_expr(ast_t*);
+bool ast_is_ptrn(ast_t*);
+bool ast_is_refutable(ast_t*);
 
-ast_t* parse(parser_t*);
-void parse_error(parser_t*, const char*, ...);
+void ast_print(ast_t*, size_t, bool);
+void ast_dump(ast_t*);
 
 #endif // AST_H

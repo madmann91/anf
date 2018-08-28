@@ -8,7 +8,7 @@
 #include "anf.h"
 #include "scope.h"
 #include "lex.h"
-#include "ast.h"
+#include "parse.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -777,11 +777,13 @@ cleanup:
     return status == 0;
 }
 
-bool test_parser(void) {
+bool test_parse(void) {
     const char* str =
         "mod hello {\n"
-        "    def identity(x) {\n"
-        "        (x, y, \n"
+        "    var z = 33\n"
+        "    val (a, b) = 7\n"
+        "    def func(x\n) {\n"
+        "        (x, z, \n"
         "        {x ; y})\n"
         "    }\n"
         "}";
@@ -808,8 +810,9 @@ bool test_parser(void) {
     if (status)
         goto cleanup;
 
-    parse(&p);
+    ast_t* ast = parse(&p);
     CHECK(p.errs == 0 && l.errs == 0);
+    CHECK(ast);
 
 cleanup:
     mpool_destroy(pool);
@@ -856,7 +859,7 @@ int main(int argc, char** argv) {
         {"opt",      test_opt},
         {"mem",      test_mem},
         {"lex",      test_lex},
-        {"parser",   test_parser}
+        {"parse",    test_parse}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
     if (argc > 1) {
