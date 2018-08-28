@@ -172,8 +172,6 @@ struct mod_s {
 // Module
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
-bool mod_save(const mod_t* mod, const char*);
-mod_t* mod_load(const char*, mpool_t**);
 
 // Optimization
 void mod_import(mod_t*, mod_t*);

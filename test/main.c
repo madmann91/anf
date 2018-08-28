@@ -7,6 +7,7 @@
 #include "mpool.h"
 #include "anf.h"
 #include "scope.h"
+#include "io.h"
 #include "lex.h"
 #include "parse.h"
 
@@ -533,6 +534,9 @@ bool test_io() {
     mod_t* mod = mod_create();
     mod_t* loaded_mod = NULL;
     mpool_t* pool = mpool_create();
+    FILE* out = NULL;
+    FILE* in  = NULL;
+    file_io_t file_io;
 
     fn_t* fn1, *fn2;
     const node_t* param1, *param2;
@@ -543,8 +547,19 @@ bool test_io() {
         goto cleanup;
 
     make_const_fn(mod, type_i32(mod));
-    CHECK(mod_save(mod, "mod.anf"));
-    loaded_mod = mod_load("mod.anf", &pool);
+
+    out = fopen("mod.anf", "wb");
+    file_io = io_from_file(out);
+    CHECK(mod_save(mod, &file_io.io));
+    fclose(out);
+    out = NULL;
+
+    in = fopen("mod.anf", "rb");
+    file_io = io_from_file(in);
+    loaded_mod = mod_load(&file_io.io, &pool);
+    fclose(in);
+    in = NULL;
+
     CHECK(loaded_mod);
     CHECK(loaded_mod->fns.nelems == 2);
     fn1 = loaded_mod->fns.elems[0];
@@ -565,6 +580,8 @@ bool test_io() {
 cleanup:
     mod_destroy(mod);
     if (loaded_mod) mod_destroy(loaded_mod);
+    if (in)  fclose(in);
+    if (out) fclose(out);
     mpool_destroy(pool);
     return status == 0;
 }
