@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include "anf.h"
 #include "lex.h"
 
 typedef struct ast_s      ast_t;
@@ -57,12 +58,12 @@ struct ast_list_s {
     ast_list_t* next;
 };
 
-bool ast_is_decl(ast_t*);
-bool ast_is_expr(ast_t*);
-bool ast_is_ptrn(ast_t*);
-bool ast_is_refutable(ast_t*);
+bool ast_is_decl(const ast_t*);
+bool ast_is_expr(const ast_t*);
+bool ast_is_ptrn(const ast_t*);
+bool ast_is_refutable(const ast_t*);
 
-void ast_print(ast_t*, size_t, bool);
-void ast_dump(ast_t*);
+void ast_print(const ast_t*, size_t, bool);
+void ast_dump(const ast_t*);
 
 #endif // AST_H

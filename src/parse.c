@@ -246,6 +246,8 @@ static ast_t* parse_def(parser_t* parser) {
     eat_nl(parser);
     if (parser->ahead.tag == TOK_LPAREN) {
         ast->data.def.param = parse_tuple(parser);
+        if (ast_is_refutable(ast->data.def.param))
+            parse_error(parser, "invalid function parameter");
         if (parser->ahead.tag == TOK_LBRACE)
             ast->data.def.value = parse_block(parser);
     } else {

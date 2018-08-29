@@ -140,7 +140,7 @@ static inline void ast_print_list(const ast_list_t* list, size_t indent, bool co
     }
 }
 
-void ast_print(ast_t* ast, size_t indent, bool colorize) {
+void ast_print(const ast_t* ast, size_t indent, bool colorize) {
     const char* eprefix = colorize ? "\33[;31;1m" : "";
     const char* kprefix = colorize ? "\33[;34;1m" : "";
     const char* lprefix = colorize ? "\33[;36;1m" : "";
@@ -199,7 +199,7 @@ void ast_print(ast_t* ast, size_t indent, bool colorize) {
     }
 }
 
-void ast_dump(ast_t* ast) {
+void ast_dump(const ast_t* ast) {
     ast_print(ast, 0, true);
     printf("\n");
 }
