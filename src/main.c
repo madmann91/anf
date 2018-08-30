@@ -54,26 +54,30 @@ void usage(void) {
     printf("%s", usage_str);
 }
 
-char* read_file(FILE* fp, size_t* size) {
+char* read_file(const char* file, size_t* size) {
+    FILE* fp = fopen(file, "r");
+    if (!fp)
+        return NULL;
     size_t cap = 1024, i = 0;
     char* buf = malloc(cap);
-    int c;
-    while ((c = getc(fp)) != EOF) {
+    while (true) {
+        int c = fgetc(fp);
+        if (c == EOF)
+            break;
         if (i >= cap)
             buf = realloc(buf, cap * 2);
         buf[i++] = c;
     }
     *size = i;
+    fclose(fp);
     return buf;
 }
 
-bool process_file(const char* file) {
-    FILE* fp = fopen(file, "r");
-    if (!file)
-        return false;
+void process_file(const char* file) {
     size_t file_size = 0;
-    char* file_data = read_file(fp, &file_size);
-    fclose(fp);
+    char* file_data = read_file(file, &file_size);
+    if (!file_data)
+        error(NULL, NULL, "cannot read file '%s'", file);
 
     mpool_t* pool = mpool_create();
     lex_t lex = {
@@ -99,17 +103,15 @@ bool process_file(const char* file) {
 
     free(file_data);
     mpool_destroy(pool);
-    return true;
 }
 
 int main(int argc, char** argv) {
-    // Detect if the standard output is a tty or not
+    // Detect if the standard output is a tty
     colorize = isatty(fileno(stdout)) && isatty(fileno(stderr));
 
     if (argc <= 1)
         error(NULL, NULL, "no input files");
 
-    bool ok = true;
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             if (!strcmp(argv[i], "--help")) {
@@ -119,8 +121,8 @@ int main(int argc, char** argv) {
                 error(NULL, NULL, "unknown option '%s'", argv[i]);
             }
         } else {
-            ok &= process_file(argv[i]);
+            process_file(argv[i]);
         }
     }
-    return ok ? 0 : 1;
+    return 0;
 }

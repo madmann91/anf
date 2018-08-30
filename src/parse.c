@@ -11,7 +11,7 @@ static inline void next(parser_t* parser) {
 }
 
 static inline void eat(parser_t* parser, uint32_t tag) {
-    assert(parser->ahead.tag == tag);
+    assert(parser->ahead.tag == tag); (void)tag;
     next(parser);
 }
 
