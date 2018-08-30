@@ -60,7 +60,7 @@ static inline bool expect(parser_t* parser, const char* msg, uint32_t tag) {
         char buf2[TOK2STR_BUF_SIZE + 2];
         const char* str1 = tok2str_with_quotes(tag, buf1);
         const char* str2 = parser->ahead.tag == TOK_ID ? parser->ahead.str : tok2str_with_quotes(parser->ahead.tag, buf2);
-        parse_error(parser, "expected %s in %s, but got %s", str1, msg, str2);
+        parse_error(parser, &parser->ahead.loc, "expected %s in %s, but got %s", str1, msg, str2);
         status = false;
     }
     next(parser);
@@ -159,7 +159,7 @@ static ast_t* parse_decl(parser_t* parser) {
 static ast_t* parse_err(parser_t* parser, const char* msg) {
     ast_t* ast = create_ast(parser, AST_ERR);
     char buf[TOK2STR_BUF_SIZE + 2];
-    parse_error(parser, "expected %s, got %s", msg, tok2str_with_quotes(parser->ahead.tag, buf));
+    parse_error(parser, &parser->ahead.loc, "expected %s, got %s", msg, tok2str_with_quotes(parser->ahead.tag, buf));
     next(parser);
     return ast_finalize(parser, ast);
 }
@@ -169,7 +169,7 @@ static ast_t* parse_id(parser_t* parser) {
     char* str = "";
     if (parser->ahead.tag != TOK_ID) {
         char buf[TOK2STR_BUF_SIZE + 2];
-        parse_error(parser, "identifier expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
+        parse_error(parser, &parser->ahead.loc, "identifier expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
     } else {
         str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
         strcpy(str, parser->ahead.str);
@@ -183,7 +183,7 @@ static ast_t* parse_lit(parser_t* parser) {
     ast_t* ast = create_ast(parser, AST_LIT);
     if (parser->ahead.tag != TOK_LIT_I && parser->ahead.tag != TOK_LIT_F) {
         char buf[TOK2STR_BUF_SIZE + 2];
-        parse_error(parser, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
+        parse_error(parser, &parser->ahead.loc, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
         ast->data.lit.value   = (lit_t) { .ival = 0 };
         ast->data.lit.integer = true;
         ast->data.lit.str     = "";
@@ -288,7 +288,7 @@ static ast_t* parse_def(parser_t* parser) {
     if (parser->ahead.tag == TOK_LPAREN) {
         ast->data.def.param = parse_tuple(parser);
         if (ast_is_refutable(ast->data.def.param))
-            parse_error(parser, "invalid function parameter");
+            parse_error(parser, &ast->data.def.param->loc, "invalid function parameter");
         if (parser->ahead.tag == TOK_LBRACE)
             ast->data.def.value = parse_block(parser);
     } else {
@@ -336,12 +336,12 @@ ast_t* parse(parser_t* parser) {
     return parse_mod(parser);
 }
 
-void parse_error(parser_t* parser, const char* fmt, ...) {
+void parse_error(parser_t* parser, const loc_t* loc, const char* fmt, ...) {
     char buf[ERR_BUF_SIZE];
     parser->errs++;
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, ERR_BUF_SIZE, fmt, args);
-    parser->error_fn(parser, buf);
+    parser->error_fn(parser, loc, buf);
     va_end(args);
 }

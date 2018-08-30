@@ -742,12 +742,12 @@ cleanup:
     return status == 0;
 }
 
-static void lex_error_fn(lex_t* lex, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", lex->file, lex->row, lex->col, str);
+static void lex_error_fn(lex_t* lex, const loc_t* loc, const char* str) {
+    fprintf(stderr, "%s (%zu, %zu): %s\n", lex->file, loc->brow, loc->bcol, str);
 }
 
-static void parser_error_fn(parser_t* parser, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lex->file, parser->ahead.loc.brow, parser->ahead.loc.bcol, str);
+static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
+    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lex->file, loc->brow, loc->bcol, str);
 }
 
 bool test_lex(void) {

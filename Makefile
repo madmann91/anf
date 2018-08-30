@@ -1,5 +1,5 @@
 OBJS=build/anf.o build/io.o build/print.o build/opt.o build/eval.o build/flatten.o build/mem2reg.o build/scope.o build/mpool.o build/htable.o build/lex.o build/parse.o build/ast.o
-CFLAGS=-pedantic -std=c99 -Wall -Wextra
+CFLAGS=-D_POSIX_SOURCE -pedantic -std=c99 -Wall -Wextra
 
 ifdef RELEASE
 	CFLAGS += -DNDEBUG -O3 -march=native
@@ -7,7 +7,7 @@ else
 	CFLAGS += -g
 endif
 
-all: build/libanf.a
+all: build/libanf.a build/anf
 
 build/.timestamp:
 	mkdir -p build && touch $@
@@ -18,7 +18,10 @@ build/libanf.a: ${OBJS}
 build/%.o: src/%.c build/.timestamp
 	${CC} ${CFLAGS} -c $< -o $@
 
-build/test: test/main.c build/libanf.a
+build/test: src/test.c build/libanf.a
+	${CC} ${CFLAGS} -Isrc -Lbuild $< -o $@ -lanf
+
+build/anf: src/main.c build/libanf.a
 	${CC} ${CFLAGS} -Isrc -Lbuild $< -o $@ -lanf
 
 test: build/test

@@ -94,12 +94,12 @@ struct lex_s {
     size_t      errs;
     char*       str;
     size_t      size;
-    void        (*error_fn)(lex_t*, const char*);
+    void        (*error_fn)(lex_t*, const loc_t*, const char*);
 };
 
 char* tok2str(uint32_t, char*);
 
 tok_t lex(lex_t*);
-void lex_error(lex_t*, const char*, ...);
+void lex_error(lex_t*, const loc_t*, const char*, ...);
 
 #endif // LEX_H

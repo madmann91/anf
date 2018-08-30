@@ -6,6 +6,15 @@
 
 #define ERR_BUF_SIZE 256
 
+static inline loc_t make_loc(lex_t* lex, size_t brow, size_t bcol) {
+    return (loc_t) {
+        .brow = brow,
+        .bcol = bcol,
+        .erow = lex->row,
+        .ecol = lex->col
+    };
+}
+
 static inline void eat(lex_t* lex) {
     assert(lex->size > 0);
     if (*lex->str == '\n') {
@@ -35,21 +44,13 @@ static void eat_comments(lex_t* lex) {
     while (true) {
         while (lex->size > 0 && *lex->str != '*') eat(lex);
         if (lex->size == 0) {
-            lex_error(lex, "non-terminated multiline comment");
+            loc_t loc = make_loc(lex, lex->row, lex->col);
+            lex_error(lex, &loc, "non-terminated multiline comment");
             return;
         }
         eat(lex);
         if (accept(lex, '/')) break;
     }
-}
-
-static inline loc_t make_loc(lex_t* lex, size_t brow, size_t bcol) {
-    return (loc_t) {
-        .brow = brow,
-        .bcol = bcol,
-        .erow = lex->row,
-        .ecol = lex->col
-    };
 }
 
 static tok_t parse_lit(lex_t* lex, size_t brow, size_t bcol) {
@@ -211,18 +212,19 @@ tok_t lex(lex_t* lex) {
         if (isdigit(*lex->str))
             return parse_lit(lex, brow, bcol);
 
-        lex_error(lex, "unknown token '%c'", *lex->str);
         eat(lex);
-        return (tok_t) { .tag = TOK_ERR, .loc = make_loc(lex, brow, bcol) };
+        loc_t loc = make_loc(lex, brow, bcol);
+        lex_error(lex, &loc, "unknown token '%c'", *lex->str);
+        return (tok_t) { .tag = TOK_ERR, .loc = loc };
     }
 }
 
-void lex_error(lex_t* lex, const char* fmt, ...) {
+void lex_error(lex_t* lex, const loc_t* loc, const char* fmt, ...) {
     char buf[ERR_BUF_SIZE];
     lex->errs++;
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, ERR_BUF_SIZE, fmt, args);
-    lex->error_fn(lex, buf);
+    lex->error_fn(lex, loc, buf);
     va_end(args);
 }

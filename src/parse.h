@@ -12,10 +12,10 @@ struct parser_s {
     tok_t     ahead;
     lex_t*    lex;
     mpool_t** pool;
-    void      (*error_fn)(parser_t*, const char*);
+    void      (*error_fn)(parser_t*, const loc_t*, const char*);
 };
 
 ast_t* parse(parser_t*);
-void parse_error(parser_t*, const char*, ...);
+void parse_error(parser_t*, const loc_t*, const char*, ...);
 
 #endif // PARSE_H
