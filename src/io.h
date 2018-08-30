@@ -33,7 +33,7 @@ struct mem_io_s {
 file_io_t io_from_file(FILE*);
 mem_io_t  io_from_buffer(void*, size_t);
 
-bool mod_save(const mod_t* mod, io_t*);
+bool mod_save(const mod_t*, io_t*);
 mod_t* mod_load(io_t*, mpool_t**);
 
 #endif // IO_H

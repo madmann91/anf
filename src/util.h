@@ -45,16 +45,16 @@
 //
 // Usage is as follows:
 //
-// COLORIZE(flag, COLOR_KEYWORD("x"), "hello", COLOR_LITERAL("world"))
+// COLORIZE(flag, COLOR_KEY("x"), "hello", COLOR_LIT("world"))
 //
 // This example generates the following code:
 //
 // (flag ? "\33[;34;1m" "x" "\33[0m" "hello" "\33[;36;1m" "world" "\33[0m" : "x" "hello" "world" )
-#define COLOR_IDENTIFIER(x) (x, "\33[;33m")
-#define COLOR_LOCATION(x)  (x, "\33[;37;1m")
-#define COLOR_KEYWORD(x)    (x, "\33[;34;1m")
-#define COLOR_LITERAL(x)    (x, "\33[;36;1m")
-#define COLOR_ERROR(x)      (x, "\33[;31;1m")
+#define COLOR_ID(x)   (x, "\33[;33m")
+#define COLOR_LOC(x)  (x, "\33[;37;1m")
+#define COLOR_KEY(x)  (x, "\33[;34;1m")
+#define COLOR_LIT(x)  (x, "\33[;36;1m")
+#define COLOR_ERR(x)  (x, "\33[;31;1m")
 
 #define COLORIZE_ENABLED_0(...) __VA_ARGS__
 #define COLORIZE_ENABLED_1(x) COLORIZE_ENABLED_PAIR x
@@ -66,9 +66,9 @@
 
 #define COLORIZE1_ENABLED(x)  CAT(COLORIZE_ENABLED_,  IS_PAREN(x))(x)
 #define COLORIZE1_DISABLED(x) CAT(COLORIZE_DISABLED_, IS_PAREN(x))(x)
-#define COLORIZEN(enabled, ...) FOR_EACH(COLORIZE1_##enabled, __VA_ARGS__)
+#define COLORIZE_N(enabled, ...) FOR_EACH(COLORIZE1_##enabled, __VA_ARGS__)
 
 #define COLORIZE(flag, ...) \
-    (flag ? COLORIZEN(ENABLED, __VA_ARGS__) : COLORIZEN(DISABLED, __VA_ARGS__))
+    (flag ? COLORIZE_N(ENABLED, __VA_ARGS__) : COLORIZE_N(DISABLED, __VA_ARGS__))
 
 #endif // UTIL_H

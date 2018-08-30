@@ -8,18 +8,18 @@
 
 void type_print(const type_t* type, bool colorize) {
     switch (type->tag) {
-        case TYPE_I1:  printf(COLORIZE(colorize, COLOR_KEYWORD("i1" ))); break;
-        case TYPE_I8:  printf(COLORIZE(colorize, COLOR_KEYWORD("i8" ))); break;
-        case TYPE_I16: printf(COLORIZE(colorize, COLOR_KEYWORD("i16"))); break;
-        case TYPE_I32: printf(COLORIZE(colorize, COLOR_KEYWORD("i32"))); break;
-        case TYPE_I64: printf(COLORIZE(colorize, COLOR_KEYWORD("i64"))); break;
-        case TYPE_U8:  printf(COLORIZE(colorize, COLOR_KEYWORD("u8" ))); break;
-        case TYPE_U16: printf(COLORIZE(colorize, COLOR_KEYWORD("u16"))); break;
-        case TYPE_U32: printf(COLORIZE(colorize, COLOR_KEYWORD("u32"))); break;
-        case TYPE_U64: printf(COLORIZE(colorize, COLOR_KEYWORD("u64"))); break;
-        case TYPE_F32: printf(COLORIZE(colorize, COLOR_KEYWORD("f32"))); break;
-        case TYPE_F64: printf(COLORIZE(colorize, COLOR_KEYWORD("f64"))); break;
-        case TYPE_MEM: printf(COLORIZE(colorize, COLOR_KEYWORD("mem"))); break;
+        case TYPE_I1:  printf(COLORIZE(colorize, COLOR_KEY("i1" ))); break;
+        case TYPE_I8:  printf(COLORIZE(colorize, COLOR_KEY("i8" ))); break;
+        case TYPE_I16: printf(COLORIZE(colorize, COLOR_KEY("i16"))); break;
+        case TYPE_I32: printf(COLORIZE(colorize, COLOR_KEY("i32"))); break;
+        case TYPE_I64: printf(COLORIZE(colorize, COLOR_KEY("i64"))); break;
+        case TYPE_U8:  printf(COLORIZE(colorize, COLOR_KEY("u8" ))); break;
+        case TYPE_U16: printf(COLORIZE(colorize, COLOR_KEY("u16"))); break;
+        case TYPE_U32: printf(COLORIZE(colorize, COLOR_KEY("u32"))); break;
+        case TYPE_U64: printf(COLORIZE(colorize, COLOR_KEY("u64"))); break;
+        case TYPE_F32: printf(COLORIZE(colorize, COLOR_KEY("f32"))); break;
+        case TYPE_F64: printf(COLORIZE(colorize, COLOR_KEY("f64"))); break;
+        case TYPE_MEM: printf(COLORIZE(colorize, COLOR_KEY("mem"))); break;
         case TYPE_PTR:
             type_print(type->ops[0], colorize);
             printf("*");
@@ -58,25 +58,25 @@ void type_dump(const type_t* type) {
 
 static inline void node_print_name(const node_t* node, bool colorize) {
     if (node->dbg && strlen(node->dbg->name) > 0)
-        printf(COLORIZE(colorize, "<%s : ", COLOR_IDENTIFIER("%"PRIxPTR), ">"), node->dbg->name, (uintptr_t)node);
+        printf(COLORIZE(colorize, "<%s : ", COLOR_ID("%"PRIxPTR), ">"), node->dbg->name, (uintptr_t)node);
     else
-        printf(COLORIZE(colorize, "<", COLOR_IDENTIFIER("%"PRIxPTR), ">"), (uintptr_t)node);
+        printf(COLORIZE(colorize, "<", COLOR_ID("%"PRIxPTR), ">"), (uintptr_t)node);
 }
 
 void node_print(const node_t* node, bool colorize) {
     if (node->tag == NODE_LITERAL) {
         switch (node->type->tag) {
-            case TYPE_I1:  printf(COLORIZE(colorize, COLOR_KEYWORD("i1" ), " ", COLOR_LITERAL("%s")),      node->box.i1 ? "true" : "false"); break;
-            case TYPE_I8:  printf(COLORIZE(colorize, COLOR_KEYWORD("i8" ), " ", COLOR_LITERAL("%"PRIi8)),  node->box.i8);  break;
-            case TYPE_I16: printf(COLORIZE(colorize, COLOR_KEYWORD("i16"), " ", COLOR_LITERAL("%"PRIi16)), node->box.i16); break;
-            case TYPE_I32: printf(COLORIZE(colorize, COLOR_KEYWORD("i32"), " ", COLOR_LITERAL("%"PRIi32)), node->box.i32); break;
-            case TYPE_I64: printf(COLORIZE(colorize, COLOR_KEYWORD("i64"), " ", COLOR_LITERAL("%"PRIi64)), node->box.i64); break;
-            case TYPE_U8:  printf(COLORIZE(colorize, COLOR_KEYWORD("u8" ), " ", COLOR_LITERAL("%"PRIu8)),  node->box.u8);  break;
-            case TYPE_U16: printf(COLORIZE(colorize, COLOR_KEYWORD("u16"), " ", COLOR_LITERAL("%"PRIu16)), node->box.u16); break;
-            case TYPE_U32: printf(COLORIZE(colorize, COLOR_KEYWORD("u32"), " ", COLOR_LITERAL("%"PRIu32)), node->box.u32); break;
-            case TYPE_U64: printf(COLORIZE(colorize, COLOR_KEYWORD("u64"), " ", COLOR_LITERAL("%"PRIu64)), node->box.u64); break;
-            case TYPE_F32: printf(COLORIZE(colorize, COLOR_KEYWORD("f32"), " ", COLOR_LITERAL("%f")),      node->box.f32); break;
-            case TYPE_F64: printf(COLORIZE(colorize, COLOR_KEYWORD("f64"), " ", COLOR_LITERAL("%g")),      node->box.f64); break;
+            case TYPE_I1:  printf(COLORIZE(colorize, COLOR_KEY("i1" ), " ", COLOR_LIT("%s")),      node->box.i1 ? "true" : "false"); break;
+            case TYPE_I8:  printf(COLORIZE(colorize, COLOR_KEY("i8" ), " ", COLOR_LIT("%"PRIi8)),  node->box.i8);  break;
+            case TYPE_I16: printf(COLORIZE(colorize, COLOR_KEY("i16"), " ", COLOR_LIT("%"PRIi16)), node->box.i16); break;
+            case TYPE_I32: printf(COLORIZE(colorize, COLOR_KEY("i32"), " ", COLOR_LIT("%"PRIi32)), node->box.i32); break;
+            case TYPE_I64: printf(COLORIZE(colorize, COLOR_KEY("i64"), " ", COLOR_LIT("%"PRIi64)), node->box.i64); break;
+            case TYPE_U8:  printf(COLORIZE(colorize, COLOR_KEY("u8" ), " ", COLOR_LIT("%"PRIu8)),  node->box.u8);  break;
+            case TYPE_U16: printf(COLORIZE(colorize, COLOR_KEY("u16"), " ", COLOR_LIT("%"PRIu16)), node->box.u16); break;
+            case TYPE_U32: printf(COLORIZE(colorize, COLOR_KEY("u32"), " ", COLOR_LIT("%"PRIu32)), node->box.u32); break;
+            case TYPE_U64: printf(COLORIZE(colorize, COLOR_KEY("u64"), " ", COLOR_LIT("%"PRIu64)), node->box.u64); break;
+            case TYPE_F32: printf(COLORIZE(colorize, COLOR_KEY("f32"), " ", COLOR_LIT("%f")),      node->box.f32); break;
+            case TYPE_F64: printf(COLORIZE(colorize, COLOR_KEY("f64"), " ", COLOR_LIT("%g")),      node->box.f64); break;
             default:
                 assert(false);
                 break;
@@ -96,7 +96,7 @@ void node_print(const node_t* node, bool colorize) {
                 assert(false);
                 break;
         }
-        printf(COLORIZE(colorize, " ", COLOR_KEYWORD("%s")), op);
+        printf(COLORIZE(colorize, " ", COLOR_KEY("%s")), op);
         if (node->nops > 0) {
             printf(" ");
             for (size_t i = 0; i < node->nops; ++i) {
@@ -145,9 +145,9 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
     const size_t indent_inc = 4;
     switch (ast->tag) {
         case AST_ID:  printf("%s", ast->data.id.str); break;
-        case AST_LIT: printf(COLORIZE(colorize, COLOR_LITERAL("%s")),    ast->data.lit.str); break;
+        case AST_LIT: printf(COLORIZE(colorize, COLOR_LIT("%s")),    ast->data.lit.str); break;
         case AST_MOD:
-            printf(COLORIZE(colorize, COLOR_KEYWORD("mod"), " %s {\n"), ast->data.mod.id->data.id.str);
+            printf(COLORIZE(colorize, COLOR_KEY("mod"), " %s {\n"), ast->data.mod.id->data.id.str);
             indent += indent_inc;
             print_indent(indent);
             ast_print_list(ast->data.mod.decls, indent, colorize, "\n", true);
@@ -157,7 +157,7 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
             printf("}");
             break;
         case AST_DEF:
-            printf(COLORIZE(colorize, COLOR_KEYWORD("def"), " %s"), ast->data.mod.id->data.id.str);
+            printf(COLORIZE(colorize, COLOR_KEY("def"), " %s"), ast->data.mod.id->data.id.str);
             if (ast->data.def.param) {
                 ast_print(ast->data.def.param, indent, colorize);
                 printf(" ");
@@ -167,7 +167,7 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
             break;
         case AST_VAR:
         case AST_VAL:
-            printf(COLORIZE(colorize, COLOR_KEYWORD("%s")), ast->tag == AST_VAR ? "var" : "val");
+            printf(COLORIZE(colorize, COLOR_KEY("%s"), " "), ast->tag == AST_VAR ? "var" : "val");
             ast_print(ast->data.varl.ptrn, indent, colorize);
             printf(" = ");
             ast_print(ast->data.varl.value, indent, colorize);
@@ -205,7 +205,7 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
             }
             break;
         case AST_ERR:
-            printf(COLORIZE(colorize, COLOR_ERROR("<syntax error>")));
+            printf(COLORIZE(colorize, COLOR_ERR("<syntax error>")));
             break;
         default:
             assert(false);

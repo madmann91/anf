@@ -8,39 +8,29 @@
 #include "util.h"
 #include "mpool.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined (__CYGWIN__)
+    #define WIN32_LEAN_AND_MEAN 1
+    #include <windows.h>
     #include <io.h>
-    #define isatty _isatty
-    #define fileno _fileno
 #else
     #include <unistd.h>
 #endif
 
 static bool colorize = false;
 
-static void error(const char* fmt, ...) {
+static void error(const char* file, const loc_t* loc, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, COLORIZE(colorize, COLOR_ERROR("error"), ": "));
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-    va_end(args);
-    exit(1);
-}
-
-static void error_with_loc(const char* file, const loc_t* loc, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    if (loc->brow != loc->erow || loc->bcol != loc->ecol) {
-        fprintf(stderr,
-            COLORIZE(colorize, COLOR_ERROR("error"), " in ", COLOR_LOCATION("%s(%zu, %zu - %zu, %zu)"), ": "),
-            file, loc->brow, loc->bcol, loc->erow, loc->ecol
-        );
+    if (loc && file) {
+        if (loc->brow != loc->erow || loc->bcol != loc->ecol) {
+            const char* prologue = COLORIZE(colorize, COLOR_ERR("error"), " in ", COLOR_LOC("%s(%zu, %zu - %zu, %zu)"), ": ");
+            fprintf(stderr, prologue, file, loc->brow, loc->bcol, loc->erow, loc->ecol);
+        } else {
+            const char* prologue = COLORIZE(colorize, COLOR_ERR("error"), " in ", COLOR_LOC("%s(%zu, %zu)"), ": ");
+            fprintf(stderr, prologue, file, loc->brow, loc->bcol);
+        }
     } else {
-        fprintf(stderr,
-            COLORIZE(colorize, COLOR_ERROR("error"), " in ", COLOR_LOCATION("%s(%zu, %zu)"), ": "),
-            file, loc->brow, loc->bcol
-        );
+        fprintf(stderr, COLORIZE(colorize, COLOR_ERR("error"), ": "));
     }
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
@@ -49,11 +39,11 @@ static void error_with_loc(const char* file, const loc_t* loc, const char* fmt, 
 }
 
 static void lex_error_fn(lex_t* lex, const loc_t* loc, const char* str) {
-    error_with_loc(lex->file, loc, "%s", str);
+    error(lex->file, loc, "%s", str);
 }
 
 static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
-    error_with_loc(parser->lex->file, loc, "%s", str);
+    error(parser->lex->file, loc, "%s", str);
 }
 
 void usage(void) {
@@ -117,7 +107,7 @@ int main(int argc, char** argv) {
     colorize = isatty(fileno(stdout)) && isatty(fileno(stderr));
 
     if (argc <= 1)
-        error("no input files");
+        error(NULL, NULL, "no input files");
 
     bool ok = true;
     for (int i = 1; i < argc; ++i) {
@@ -126,7 +116,7 @@ int main(int argc, char** argv) {
                 usage();
                 return 0;
             } else {
-                error("unknown option '%s'", argv[i]);
+                error(NULL, NULL, "unknown option '%s'", argv[i]);
             }
         } else {
             ok &= process_file(argv[i]);
