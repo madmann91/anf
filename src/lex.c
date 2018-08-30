@@ -128,39 +128,69 @@ tok_t lex(lex_t* lex) {
         if (lex->size == 0)
             return (tok_t) { .tag = TOK_EOF, .loc = make_loc(lex, brow, bcol) };
 
-        if (accept(lex, '\n')) return (tok_t) { .tag = TOK_NL,     .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '\'')) return (tok_t) { .tag = TOK_SQUOTE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '\"')) return (tok_t) { .tag = TOK_DQUOTE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '('))  return (tok_t) { .tag = TOK_LPAREN, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ')'))  return (tok_t) { .tag = TOK_RPAREN, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '{'))  return (tok_t) { .tag = TOK_LBRACE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '}'))  return (tok_t) { .tag = TOK_RBRACE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '<'))  return (tok_t) { .tag = TOK_LANGLE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '>'))  return (tok_t) { .tag = TOK_RANGLE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ':'))  return (tok_t) { .tag = TOK_COLON,  .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ','))  return (tok_t) { .tag = TOK_COMMA,  .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ';'))  return (tok_t) { .tag = TOK_SEMI,   .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '+'))  return (tok_t) { .tag = TOK_ADD,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '-'))  return (tok_t) { .tag = TOK_SUB,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '*'))  return (tok_t) { .tag = TOK_MUL,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '%'))  return (tok_t) { .tag = TOK_MOD,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '&'))  return (tok_t) { .tag = TOK_AND,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '|'))  return (tok_t) { .tag = TOK_OR,     .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '^'))  return (tok_t) { .tag = TOK_XOR,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '!'))  return (tok_t) { .tag = TOK_NOT,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '='))  return (tok_t) { .tag = TOK_EQ,     .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '\n')) return (tok_t) { .tag = TOK_NL,       .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '\'')) return (tok_t) { .tag = TOK_QUOTE,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '\"')) return (tok_t) { .tag = TOK_DBLQUOTE, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '('))  return (tok_t) { .tag = TOK_LPAREN,   .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ')'))  return (tok_t) { .tag = TOK_RPAREN,   .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '{'))  return (tok_t) { .tag = TOK_LBRACE,   .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, '}'))  return (tok_t) { .tag = TOK_RBRACE,   .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ','))  return (tok_t) { .tag = TOK_COMMA,    .loc = make_loc(lex, brow, bcol) };
+        if (accept(lex, ';'))  return (tok_t) { .tag = TOK_SEMI,     .loc = make_loc(lex, brow, bcol) };
+
+        if (accept(lex, '<')) {
+            if (accept(lex, '<')) {
+                if (accept(lex, '=')) return (tok_t) { .tag = TOK_LSHFTEQ, .loc = make_loc(lex, brow, bcol) };
+                return (tok_t) { .tag = TOK_LSHFT, .loc = make_loc(lex, brow, bcol) };
+            }
+            if (accept(lex, '=')) return (tok_t) { .tag = TOK_CMPLE, .loc = make_loc(lex, brow, bcol) };
+            return (tok_t) { .tag = TOK_LANGLE, .loc = make_loc(lex, brow, bcol) };
+        }
+
+        if (accept(lex, '>')) {
+            if (accept(lex, '>')) {
+                if (accept(lex, '=')) return (tok_t) { .tag = TOK_RSHFTEQ, .loc = make_loc(lex, brow, bcol) };
+                return (tok_t) { .tag = TOK_RSHFT, .loc = make_loc(lex, brow, bcol) };
+            }
+            if (accept(lex, '=')) return (tok_t) { .tag = TOK_CMPGE, .loc = make_loc(lex, brow, bcol) };
+            return (tok_t) { .tag = TOK_RANGLE, .loc = make_loc(lex, brow, bcol) };
+        }
+
+        if (accept(lex, ':')) {
+            if (accept(lex, ':')) return (tok_t) { .tag = TOK_DBLCOLON, .loc = make_loc(lex, brow, bcol) }; 
+            return (tok_t) { .tag = TOK_COLON, .loc = make_loc(lex, brow, bcol) };
+        }
+
+#define LEX_BINOP(symbol, tag_, tag_eq, tag_dbl, dbl) \
+    if (accept(lex, symbol)) { \
+        if (accept(lex, '=')) return (tok_t) { .tag = tag_eq, .loc = make_loc(lex, brow, bcol) }; \
+        if (dbl && accept(lex, symbol)) return (tok_t) { .tag = tag_dbl, .loc = make_loc(lex, brow, bcol) }; \
+        return (tok_t) { .tag = tag_, .loc = make_loc(lex, brow, bcol) }; \
+    }
+
+        LEX_BINOP('+', TOK_ADD, TOK_ADDEQ, TOK_INC, true)
+        LEX_BINOP('-', TOK_SUB, TOK_SUBEQ, TOK_DEC, true)
+        LEX_BINOP('*', TOK_MUL, TOK_MULEQ, 0, false)
+        LEX_BINOP('%', TOK_REM, TOK_REMEQ, 0, false)
+        LEX_BINOP('&', TOK_AND, TOK_ANDEQ, TOK_DBLAND, true)
+        LEX_BINOP('|', TOK_OR , TOK_OREQ , TOK_DBLOR,  true)
+        LEX_BINOP('^', TOK_XOR, TOK_XOREQ, 0, false)
+        LEX_BINOP('!', TOK_NOT, TOK_NOTEQ, 0, false)
+        LEX_BINOP('=', TOK_EQ,  TOK_CMPEQ, 0, false)
+
+#undef LEX_BINOP
 
         if (accept(lex, '/')) {
             if (accept(lex, '*')) {
                 eat_comments(lex);
                 continue;
-            }
-            if (accept(lex, '/')) {
+            } else if (accept(lex, '/')) {
                 while (lex->size > 0 && *lex->str != '\n') eat(lex);
                 if (lex->size > 0) eat(lex);
                 continue;
             }
-            return (tok_t) { .tag = TOK_DIV , .loc = make_loc(lex, brow, bcol) };
+            if (accept(lex, '=')) return (tok_t) { .tag = TOK_DIVEQ, .loc = make_loc(lex, brow, bcol) };
+            return (tok_t) { .tag = TOK_DIV, .loc = make_loc(lex, brow, bcol) };
         }
 
         if (isalpha(*lex->str)) {

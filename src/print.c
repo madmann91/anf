@@ -140,6 +140,13 @@ static inline void ast_print_list(const ast_list_t* list, size_t indent, bool co
     }
 }
 
+static inline void ast_print_binop_op(const ast_t* op, int prec, size_t indent, bool colorize) {
+    bool needs_parens = op->tag == AST_BINOP && binop_precedence(op->data.binop.tag) > prec;
+    if (needs_parens) printf("(");
+    ast_print(op, indent, colorize);
+    if (needs_parens) printf(")");
+}
+
 void ast_print(const ast_t* ast, size_t indent, bool colorize) {
     const char* eprefix = colorize ? "\33[;31;1m" : "";
     const char* kprefix = colorize ? "\33[;34;1m" : "";
@@ -189,6 +196,23 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
             printf("(");
             ast_print_list(ast->data.tuple.args, indent, colorize, ", ", false);
             printf(")");
+            break;
+        case AST_BINOP:
+            {
+                int prec = binop_precedence(ast->data.binop.tag);
+                ast_print_binop_op(ast->data.binop.left, prec, indent, colorize);
+                printf(" %s ", binop_symbol(ast->data.binop.tag));
+                ast_print_binop_op(ast->data.binop.right, prec, indent, colorize);
+            }
+            break;
+        case AST_UNOP:
+            {
+                bool prefix = unop_is_prefix(ast->data.unop.tag);
+                const char* symbol = unop_symbol(ast->data.unop.tag);
+                if (prefix) printf("%s", symbol);
+                ast_print(ast->data.unop.op, indent, colorize);
+                if (!prefix) printf("%s", symbol);
+            }
             break;
         case AST_ERR:
             printf("%s<syntax error>%s", eprefix, suffix);

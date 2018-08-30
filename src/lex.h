@@ -8,40 +8,61 @@
 #define TOK2STR_BUF_SIZE 32
 
 #define TOK_LIST(f) \
-    f(TOK_LIT_I,  "integer literal") \
-    f(TOK_LIT_F,  "floating point literal") \
-    f(TOK_STR,    "string literal") \
-    f(TOK_ID,     "identifier") \
-    f(TOK_NL,     "new line") \
-    f(TOK_DEF,    "def") \
-    f(TOK_VAR,    "var") \
-    f(TOK_VAL,    "val") \
-    f(TOK_IF,     "if") \
-    f(TOK_ELSE,   "else") \
-    f(TOK_MOD,    "mod") \
-    f(TOK_SQUOTE, "\'") \
-    f(TOK_DQUOTE, "\"") \
-    f(TOK_LPAREN, "(") \
-    f(TOK_RPAREN, ")") \
-    f(TOK_LBRACE, "{") \
-    f(TOK_RBRACE, "}") \
-    f(TOK_LANGLE, "<") \
-    f(TOK_RANGLE, ">") \
-    f(TOK_COMMA,  ",") \
-    f(TOK_COLON,  ":") \
-    f(TOK_SEMI,   ";") \
-    f(TOK_ADD,    "+") \
-    f(TOK_SUB,    "-") \
-    f(TOK_MUL,    "*") \
-    f(TOK_DIV,    "/") \
-    f(TOK_REM,    "%") \
-    f(TOK_AND,    "&") \
-    f(TOK_OR,     "|") \
-    f(TOK_XOR,    "^") \
-    f(TOK_NOT,    "!") \
-    f(TOK_EQ,     "=") \
-    f(TOK_ERR,    "invalid token") \
-    f(TOK_EOF,    "eof")
+    f(TOK_LIT_I,    "integer literal") \
+    f(TOK_LIT_F,    "floating point literal") \
+    f(TOK_STR,      "string literal") \
+    f(TOK_ID,       "identifier") \
+    f(TOK_NL,       "new line") \
+    f(TOK_DEF,      "def") \
+    f(TOK_VAR,      "var") \
+    f(TOK_VAL,      "val") \
+    f(TOK_IF,       "if") \
+    f(TOK_ELSE,     "else") \
+    f(TOK_MOD,      "mod") \
+    f(TOK_QUOTE,    "\'") \
+    f(TOK_DBLQUOTE, "\"") \
+    f(TOK_LPAREN,   "(") \
+    f(TOK_RPAREN,   ")") \
+    f(TOK_LBRACE,   "{") \
+    f(TOK_RBRACE,   "}") \
+    f(TOK_LANGLE,   "<") \
+    f(TOK_RANGLE,   ">") \
+    f(TOK_COMMA,    ",") \
+    f(TOK_COLON,    ":") \
+    f(TOK_DBLCOLON, "::") \
+    f(TOK_SEMI,     ";") \
+    f(TOK_ADD,      "+") \
+    f(TOK_SUB,      "-") \
+    f(TOK_MUL,      "*") \
+    f(TOK_DIV,      "/") \
+    f(TOK_REM,      "%") \
+    f(TOK_AND,      "&") \
+    f(TOK_OR,       "|") \
+    f(TOK_XOR,      "^") \
+    f(TOK_LSHFT,    "<<") \
+    f(TOK_RSHFT,    ">>") \
+    f(TOK_NOT,      "!") \
+    f(TOK_EQ,       "=") \
+    f(TOK_INC,      "++") \
+    f(TOK_DEC,      "--") \
+    f(TOK_NOTEQ,    "!=") \
+    f(TOK_CMPEQ,    "==") \
+    f(TOK_CMPGE,    ">=") \
+    f(TOK_CMPLE,    "<=") \
+    f(TOK_ADDEQ,    "+=") \
+    f(TOK_SUBEQ,    "-=") \
+    f(TOK_MULEQ,    "*=") \
+    f(TOK_DIVEQ,    "/=") \
+    f(TOK_REMEQ,    "%=") \
+    f(TOK_ANDEQ,    "&=") \
+    f(TOK_OREQ,     "|=") \
+    f(TOK_XOREQ,    "^=") \
+    f(TOK_LSHFTEQ,  "<<=") \
+    f(TOK_RSHFTEQ,  ">>=") \
+    f(TOK_DBLAND,   "&&") \
+    f(TOK_DBLOR,    "||") \
+    f(TOK_ERR,      "invalid token") \
+    f(TOK_EOF,      "eof")
 
 typedef union  lit_u lit_t;
 typedef struct tok_s tok_t;

@@ -7,6 +7,9 @@
 typedef struct ast_s      ast_t;
 typedef struct ast_list_s ast_list_t;
 
+#define MAX_BINOP_PRECEDENCE 10
+#define INVALID_TAG ((uint32_t)-1)
+
 enum ast_tag_e {
     AST_ID,
     AST_LIT,
@@ -48,6 +51,7 @@ enum binop_tag_e {
     BINOP_XOR,
     BINOP_LSHFT,
     BINOP_RSHFT,
+    BINOP_ASSIGN,
     BINOP_ASSIGN_ADD,
     BINOP_ASSIGN_SUB,
     BINOP_ASSIGN_MUL,
@@ -60,11 +64,11 @@ enum binop_tag_e {
     BINOP_ASSIGN_RSHFT,
     BINOP_LOGIC_AND,
     BINOP_LOGIC_OR,
-    BINOP_EQ,
-    BINOP_LT,
-    BINOP_GT,
-    BINOP_GE,
-    BINOP_LE
+    BINOP_CMPEQ,
+    BINOP_CMPGT,
+    BINOP_CMPLT,
+    BINOP_CMPGE,
+    BINOP_CMPLE
 };
 
 struct ast_s {
@@ -111,6 +115,10 @@ struct ast_s {
             ast_t*      body;
         } lambda;
         struct {
+            ast_t*      callee;
+            ast_t*      arg;
+        } call;
+        struct {
             ast_t*      if_true;
             ast_t*      if_false;
         } if_;
@@ -134,6 +142,13 @@ struct ast_list_s {
 };
 
 bool ast_is_refutable(const ast_t*);
+
+int binop_precedence(uint32_t);
+uint32_t binop_tag_from_token(uint32_t);
+const char* binop_symbol(uint32_t);
+
+bool unop_is_prefix(uint32_t);
+const char* unop_symbol(uint32_t);
 
 void ast_print(const ast_t*, size_t, bool);
 void ast_dump(const ast_t*);

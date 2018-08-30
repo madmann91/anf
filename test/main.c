@@ -756,10 +756,10 @@ bool test_lex(void) {
         " line comment */ else world!  | // another comment \n"
         " (- ), < * \" +: var; / def=% >something & 0b010010110 0xFFe45 10.3e+7";
     uint32_t tags[] = {
-        TOK_ID, TOK_IF, TOK_SQUOTE, TOK_XOR,
+        TOK_ID, TOK_IF, TOK_QUOTE, TOK_XOR,
         TOK_ELSE, TOK_ID, TOK_NOT, TOK_OR,
-        TOK_LPAREN, TOK_SUB, TOK_RPAREN, TOK_COMMA, TOK_LANGLE, TOK_MUL, TOK_DQUOTE,
-        TOK_ADD, TOK_COLON, TOK_VAR, TOK_SEMI, TOK_DIV, TOK_DEF, TOK_EQ, TOK_MOD,
+        TOK_LPAREN, TOK_SUB, TOK_RPAREN, TOK_COMMA, TOK_LANGLE, TOK_MUL, TOK_DBLQUOTE,
+        TOK_ADD, TOK_COLON, TOK_VAR, TOK_SEMI, TOK_DIV, TOK_DEF, TOK_EQ, TOK_REM,
         TOK_RANGLE, TOK_ID, TOK_AND, TOK_LIT_I, TOK_LIT_I, TOK_LIT_F, TOK_EOF
     };
     size_t num_tags = sizeof(tags) / sizeof(tags[0]);
@@ -797,9 +797,10 @@ cleanup:
 bool test_parse(void) {
     const char* str =
         "mod hello {\n"
-        "    var z = 33\n"
+        "    var z = 33 * 4 + (2 >> 1)\n"
         "    val (a, b) = 7\n"
         "    def func(x\n) {\n"
+        "        z >>= 3\n"
         "        (x, z, \n"
         "        {x ; y})\n"
         "    }\n"

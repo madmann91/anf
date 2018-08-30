@@ -79,7 +79,7 @@ static inline ast_t* create_ast(parser_t* parser, uint32_t tag) {
     return create_ast_with_loc(parser, tag, parser->ahead.loc);
 }
 
-static inline ast_t* finalize_ast(parser_t* parser, ast_t* ast) {
+static inline ast_t* ast_finalize(parser_t* parser, ast_t* ast) {
     ast->loc.erow = parser->prev_loc.erow;
     ast->loc.ecol = parser->prev_loc.ecol;
     return ast;
@@ -92,19 +92,21 @@ static inline ast_list_t** ast_list_add(parser_t* parser, ast_list_t** list, ast
     return &(*list)->next;
 }
 
+// Basic syntax categories
+static ast_t* parse_expr(parser_t*);
+static ast_t* parse_ptrn(parser_t*);
+static ast_t* parse_stmt(parser_t*);
+static ast_t* parse_decl(parser_t*);
+
 static ast_t* parse_err(parser_t*, const char*);
 
 // Literals & identifiers
 static ast_t* parse_id(parser_t*);
 static ast_t* parse_lit(parser_t*);
 
-// Base AST nodes
-static ast_t* parse_expr(parser_t*);
-static ast_t* parse_ptrn(parser_t*);
-static ast_t* parse_stmt(parser_t*);
-static ast_t* parse_decl(parser_t*);
-
-// Expressions
+// Expressions/Patterns
+static ast_t* parse_primary_expr(parser_t*);
+static ast_t* parse_binary_expr(parser_t*, ast_t*, int);
 static ast_t* parse_tuple(parser_t*);
 static ast_t* parse_block(parser_t*);
 
@@ -113,60 +115,9 @@ static ast_t* parse_def(parser_t*);
 static ast_t* parse_varl(parser_t*, bool);
 static ast_t* parse_mod(parser_t*);
 
-static ast_t* parse_err(parser_t* parser, const char* msg) {
-    ast_t* ast = create_ast(parser, AST_ERR);
-    char buf[TOK2STR_BUF_SIZE + 2];
-    parse_error(parser, "expected %s, got %s", msg, tok2str_with_quotes(parser->ahead.tag, buf));
-    next(parser);
-    return finalize_ast(parser, ast);
-}
-
-static ast_t* parse_id(parser_t* parser) {
-    ast_t* ast = create_ast(parser, AST_ID);
-    char* str = "";
-    if (parser->ahead.tag != TOK_ID) {
-        char buf[TOK2STR_BUF_SIZE + 2];
-        parse_error(parser, "identifier expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
-    } else {
-        str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
-        strcpy(str, parser->ahead.str);
-    }
-    next(parser);
-    ast->data.id.str = str;
-    return finalize_ast(parser, ast);
-}
-
-static ast_t* parse_lit(parser_t* parser) {
-    ast_t* ast = create_ast(parser, AST_LIT);
-    if (parser->ahead.tag != TOK_LIT_I && parser->ahead.tag != TOK_LIT_F) {
-        char buf[TOK2STR_BUF_SIZE + 2];
-        parse_error(parser, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
-        ast->data.lit.value   = (lit_t) { .ival = 0 };
-        ast->data.lit.integer = true;
-        ast->data.lit.str     = "";
-    } else {
-        char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
-        strcpy(str, parser->ahead.str);
-        ast->data.lit.value   = parser->ahead.lit;
-        ast->data.lit.integer = parser->ahead.tag == TOK_LIT_I;
-        ast->data.lit.str     = str;
-    }
-    next(parser);
-    return finalize_ast(parser, ast);
-}
-
 static ast_t* parse_expr(parser_t* parser) {
-    switch (parser->ahead.tag) {
-        case TOK_LIT_I:
-        case TOK_LIT_F:
-            return parse_lit(parser);
-        case TOK_ID:     return parse_id(parser);
-        case TOK_LPAREN: return parse_tuple(parser);
-        case TOK_LBRACE: return parse_block(parser);
-        default:
-            break;
-    }
-    return parse_err(parser, "expression");
+    ast_t* ast = parse_primary_expr(parser);
+    return parse_binary_expr(parser, ast, MAX_BINOP_PRECEDENCE);
 }
 
 static ast_t* parse_ptrn(parser_t* parser) {
@@ -205,6 +156,96 @@ static ast_t* parse_decl(parser_t* parser) {
     return parse_err(parser, "declaration");
 }
 
+static ast_t* parse_err(parser_t* parser, const char* msg) {
+    ast_t* ast = create_ast(parser, AST_ERR);
+    char buf[TOK2STR_BUF_SIZE + 2];
+    parse_error(parser, "expected %s, got %s", msg, tok2str_with_quotes(parser->ahead.tag, buf));
+    next(parser);
+    return ast_finalize(parser, ast);
+}
+
+static ast_t* parse_id(parser_t* parser) {
+    ast_t* ast = create_ast(parser, AST_ID);
+    char* str = "";
+    if (parser->ahead.tag != TOK_ID) {
+        char buf[TOK2STR_BUF_SIZE + 2];
+        parse_error(parser, "identifier expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
+    } else {
+        str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
+        strcpy(str, parser->ahead.str);
+    }
+    next(parser);
+    ast->data.id.str = str;
+    return ast_finalize(parser, ast);
+}
+
+static ast_t* parse_lit(parser_t* parser) {
+    ast_t* ast = create_ast(parser, AST_LIT);
+    if (parser->ahead.tag != TOK_LIT_I && parser->ahead.tag != TOK_LIT_F) {
+        char buf[TOK2STR_BUF_SIZE + 2];
+        parse_error(parser, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
+        ast->data.lit.value   = (lit_t) { .ival = 0 };
+        ast->data.lit.integer = true;
+        ast->data.lit.str     = "";
+    } else {
+        char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
+        strcpy(str, parser->ahead.str);
+        ast->data.lit.value   = parser->ahead.lit;
+        ast->data.lit.integer = parser->ahead.tag == TOK_LIT_I;
+        ast->data.lit.str     = str;
+    }
+    next(parser);
+    return ast_finalize(parser, ast);
+}
+
+static ast_t* parse_primary_expr(parser_t* parser) {
+    switch (parser->ahead.tag) {
+        case TOK_DEC:
+        case TOK_INC:
+            {
+                ast_t* ast = create_ast(parser, AST_UNOP);
+                ast->data.unop.tag = parser->ahead.tag == TOK_DEC ? UNOP_PRE_DEC : UNOP_PRE_INC;
+                ast->data.unop.op  = parse_primary_expr(parser);
+                return ast_finalize(parser, ast);
+            }
+        case TOK_LIT_I:
+        case TOK_LIT_F:
+            return parse_lit(parser);
+        case TOK_ID:     return parse_id(parser);
+        case TOK_LPAREN: return parse_tuple(parser);
+        case TOK_LBRACE: return parse_block(parser);
+        default:
+            break;
+    }
+    return parse_err(parser, "primary expression");
+}
+
+static ast_t* parse_binary_expr(parser_t* parser, ast_t* left, int max_prec) {
+    while (true) {
+        uint32_t tag = binop_tag_from_token(parser->ahead.tag);
+        if (tag == INVALID_TAG) break;
+        int prec = binop_precedence(tag);
+        if (prec > max_prec) break;
+        next(parser);
+
+        ast_t* right = parse_primary_expr(parser);
+
+        uint32_t next_tag = binop_tag_from_token(parser->ahead.tag);
+        if (next_tag != INVALID_TAG) {
+            int next_prec = binop_precedence(next_tag);
+            if (next_prec < prec)
+                right = parse_binary_expr(parser, right, next_prec);
+        }
+
+        ast_t* binop = create_ast_with_loc(parser, AST_BINOP, left->loc);
+        binop->data.binop.tag   = tag;
+        binop->data.binop.left  = left;
+        binop->data.binop.right = right;
+        left = ast_finalize(parser, binop);
+    }
+    return left;
+}
+
 static ast_t* parse_tuple(parser_t* parser) {
     ast_t* ast = create_ast(parser, AST_TUPLE);
     eat(parser, TOK_LPAREN);
@@ -219,7 +260,7 @@ static ast_t* parse_tuple(parser_t* parser) {
         eat_nl(parser);
     }
     expect(parser, "tuple", TOK_RPAREN);
-    return finalize_ast(parser, ast);
+    return ast_finalize(parser, ast);
 }
 
 static ast_t* parse_block(parser_t* parser) {
@@ -235,7 +276,7 @@ static ast_t* parse_block(parser_t* parser) {
             break;
     }
     expect(parser, "statement block", TOK_RBRACE);
-    return finalize_ast(parser, ast);
+    return ast_finalize(parser, ast);
 }
 
 static ast_t* parse_def(parser_t* parser) {
@@ -255,7 +296,7 @@ static ast_t* parse_def(parser_t* parser) {
         eat_nl(parser);
         ast->data.def.value = parse_expr(parser);
     }
-    return finalize_ast(parser, ast);
+    return ast_finalize(parser, ast);
 }
 
 static ast_t* parse_varl(parser_t* parser, bool var) {
@@ -267,7 +308,7 @@ static ast_t* parse_varl(parser_t* parser, bool var) {
     expect(parser, var ? "variable" : "value", TOK_EQ);
     eat_nl(parser);
     ast->data.varl.value = parse_expr(parser);
-    return finalize_ast(parser, ast);
+    return ast_finalize(parser, ast);
 }
 
 static ast_t* parse_mod(parser_t* parser) {
@@ -287,7 +328,7 @@ static ast_t* parse_mod(parser_t* parser) {
             break;
     }
     expect(parser, "module contents", TOK_RBRACE);
-    return finalize_ast(parser, ast);
+    return ast_finalize(parser, ast);
 }
 
 ast_t* parse(parser_t* parser) {
