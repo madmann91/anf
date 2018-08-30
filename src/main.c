@@ -35,7 +35,6 @@ static void error(const char* file, const loc_t* loc, const char* fmt, ...) {
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     va_end(args);
-    exit(1);
 }
 
 static void lex_error_fn(lex_t* lex, const loc_t* loc, const char* str) {
@@ -73,11 +72,13 @@ char* read_file(const char* file, size_t* size) {
     return buf;
 }
 
-void process_file(const char* file) {
+bool process_file(const char* file) {
     size_t file_size = 0;
     char* file_data = read_file(file, &file_size);
-    if (!file_data)
+    if (!file_data) {
         error(NULL, NULL, "cannot read file '%s'", file);
+        return false;
+    }
 
     mpool_t* pool = mpool_create();
     lex_t lex = {
@@ -96,22 +97,27 @@ void process_file(const char* file) {
     };
 
     ast_t* ast = parse(&parser);
-    if (!parser.errs && !lex.errs) {
+    bool ok = !parser.errs && !lex.errs;
+    if (ok) {
         ast_print(ast, 0, colorize);
         printf("\n");
     }
 
     free(file_data);
     mpool_destroy(pool);
+    return ok;
 }
 
 int main(int argc, char** argv) {
     // Detect if the standard output is a tty
     colorize = isatty(fileno(stdout)) && isatty(fileno(stderr));
 
-    if (argc <= 1)
+    if (argc <= 1) {
         error(NULL, NULL, "no input files");
+        return 1;
+    }
 
+    bool ok = true;
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             if (!strcmp(argv[i], "--help")) {
@@ -119,10 +125,12 @@ int main(int argc, char** argv) {
                 return 0;
             } else {
                 error(NULL, NULL, "unknown option '%s'", argv[i]);
+                return 1;
             }
         } else {
-            process_file(argv[i]);
+            ok &= process_file(argv[i]);
         }
     }
-    return 0;
+
+    return ok ? 0 : 1;
 }

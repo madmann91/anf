@@ -50,11 +50,11 @@
 // This example generates the following code:
 //
 // (flag ? "\33[;34;1m" "x" "\33[0m" "hello" "\33[;36;1m" "world" "\33[0m" : "x" "hello" "world" )
-#define COLOR_ID(x)   (x, "\33[;33m")
-#define COLOR_LOC(x)  (x, "\33[;37;1m")
-#define COLOR_KEY(x)  (x, "\33[;34;1m")
-#define COLOR_LIT(x)  (x, "\33[;36;1m")
-#define COLOR_ERR(x)  (x, "\33[;31;1m")
+#define COLOR_ID(x)   (x, "\33[33m")
+#define COLOR_LOC(x)  (x, "\33[37;1m")
+#define COLOR_KEY(x)  (x, "\33[34;1m")
+#define COLOR_LIT(x)  (x, "\33[36;1m")
+#define COLOR_ERR(x)  (x, "\33[31;1m")
 
 #define COLORIZE_ENABLED_0(...) __VA_ARGS__
 #define COLORIZE_ENABLED_1(x) COLORIZE_ENABLED_PAIR x

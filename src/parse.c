@@ -135,6 +135,8 @@ static ast_t* parse_ptrn(parser_t* parser) {
 
 static ast_t* parse_stmt(parser_t* parser) {
     switch (parser->ahead.tag) {
+        case TOK_LIT_I:
+        case TOK_LIT_F:
         case TOK_ID:
         case TOK_LPAREN:
         case TOK_LBRACE:

@@ -62,7 +62,7 @@
     f(TOK_DBLAND,   "&&") \
     f(TOK_DBLOR,    "||") \
     f(TOK_ERR,      "invalid token") \
-    f(TOK_EOF,      "eof")
+    f(TOK_EOF,      "end of file")
 
 typedef union  lit_u lit_t;
 typedef struct tok_s tok_t;
