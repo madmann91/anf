@@ -214,12 +214,14 @@ tok_t lex(lexer_t* lexer) {
             char* end = lexer->str;
             lexer->tmp = *end;
             *end = 0;
-            if (!strcmp(beg, "def"))  return (tok_t) { .tag = TOK_DEF,  .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "var"))  return (tok_t) { .tag = TOK_VAR,  .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "val"))  return (tok_t) { .tag = TOK_VAL,  .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "if"))   return (tok_t) { .tag = TOK_IF,   .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "else")) return (tok_t) { .tag = TOK_ELSE, .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "mod"))  return (tok_t) { .tag = TOK_MOD,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "def"))   return (tok_t) { .tag = TOK_DEF,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "var"))   return (tok_t) { .tag = TOK_VAR,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "val"))   return (tok_t) { .tag = TOK_VAL,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "if"))    return (tok_t) { .tag = TOK_IF,   .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "else"))  return (tok_t) { .tag = TOK_ELSE, .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "mod"))   return (tok_t) { .tag = TOK_MOD,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "true"))  return (tok_t) { .tag = TOK_BOOL, .loc = make_loc(lexer, brow, bcol), .lit = { .bval = true  } };
+            if (!strcmp(beg, "false")) return (tok_t) { .tag = TOK_BOOL, .loc = make_loc(lexer, brow, bcol), .lit = { .bval = false } };
             return (tok_t) { .tag = TOK_ID, .str = beg, .loc = make_loc(lexer, brow, bcol) };
         }
 

@@ -12,6 +12,7 @@
     f(TOK_FLT,      "floating point literal") \
     f(TOK_STR,      "string literal") \
     f(TOK_CHR,      "character literal") \
+    f(TOK_BOOL,     "boolean literal") \
     f(TOK_ID,       "identifier") \
     f(TOK_NL,       "new line") \
     f(TOK_DEF,      "def") \
@@ -74,6 +75,7 @@ enum tok_tag_e {
 };
 
 union lit_u {
+    bool        bval;
     double      fval;
     uint64_t    ival;
 };

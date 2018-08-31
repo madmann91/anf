@@ -30,10 +30,11 @@ enum ast_tag_e {
 };
 
 enum lit_tag_e {
-    LIT_FLT = TOK_FLT,
-    LIT_INT = TOK_INT,
-    LIT_CHR = TOK_CHR,
-    LIT_STR = TOK_STR
+    LIT_FLT  = TOK_FLT,
+    LIT_INT  = TOK_INT,
+    LIT_CHR  = TOK_CHR,
+    LIT_STR  = TOK_STR,
+    LIT_BOOL = TOK_BOOL
 };
 
 enum unop_tag_e {

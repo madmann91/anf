@@ -97,7 +97,7 @@ bool process_file(const char* file) {
     };
 
     ast_t* ast = parse(&parser);
-    bool ok = !parser.errs && !lex.errs;
+    bool ok = !parser.errs && !lexer.errs;
     if (ok) {
         ast_print(ast, 0, colorize);
         printf("\n");

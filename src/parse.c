@@ -41,6 +41,7 @@ static char* tok2str_with_quotes(uint32_t tag, char* buf) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
+        case TOK_BOOL:
         case TOK_ID:
         case TOK_NL:
         case TOK_ERR:
@@ -131,6 +132,7 @@ static ast_t* parse_ptrn(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
+        case TOK_BOOL:
             return parse_lit(parser);
         case TOK_ID:     return parse_id(parser);
         case TOK_LPAREN: return parse_tuple(parser);
@@ -146,6 +148,7 @@ static ast_t* parse_stmt(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
+        case TOK_BOOL:
         case TOK_ID:
         case TOK_LPAREN:
         case TOK_LBRACE:
@@ -197,21 +200,24 @@ static ast_t* parse_lit(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
+        case TOK_BOOL:
             {
-                char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
-                strcpy(str, parser->ahead.str);
-                ast->data.lit.value   = parser->ahead.lit;
-                ast->data.lit.tag     = parser->ahead.tag;
-                ast->data.lit.str     = str;
+                if (parser->ahead.str) {
+                    char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
+                    strcpy(str, parser->ahead.str);
+                    ast->data.lit.str = str;
+                }
+                ast->data.lit.value = parser->ahead.lit;
+                ast->data.lit.tag   = parser->ahead.tag;
             }
             break;
         default:
             {
                 char buf[TOK2STR_BUF_SIZE + 2];
                 parse_error(parser, &parser->ahead.loc, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
-                ast->data.lit.tag     = LIT_INT;
-                ast->data.lit.value   = (lit_t) { .ival = 0 };
-                ast->data.lit.str     = "";
+                ast->data.lit.tag   = LIT_INT;
+                ast->data.lit.value = (lit_t) { .ival = 0 };
+                ast->data.lit.str   = "";
             }
             break;
     }
@@ -233,6 +239,7 @@ static ast_t* parse_primary_expr(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
+        case TOK_BOOL:
             return parse_lit(parser);
         case TOK_ID:     return parse_id(parser);
         case TOK_LPAREN: return parse_tuple(parser);

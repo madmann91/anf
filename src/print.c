@@ -145,7 +145,17 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
     const size_t indent_inc = 4;
     switch (ast->tag) {
         case AST_ID:  printf("%s", ast->data.id.str); break;
-        case AST_LIT: printf(COLORIZE(colorize, COLOR_LIT("%s")),    ast->data.lit.str); break;
+        case AST_LIT:
+            switch (ast->data.lit.tag) {
+                case LIT_FLT:
+                case LIT_INT:
+                    printf(COLORIZE(colorize, COLOR_LIT("%s")), ast->data.lit.str);
+                    break;
+                case LIT_STR:  printf(COLORIZE(colorize, COLOR_LIT("\"%s\"")), ast->data.lit.str); break;
+                case LIT_CHR:  printf(COLORIZE(colorize, COLOR_LIT("\'%s\'")), ast->data.lit.str); break;
+                case LIT_BOOL: printf(COLORIZE(colorize, COLOR_LIT("%s")), ast->data.lit.value.bval ? "true" : "false"); break;
+            }
+            break;
         case AST_MOD:
             printf(COLORIZE(colorize, COLOR_KEY("mod"), " %s {\n"), ast->data.mod.id->data.id.str);
             indent += indent_inc;
