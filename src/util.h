@@ -36,7 +36,7 @@
 
 // Mini-language to format output using ANSI terminal color codes:
 //
-// * COLORIZEN(ENABLED/DISABLED, ...) generates a string
+// * COLORIZE_N(ENABLED/DISABLED, ...) generates a string
 //   with colors either enabled or disabled (statically).
 //
 // * COLORIZE(flag, ...) generates a dynamic condition
