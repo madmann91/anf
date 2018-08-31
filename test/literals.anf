@@ -1,0 +1,10 @@
+mod literals {
+    def a = 1
+    def b = 1e5
+    def c = 1.0
+    def d = 1.0e5
+    def e = true
+    def f = false
+    def g = "Hello world !"
+    def h = 't'
+}
