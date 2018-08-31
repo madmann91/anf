@@ -742,36 +742,36 @@ cleanup:
     return status == 0;
 }
 
-static void lex_error_fn(lex_t* lex, const loc_t* loc, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", lex->file, loc->brow, loc->bcol, str);
+static void lexer_error_fn(lexer_t* lexer, const loc_t* loc, const char* str) {
+    fprintf(stderr, "%s (%zu, %zu): %s\n", lexer->file, loc->brow, loc->bcol, str);
 }
 
 static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lex->file, loc->brow, loc->bcol, str);
+    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lexer->file, loc->brow, loc->bcol, str);
 }
 
 bool test_lex(void) {
     const char* str =
-        "hello if\' ^ /* this is a multi-\n"
+        "hello if\'c\' ^ /* this is a multi-\n"
         " line comment */ else world!  | // another comment \n"
-        " (- ), < * \" +: var; / def=% >something & 0b010010110 0xFFe45 10.3e+7";
+        " (- ), < * \"string\" +: var; / def=% >something & 0b010010110 0xFFe45 10.3e+7";
     uint32_t tags[] = {
-        TOK_ID, TOK_IF, TOK_QUOTE, TOK_XOR,
+        TOK_ID, TOK_IF, TOK_CHR, TOK_XOR,
         TOK_ELSE, TOK_ID, TOK_NOT, TOK_OR,
-        TOK_LPAREN, TOK_SUB, TOK_RPAREN, TOK_COMMA, TOK_LANGLE, TOK_MUL, TOK_DBLQUOTE,
+        TOK_LPAREN, TOK_SUB, TOK_RPAREN, TOK_COMMA, TOK_LANGLE, TOK_MUL, TOK_STR,
         TOK_ADD, TOK_COLON, TOK_VAR, TOK_SEMI, TOK_DIV, TOK_DEF, TOK_EQ, TOK_REM,
-        TOK_RANGLE, TOK_ID, TOK_AND, TOK_LIT_I, TOK_LIT_I, TOK_LIT_F, TOK_EOF
+        TOK_RANGLE, TOK_ID, TOK_AND, TOK_INT, TOK_INT, TOK_FLT, TOK_EOF
     };
     size_t num_tags = sizeof(tags) / sizeof(tags[0]);
     char* buf = malloc(strlen(str) + 1);
-    lex_t l = {
+    lexer_t lexer = {
         .tmp = 0,
         .str = buf,
         .size = strlen(str),
         .file = "inline string",
         .row  = 1,
         .col  = 1,
-        .error_fn = lex_error_fn,
+        .error_fn = lexer_error_fn,
     };
     strcpy(buf, str);
 
@@ -782,7 +782,7 @@ bool test_lex(void) {
 
     size_t n = 0;
     while (true) {
-        tok_t tok = lex(&l);
+        tok_t tok = lex(&lexer);
         CHECK(n < num_tags && tags[n] == tok.tag);
         n++;
         if (tok.tag == TOK_EOF)
@@ -807,17 +807,17 @@ bool test_parse(void) {
         "}";
     char* buf = malloc(strlen(str) + 1);
     mpool_t* pool = mpool_create();
-    lex_t l = {
+    lexer_t lexer = {
         .tmp      = 0,
         .str      = buf,
         .size     = strlen(str),
         .file     = "inline string",
         .row      = 1,
         .col      = 1,
-        .error_fn = lex_error_fn
+        .error_fn = lexer_error_fn
     };
-    parser_t p = {
-        .lex      = &l,
+    parser_t parser = {
+        .lexer    = &lexer,
         .pool     = &pool,
         .error_fn = parser_error_fn
     };
@@ -828,8 +828,8 @@ bool test_parse(void) {
     if (status)
         goto cleanup;
 
-    ast_t* ast = parse(&p);
-    CHECK(p.errs == 0 && l.errs == 0);
+    ast_t* ast = parse(&parser);
+    CHECK(parser.errs == 0 && lexer.errs == 0);
     CHECK(ast);
 
 cleanup:

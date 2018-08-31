@@ -37,12 +37,12 @@ static void error(const char* file, const loc_t* loc, const char* fmt, ...) {
     va_end(args);
 }
 
-static void lex_error_fn(lex_t* lex, const loc_t* loc, const char* str) {
-    error(lex->file, loc, "%s", str);
+static void lexer_error_fn(lexer_t* lexer, const loc_t* loc, const char* str) {
+    error(lexer->file, loc, "%s", str);
 }
 
 static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
-    error(parser->lex->file, loc, "%s", str);
+    error(parser->lexer->file, loc, "%s", str);
 }
 
 void usage(void) {
@@ -81,17 +81,17 @@ bool process_file(const char* file) {
     }
 
     mpool_t* pool = mpool_create();
-    lex_t lex = {
+    lexer_t lexer = {
         .tmp      = 0,
         .str      = file_data,
         .size     = file_size,
         .file     = file,
         .row      = 1,
         .col      = 1,
-        .error_fn = lex_error_fn
+        .error_fn = lexer_error_fn
     };
     parser_t parser = {
-        .lex      = &lex,
+        .lexer    = &lexer,
         .pool     = &pool,
         .error_fn = parser_error_fn
     };

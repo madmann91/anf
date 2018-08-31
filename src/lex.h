@@ -8,9 +8,10 @@
 #define TOK2STR_BUF_SIZE 32
 
 #define TOK_LIST(f) \
-    f(TOK_LIT_I,    "integer literal") \
-    f(TOK_LIT_F,    "floating point literal") \
+    f(TOK_INT,      "integer literal") \
+    f(TOK_FLT,      "floating point literal") \
     f(TOK_STR,      "string literal") \
+    f(TOK_CHR,      "character literal") \
     f(TOK_ID,       "identifier") \
     f(TOK_NL,       "new line") \
     f(TOK_DEF,      "def") \
@@ -19,8 +20,6 @@
     f(TOK_IF,       "if") \
     f(TOK_ELSE,     "else") \
     f(TOK_MOD,      "mod") \
-    f(TOK_QUOTE,    "\'") \
-    f(TOK_DBLQUOTE, "\"") \
     f(TOK_LPAREN,   "(") \
     f(TOK_RPAREN,   ")") \
     f(TOK_LBRACE,   "{") \
@@ -66,7 +65,7 @@
 
 typedef union  lit_u lit_t;
 typedef struct tok_s tok_t;
-typedef struct lex_s lex_t;
+typedef struct lexer_s lexer_t;
 
 enum tok_tag_e {
 #define TOK(name, str) name,
@@ -75,8 +74,8 @@ enum tok_tag_e {
 };
 
 union lit_u {
-    double   fval;
-    uint64_t ival;
+    double      fval;
+    uint64_t    ival;
 };
 
 struct tok_s {
@@ -86,7 +85,7 @@ struct tok_s {
     loc_t       loc;
 };
 
-struct lex_s {
+struct lexer_s {
     char        tmp;
     const char* file;
     size_t      row;
@@ -94,12 +93,12 @@ struct lex_s {
     size_t      errs;
     char*       str;
     size_t      size;
-    void        (*error_fn)(lex_t*, const loc_t*, const char*);
+    void        (*error_fn)(lexer_t*, const loc_t*, const char*);
 };
 
 char* tok2str(uint32_t, char*);
 
-tok_t lex(lex_t*);
-void lex_error(lex_t*, const loc_t*, const char*, ...);
+tok_t lex(lexer_t*);
+void lex_error(lexer_t*, const loc_t*, const char*, ...);
 
 #endif // LEX_H

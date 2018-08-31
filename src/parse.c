@@ -7,7 +7,7 @@
 
 static inline void next(parser_t* parser) {
     parser->prev_loc = parser->ahead.loc;
-    parser->ahead    = lex(parser->lex);
+    parser->ahead    = lex(parser->lexer);
 }
 
 static inline void eat(parser_t* parser, uint32_t tag) {
@@ -36,14 +36,19 @@ static inline bool eat_nl_or_semi(parser_t* parser) {
 }
 
 static char* tok2str_with_quotes(uint32_t tag, char* buf) {
-    if (tag == TOK_LIT_I ||
-        tag == TOK_LIT_F ||
-        tag == TOK_STR ||
-        tag == TOK_ID ||
-        tag == TOK_NL ||
-        tag == TOK_ERR ||
-        tag == TOK_EOF)
-        return tok2str(tag, buf);
+    switch (tag) {
+        case TOK_INT:
+        case TOK_FLT:
+        case TOK_CHR:
+        case TOK_STR:
+        case TOK_ID:
+        case TOK_NL:
+        case TOK_ERR:
+        case TOK_EOF:
+            return tok2str(tag, buf);
+        default: break;
+    }
+
     buf[0] = '\'';
     tok2str(tag, buf + 1);
     size_t len = strlen(buf);
@@ -112,7 +117,7 @@ static ast_t* parse_block(parser_t*);
 
 // Declarations
 static ast_t* parse_def(parser_t*);
-static ast_t* parse_varl(parser_t*, bool);
+static ast_t* parse_var_or_val(parser_t*, bool);
 static ast_t* parse_mod(parser_t*);
 
 static ast_t* parse_expr(parser_t* parser) {
@@ -122,8 +127,10 @@ static ast_t* parse_expr(parser_t* parser) {
 
 static ast_t* parse_ptrn(parser_t* parser) {
     switch (parser->ahead.tag) {
-        case TOK_LIT_I:
-        case TOK_LIT_F:
+        case TOK_INT:
+        case TOK_FLT:
+        case TOK_CHR:
+        case TOK_STR:
             return parse_lit(parser);
         case TOK_ID:     return parse_id(parser);
         case TOK_LPAREN: return parse_tuple(parser);
@@ -135,8 +142,10 @@ static ast_t* parse_ptrn(parser_t* parser) {
 
 static ast_t* parse_stmt(parser_t* parser) {
     switch (parser->ahead.tag) {
-        case TOK_LIT_I:
-        case TOK_LIT_F:
+        case TOK_INT:
+        case TOK_FLT:
+        case TOK_CHR:
+        case TOK_STR:
         case TOK_ID:
         case TOK_LPAREN:
         case TOK_LBRACE:
@@ -150,8 +159,8 @@ static ast_t* parse_stmt(parser_t* parser) {
 static ast_t* parse_decl(parser_t* parser) {
     switch (parser->ahead.tag) {
         case TOK_DEF: return parse_def(parser);
-        case TOK_VAR: return parse_varl(parser, true);
-        case TOK_VAL: return parse_varl(parser, false);
+        case TOK_VAR: return parse_var_or_val(parser, true);
+        case TOK_VAL: return parse_var_or_val(parser, false);
         default:
             break;
     }
@@ -183,18 +192,28 @@ static ast_t* parse_id(parser_t* parser) {
 
 static ast_t* parse_lit(parser_t* parser) {
     ast_t* ast = create_ast(parser, AST_LIT);
-    if (parser->ahead.tag != TOK_LIT_I && parser->ahead.tag != TOK_LIT_F) {
-        char buf[TOK2STR_BUF_SIZE + 2];
-        parse_error(parser, &parser->ahead.loc, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
-        ast->data.lit.value   = (lit_t) { .ival = 0 };
-        ast->data.lit.integer = true;
-        ast->data.lit.str     = "";
-    } else {
-        char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
-        strcpy(str, parser->ahead.str);
-        ast->data.lit.value   = parser->ahead.lit;
-        ast->data.lit.integer = parser->ahead.tag == TOK_LIT_I;
-        ast->data.lit.str     = str;
+    switch (parser->ahead.tag) {
+        case TOK_INT:
+        case TOK_FLT:
+        case TOK_CHR:
+        case TOK_STR:
+            {
+                char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
+                strcpy(str, parser->ahead.str);
+                ast->data.lit.value   = parser->ahead.lit;
+                ast->data.lit.tag     = parser->ahead.tag;
+                ast->data.lit.str     = str;
+            }
+            break;
+        default:
+            {
+                char buf[TOK2STR_BUF_SIZE + 2];
+                parse_error(parser, &parser->ahead.loc, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
+                ast->data.lit.tag     = LIT_INT;
+                ast->data.lit.value   = (lit_t) { .ival = 0 };
+                ast->data.lit.str     = "";
+            }
+            break;
     }
     next(parser);
     return ast_finalize(parser, ast);
@@ -210,8 +229,10 @@ static ast_t* parse_primary_expr(parser_t* parser) {
                 ast->data.unop.op  = parse_primary_expr(parser);
                 return ast_finalize(parser, ast);
             }
-        case TOK_LIT_I:
-        case TOK_LIT_F:
+        case TOK_INT:
+        case TOK_FLT:
+        case TOK_CHR:
+        case TOK_STR:
             return parse_lit(parser);
         case TOK_ID:     return parse_id(parser);
         case TOK_LPAREN: return parse_tuple(parser);
@@ -301,7 +322,7 @@ static ast_t* parse_def(parser_t* parser) {
     return ast_finalize(parser, ast);
 }
 
-static ast_t* parse_varl(parser_t* parser, bool var) {
+static ast_t* parse_var_or_val(parser_t* parser, bool var) {
     ast_t* ast = create_ast(parser, var ? AST_VAR : AST_VAL);
     eat(parser, var ? TOK_VAR : TOK_VAL);
     eat_nl(parser);

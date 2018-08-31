@@ -6,101 +6,114 @@
 
 #define ERR_BUF_SIZE 256
 
-static inline loc_t make_loc(lex_t* lex, size_t brow, size_t bcol) {
+static inline loc_t make_loc(lexer_t* lexer, size_t brow, size_t bcol) {
     return (loc_t) {
         .brow = brow,
         .bcol = bcol,
-        .erow = lex->row,
-        .ecol = lex->col
+        .erow = lexer->row,
+        .ecol = lexer->col
     };
 }
 
-static inline void eat(lex_t* lex) {
-    assert(lex->size > 0);
-    if (*lex->str == '\n') {
-        lex->row++;
-        lex->col = 1;
+static inline void eat(lexer_t* lexer) {
+    assert(lexer->size > 0);
+    if (*lexer->str == '\n') {
+        lexer->row++;
+        lexer->col = 1;
     } else {
-        lex->col++;
+        lexer->col++;
     }
-    lex->str++;
-    lex->size--;
+    lexer->str++;
+    lexer->size--;
 }
 
-static inline bool accept(lex_t* lex, char c) {
-    assert(lex->size > 0);
-    if (*lex->str == c) {
-        eat(lex);
+static inline bool accept(lexer_t* lexer, char c) {
+    assert(lexer->size > 0);
+    if (*lexer->str == c) {
+        eat(lexer);
         return true;
     }
     return false;
 }
 
-static inline void eat_spaces(lex_t* lex) {
-    while (lex->size > 0 && *lex->str != '\n' && isspace(*lex->str)) eat(lex);
+static inline void eat_spaces(lexer_t* lexer) {
+    while (lexer->size > 0 && *lexer->str != '\n' && isspace(*lexer->str)) eat(lexer);
 }
 
-static void eat_comments(lex_t* lex) {
+static void eat_comments(lexer_t* lexer) {
     while (true) {
-        while (lex->size > 0 && *lex->str != '*') eat(lex);
-        if (lex->size == 0) {
-            loc_t loc = make_loc(lex, lex->row, lex->col);
-            lex_error(lex, &loc, "non-terminated multiline comment");
+        while (lexer->size > 0 && *lexer->str != '*') eat(lexer);
+        if (lexer->size == 0) {
+            loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+            lex_error(lexer, &loc, "non-terminated multiline comment");
             return;
         }
-        eat(lex);
-        if (accept(lex, '/')) break;
+        eat(lexer);
+        if (accept(lexer, '/')) break;
     }
 }
 
-static tok_t parse_lit(lex_t* lex, size_t brow, size_t bcol) {
+static tok_t parse_num(lexer_t* lexer, size_t brow, size_t bcol) {
     int base = 10;
-    if (accept(lex, '0')) {
-        if (accept(lex, 'b'))      base = 2;
-        else if (accept(lex, 'x')) base = 16;
-        else if (accept(lex, 'o')) base = 8;
+    if (accept(lexer, '0')) {
+        if (accept(lexer, 'b'))      base = 2;
+        else if (accept(lexer, 'x')) base = 16;
+        else if (accept(lexer, 'o')) base = 8;
     }
 
-    const char* beg = lex->str;
+    const char* beg = lexer->str;
     
-    if (base ==  2) { while (*lex->str == '0' || *lex->str == '1')  eat(lex); }
-    if (base ==  8) { while (isdigit(*lex->str) && *lex->str < '8') eat(lex); }
-    if (base == 10) { while (isdigit(*lex->str))  eat(lex); }
-    if (base == 16) { while (isxdigit(*lex->str)) eat(lex); }
+    if (base ==  2) { while (*lexer->str == '0' || *lexer->str == '1')  eat(lexer); }
+    if (base ==  8) { while (isdigit(*lexer->str) && *lexer->str < '8') eat(lexer); }
+    if (base == 10) { while (isdigit(*lexer->str))  eat(lexer); }
+    if (base == 16) { while (isxdigit(*lexer->str)) eat(lexer); }
 
     // Parse fractional part and exponent
     bool exp = false, fract = false;
     if (base == 10) {
-        if (accept(lex, '.')) {
+        if (accept(lexer, '.')) {
             fract = true;
-            while (isdigit(*lex->str)) eat(lex);
+            while (isdigit(*lexer->str)) eat(lexer);
         }
 
-        if (accept(lex, 'e')) {
+        if (accept(lexer, 'e')) {
             exp = true;
-            if (!accept(lex, '+')) accept(lex, '-');
-            while (isdigit(*lex->str)) eat(lex);
+            if (!accept(lexer, '+')) accept(lexer, '-');
+            while (isdigit(*lexer->str)) eat(lexer);
         }
     }
 
     // Add a zero at the end of the string to terminate it
-    lex->tmp = *lex->str;
-    *lex->str = 0;
+    lexer->tmp = *lexer->str;
+    *lexer->str = 0;
 
     if (exp || fract) {
         return (tok_t) {
-            .tag = TOK_LIT_F,
+            .tag = TOK_FLT,
             .lit = { .fval = strtod(beg, NULL) },
             .str = beg,
-            .loc = make_loc(lex, brow, bcol)
+            .loc = make_loc(lexer, brow, bcol)
         };
     }
     return (tok_t) {
-        .tag = TOK_LIT_I,
+        .tag = TOK_INT,
         .lit = { .ival = strtoull(beg, NULL, base) },
         .str = beg,
-        .loc = make_loc(lex, brow, bcol)
+        .loc = make_loc(lexer, brow, bcol)
     };
+}
+
+static tok_t parse_str_or_chr(lexer_t* lexer, bool str, int brow, int bcol) {
+    const char* beg = lexer->str;
+    if (!str) eat(lexer);
+    else while (lexer->size > 0 && *lexer->str != '\"') eat(lexer);
+    char* end = lexer->str;
+    if (!accept(lexer, str ? '\"' : '\'')) {
+        loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+        lex_error(lexer, &loc, str ? "unterminated string literal" : "unterminated character literal");
+    }
+    *end = 0;
+    return (tok_t) { .tag = str ? TOK_STR : TOK_CHR, .str = beg, .loc = make_loc(lexer, brow, bcol) };
 }
 
 char* tok2str(uint32_t tag, char* buf) {
@@ -116,57 +129,58 @@ char* tok2str(uint32_t tag, char* buf) {
     return buf;
 }
 
-tok_t lex(lex_t* lex) {
+tok_t lex(lexer_t* lexer) {
     // Restore previously removed character (if any)
-    if (lex->tmp) *lex->str = lex->tmp, lex->tmp = 0;
+    if (lexer->tmp) *lexer->str = lexer->tmp, lexer->tmp = 0;
 
     while (true) {
-        eat_spaces(lex);
+        eat_spaces(lexer);
 
-        size_t brow = lex->row;
-        size_t bcol = lex->col;
+        size_t brow = lexer->row;
+        size_t bcol = lexer->col;
 
-        if (lex->size == 0)
-            return (tok_t) { .tag = TOK_EOF, .loc = make_loc(lex, brow, bcol) };
+        if (lexer->size == 0)
+            return (tok_t) { .tag = TOK_EOF, .loc = make_loc(lexer, brow, bcol) };
 
-        if (accept(lex, '\n')) return (tok_t) { .tag = TOK_NL,       .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '\'')) return (tok_t) { .tag = TOK_QUOTE,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '\"')) return (tok_t) { .tag = TOK_DBLQUOTE, .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '('))  return (tok_t) { .tag = TOK_LPAREN,   .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ')'))  return (tok_t) { .tag = TOK_RPAREN,   .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '{'))  return (tok_t) { .tag = TOK_LBRACE,   .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, '}'))  return (tok_t) { .tag = TOK_RBRACE,   .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ','))  return (tok_t) { .tag = TOK_COMMA,    .loc = make_loc(lex, brow, bcol) };
-        if (accept(lex, ';'))  return (tok_t) { .tag = TOK_SEMI,     .loc = make_loc(lex, brow, bcol) };
+        if (accept(lexer, '\n')) return (tok_t) { .tag = TOK_NL,       .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '('))  return (tok_t) { .tag = TOK_LPAREN,   .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, ')'))  return (tok_t) { .tag = TOK_RPAREN,   .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '{'))  return (tok_t) { .tag = TOK_LBRACE,   .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '}'))  return (tok_t) { .tag = TOK_RBRACE,   .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, ','))  return (tok_t) { .tag = TOK_COMMA,    .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, ';'))  return (tok_t) { .tag = TOK_SEMI,     .loc = make_loc(lexer, brow, bcol) };
 
-        if (accept(lex, '<')) {
-            if (accept(lex, '<')) {
-                if (accept(lex, '=')) return (tok_t) { .tag = TOK_LSHFTEQ, .loc = make_loc(lex, brow, bcol) };
-                return (tok_t) { .tag = TOK_LSHFT, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lexer, '\'')) return parse_str_or_chr(lexer, false, brow, bcol);
+        if (accept(lexer, '\"')) return parse_str_or_chr(lexer, true,  brow, bcol);
+
+        if (accept(lexer, '<')) {
+            if (accept(lexer, '<')) {
+                if (accept(lexer, '=')) return (tok_t) { .tag = TOK_LSHFTEQ, .loc = make_loc(lexer, brow, bcol) };
+                return (tok_t) { .tag = TOK_LSHFT, .loc = make_loc(lexer, brow, bcol) };
             }
-            if (accept(lex, '=')) return (tok_t) { .tag = TOK_CMPLE, .loc = make_loc(lex, brow, bcol) };
-            return (tok_t) { .tag = TOK_LANGLE, .loc = make_loc(lex, brow, bcol) };
+            if (accept(lexer, '=')) return (tok_t) { .tag = TOK_CMPLE, .loc = make_loc(lexer, brow, bcol) };
+            return (tok_t) { .tag = TOK_LANGLE, .loc = make_loc(lexer, brow, bcol) };
         }
 
-        if (accept(lex, '>')) {
-            if (accept(lex, '>')) {
-                if (accept(lex, '=')) return (tok_t) { .tag = TOK_RSHFTEQ, .loc = make_loc(lex, brow, bcol) };
-                return (tok_t) { .tag = TOK_RSHFT, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lexer, '>')) {
+            if (accept(lexer, '>')) {
+                if (accept(lexer, '=')) return (tok_t) { .tag = TOK_RSHFTEQ, .loc = make_loc(lexer, brow, bcol) };
+                return (tok_t) { .tag = TOK_RSHFT, .loc = make_loc(lexer, brow, bcol) };
             }
-            if (accept(lex, '=')) return (tok_t) { .tag = TOK_CMPGE, .loc = make_loc(lex, brow, bcol) };
-            return (tok_t) { .tag = TOK_RANGLE, .loc = make_loc(lex, brow, bcol) };
+            if (accept(lexer, '=')) return (tok_t) { .tag = TOK_CMPGE, .loc = make_loc(lexer, brow, bcol) };
+            return (tok_t) { .tag = TOK_RANGLE, .loc = make_loc(lexer, brow, bcol) };
         }
 
-        if (accept(lex, ':')) {
-            if (accept(lex, ':')) return (tok_t) { .tag = TOK_DBLCOLON, .loc = make_loc(lex, brow, bcol) }; 
-            return (tok_t) { .tag = TOK_COLON, .loc = make_loc(lex, brow, bcol) };
+        if (accept(lexer, ':')) {
+            if (accept(lexer, ':')) return (tok_t) { .tag = TOK_DBLCOLON, .loc = make_loc(lexer, brow, bcol) };
+            return (tok_t) { .tag = TOK_COLON, .loc = make_loc(lexer, brow, bcol) };
         }
 
 #define LEX_BINOP(symbol, tag_, tag_eq, tag_dbl, dbl) \
-    if (accept(lex, symbol)) { \
-        if (accept(lex, '=')) return (tok_t) { .tag = tag_eq, .loc = make_loc(lex, brow, bcol) }; \
-        if (dbl && accept(lex, symbol)) return (tok_t) { .tag = tag_dbl, .loc = make_loc(lex, brow, bcol) }; \
-        return (tok_t) { .tag = tag_, .loc = make_loc(lex, brow, bcol) }; \
+    if (accept(lexer, symbol)) { \
+        if (accept(lexer, '=')) return (tok_t) { .tag = tag_eq, .loc = make_loc(lexer, brow, bcol) }; \
+        if (dbl && accept(lexer, symbol)) return (tok_t) { .tag = tag_dbl, .loc = make_loc(lexer, brow, bcol) }; \
+        return (tok_t) { .tag = tag_, .loc = make_loc(lexer, brow, bcol) }; \
     }
 
         LEX_BINOP('+', TOK_ADD, TOK_ADDEQ, TOK_INC, true)
@@ -181,50 +195,50 @@ tok_t lex(lex_t* lex) {
 
 #undef LEX_BINOP
 
-        if (accept(lex, '/')) {
-            if (accept(lex, '*')) {
-                eat_comments(lex);
+        if (accept(lexer, '/')) {
+            if (accept(lexer, '*')) {
+                eat_comments(lexer);
                 continue;
-            } else if (accept(lex, '/')) {
-                while (lex->size > 0 && *lex->str != '\n') eat(lex);
-                if (lex->size > 0) eat(lex);
+            } else if (accept(lexer, '/')) {
+                while (lexer->size > 0 && *lexer->str != '\n') eat(lexer);
+                if (lexer->size > 0) eat(lexer);
                 continue;
             }
-            if (accept(lex, '=')) return (tok_t) { .tag = TOK_DIVEQ, .loc = make_loc(lex, brow, bcol) };
-            return (tok_t) { .tag = TOK_DIV, .loc = make_loc(lex, brow, bcol) };
+            if (accept(lexer, '=')) return (tok_t) { .tag = TOK_DIVEQ, .loc = make_loc(lexer, brow, bcol) };
+            return (tok_t) { .tag = TOK_DIV, .loc = make_loc(lexer, brow, bcol) };
         }
 
-        if (isalpha(*lex->str)) {
-            const char* beg = lex->str;
-            while (isalnum(*lex->str) || *lex->str == '_') eat(lex);
-            char* end = lex->str;
-            lex->tmp = *end;
+        if (isalpha(*lexer->str)) {
+            const char* beg = lexer->str;
+            while (isalnum(*lexer->str) || *lexer->str == '_') eat(lexer);
+            char* end = lexer->str;
+            lexer->tmp = *end;
             *end = 0;
-            if (!strcmp(beg, "def"))  return (tok_t) { .tag = TOK_DEF,  .loc = make_loc(lex, brow, bcol) };
-            if (!strcmp(beg, "var"))  return (tok_t) { .tag = TOK_VAR,  .loc = make_loc(lex, brow, bcol) };
-            if (!strcmp(beg, "val"))  return (tok_t) { .tag = TOK_VAL,  .loc = make_loc(lex, brow, bcol) };
-            if (!strcmp(beg, "if"))   return (tok_t) { .tag = TOK_IF,   .loc = make_loc(lex, brow, bcol) };
-            if (!strcmp(beg, "else")) return (tok_t) { .tag = TOK_ELSE, .loc = make_loc(lex, brow, bcol) };
-            if (!strcmp(beg, "mod"))  return (tok_t) { .tag = TOK_MOD,  .loc = make_loc(lex, brow, bcol) };
-            return (tok_t) { .tag = TOK_ID, .str = beg, .loc = make_loc(lex, brow, bcol) };
+            if (!strcmp(beg, "def"))  return (tok_t) { .tag = TOK_DEF,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "var"))  return (tok_t) { .tag = TOK_VAR,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "val"))  return (tok_t) { .tag = TOK_VAL,  .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "if"))   return (tok_t) { .tag = TOK_IF,   .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "else")) return (tok_t) { .tag = TOK_ELSE, .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "mod"))  return (tok_t) { .tag = TOK_MOD,  .loc = make_loc(lexer, brow, bcol) };
+            return (tok_t) { .tag = TOK_ID, .str = beg, .loc = make_loc(lexer, brow, bcol) };
         }
 
-        if (isdigit(*lex->str))
-            return parse_lit(lex, brow, bcol);
+        if (isdigit(*lexer->str))
+            return parse_num(lexer, brow, bcol);
 
-        eat(lex);
-        loc_t loc = make_loc(lex, brow, bcol);
-        lex_error(lex, &loc, "unknown token '%c'", *lex->str);
+        eat(lexer);
+        loc_t loc = make_loc(lexer, brow, bcol);
+        lex_error(lexer, &loc, "unknown token '%c'", *lexer->str);
         return (tok_t) { .tag = TOK_ERR, .loc = loc };
     }
 }
 
-void lex_error(lex_t* lex, const loc_t* loc, const char* fmt, ...) {
+void lex_error(lexer_t* lexer, const loc_t* loc, const char* fmt, ...) {
     char buf[ERR_BUF_SIZE];
-    lex->errs++;
+    lexer->errs++;
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, ERR_BUF_SIZE, fmt, args);
-    lex->error_fn(lex, loc, buf);
+    lexer->error_fn(lexer, loc, buf);
     va_end(args);
 }

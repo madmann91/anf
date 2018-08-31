@@ -29,6 +29,13 @@ enum ast_tag_e {
     AST_ERR
 };
 
+enum lit_tag_e {
+    LIT_FLT = TOK_FLT,
+    LIT_INT = TOK_INT,
+    LIT_CHR = TOK_CHR,
+    LIT_STR = TOK_STR
+};
+
 enum unop_tag_e {
     UNOP_NEG,
     UNOP_PLUS,
@@ -78,9 +85,9 @@ struct ast_s {
             const char* str;
         } id;
         struct {
+            uint32_t    tag;
             const char* str;
             lit_t       value;
-            bool        integer;
         } lit;
         struct {
             ast_t*      id;
