@@ -111,8 +111,9 @@ static ast_t* parse_id(parser_t*);
 static ast_t* parse_lit(parser_t*);
 
 // Expressions/Patterns
-static ast_t* parse_primary_expr(parser_t*);
-static ast_t* parse_binary_expr(parser_t*, ast_t*, int);
+static ast_t* parse_primary(parser_t*);
+static ast_t* parse_unop(parser_t*, uint32_t);
+static ast_t* parse_binop(parser_t*, ast_t*, int);
 static ast_t* parse_tuple(parser_t*);
 static ast_t* parse_block(parser_t*);
 
@@ -122,8 +123,8 @@ static ast_t* parse_var_or_val(parser_t*, bool);
 static ast_t* parse_mod(parser_t*);
 
 static ast_t* parse_expr(parser_t* parser) {
-    ast_t* ast = parse_primary_expr(parser);
-    return parse_binary_expr(parser, ast, MAX_BINOP_PRECEDENCE);
+    ast_t* ast = parse_primary(parser);
+    return parse_binop(parser, ast, MAX_BINOP_PRECEDENCE);
 }
 
 static ast_t* parse_ptrn(parser_t* parser) {
@@ -195,46 +196,31 @@ static ast_t* parse_id(parser_t* parser) {
 
 static ast_t* parse_lit(parser_t* parser) {
     ast_t* ast = create_ast(parser, AST_LIT);
-    switch (parser->ahead.tag) {
-        case TOK_INT:
-        case TOK_FLT:
-        case TOK_CHR:
-        case TOK_STR:
-        case TOK_BOOL:
-            {
-                if (parser->ahead.str) {
-                    char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
-                    strcpy(str, parser->ahead.str);
-                    ast->data.lit.str = str;
-                }
-                ast->data.lit.value = parser->ahead.lit;
-                ast->data.lit.tag   = parser->ahead.tag;
-            }
-            break;
-        default:
-            {
-                char buf[TOK2STR_BUF_SIZE + 2];
-                parse_error(parser, &parser->ahead.loc, "literal expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
-                ast->data.lit.tag   = LIT_INT;
-                ast->data.lit.value = (lit_t) { .ival = 0 };
-                ast->data.lit.str   = "";
-            }
-            break;
+    assert(parser->ahead.tag == TOK_INT ||
+           parser->ahead.tag == TOK_FLT ||
+           parser->ahead.tag == TOK_CHR ||
+           parser->ahead.tag == TOK_STR ||
+           parser->ahead.tag == TOK_BOOL);
+    if (parser->ahead.str) {
+        char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
+        strcpy(str, parser->ahead.str);
+        ast->data.lit.str = str;
     }
+    ast->data.lit.value = parser->ahead.lit;
+    ast->data.lit.tag   = parser->ahead.tag;
     next(parser);
     return ast_finalize(parser, ast);
 }
 
-static ast_t* parse_primary_expr(parser_t* parser) {
+static ast_t* parse_primary(parser_t* parser) {
     switch (parser->ahead.tag) {
-        case TOK_DEC:
-        case TOK_INC:
-            {
-                ast_t* ast = create_ast(parser, AST_UNOP);
-                ast->data.unop.tag = parser->ahead.tag == TOK_DEC ? UNOP_PRE_DEC : UNOP_PRE_INC;
-                ast->data.unop.op  = parse_primary_expr(parser);
-                return ast_finalize(parser, ast);
-            }
+        case TOK_NOT: return parse_unop(parser, UNOP_NOT);
+        case TOK_ADD: return parse_unop(parser, UNOP_PLUS);
+        case TOK_SUB: return parse_unop(parser, UNOP_NEG);
+        case TOK_DEC: return parse_unop(parser, UNOP_PRE_DEC);
+        case TOK_INC: return parse_unop(parser, UNOP_PRE_INC);
+        case TOK_AND: return parse_unop(parser, UNOP_TAKE_ADDR);
+        case TOK_MUL: return parse_unop(parser, UNOP_DEREF);
         case TOK_INT:
         case TOK_FLT:
         case TOK_CHR:
@@ -250,7 +236,15 @@ static ast_t* parse_primary_expr(parser_t* parser) {
     return parse_err(parser, "primary expression");
 }
 
-static ast_t* parse_binary_expr(parser_t* parser, ast_t* left, int max_prec) {
+static ast_t* parse_unop(parser_t* parser, uint32_t tag) {
+    ast_t* ast = create_ast(parser, AST_UNOP);
+    next(parser);
+    ast->data.unop.tag = tag;
+    ast->data.unop.op  = parse_primary(parser);
+    return ast_finalize(parser, ast);
+}
+
+static ast_t* parse_binop(parser_t* parser, ast_t* left, int max_prec) {
     while (true) {
         uint32_t tag = binop_tag_from_token(parser->ahead.tag);
         if (tag == INVALID_TAG) break;
@@ -258,13 +252,13 @@ static ast_t* parse_binary_expr(parser_t* parser, ast_t* left, int max_prec) {
         if (prec > max_prec) break;
         next(parser);
 
-        ast_t* right = parse_primary_expr(parser);
+        ast_t* right = parse_primary(parser);
 
         uint32_t next_tag = binop_tag_from_token(parser->ahead.tag);
         if (next_tag != INVALID_TAG) {
             int next_prec = binop_precedence(next_tag);
             if (next_prec < prec)
-                right = parse_binary_expr(parser, right, next_prec);
+                right = parse_binop(parser, right, next_prec);
         }
 
         ast_t* binop = create_ast_with_loc(parser, AST_BINOP, left->loc);

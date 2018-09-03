@@ -38,6 +38,7 @@ enum lit_tag_e {
 };
 
 enum unop_tag_e {
+    UNOP_NOT,
     UNOP_NEG,
     UNOP_PLUS,
     UNOP_PRE_INC,
