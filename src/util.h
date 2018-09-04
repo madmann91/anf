@@ -14,11 +14,11 @@
 #define PROBE(x) x, 1,
 
 // Evaluates to 1 for probes, otherwise 0
-#define CHECK(...) CHECK_N(__VA_ARGS__, 0, )
-#define CHECK_N(x, n, ...) n
+#define IS_PROBE(...) IS_PROBE_N(__VA_ARGS__, 0, )
+#define IS_PROBE_N(x, n, ...) n
 
 // Evaluates to 1 if the expression is parenthesized, otherwise 0
-#define IS_PAREN(x) CHECK(IS_PAREN_PROBE x)
+#define IS_PAREN(x) IS_PROBE(IS_PAREN_PROBE x)
 #define IS_PAREN_PROBE(...) PROBE(~)
 
 // Helper macro for compile-time loops over macro arguments
