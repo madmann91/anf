@@ -33,4 +33,4 @@ target_link_libraries(anf libanf)
 
 install(TARGETS anf DESTINATION bin)
 install(TARGETS libanf DESTINATION lib)
-install(FILES ${LIBANF_HDRS} DESTINATION INCLUDE)
+install(FILES ${LIBANF_HDRS} DESTINATION include)
