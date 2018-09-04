@@ -269,11 +269,11 @@ bool test_arrays(void) {
     elems1[0] = node_i32(mod, 1);
     elems1[1] = node_i32(mod, 2);
     elems1[2] = node_i32(mod, 3);
-    array1 = node_array(mod, 3, elems1, NULL);
+    array1 = node_array(mod, 3, elems1, elems1[0]->type, NULL);
     elems2[0] = node_i32(mod, 4);
     elems2[1] = node_i32(mod, 5);
     elems2[2] = node_i32(mod, 6);
-    array2 = node_array(mod, 3, elems2, NULL);
+    array2 = node_array(mod, 3, elems2, elems2[0]->type, NULL);
 
     CHECK(node_extract(mod, array1, node_i32(mod, 0), NULL) == elems1[0]);
     CHECK(node_extract(mod, array1, node_i32(mod, 1), NULL) == elems1[1]);

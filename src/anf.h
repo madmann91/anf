@@ -44,7 +44,8 @@
     f(NODE_FN,      "fn") \
     f(NODE_PARAM,   "param") \
     f(NODE_APP,     "app") \
-    f(NODE_KNOWN,   "known")
+    f(NODE_KNOWN,   "known") \
+    f(NODE_TRAP,    "trap")
 
 #define TYPE_LIST(f) \
     f(TYPE_I1,    "i1") \
@@ -234,9 +235,11 @@ bool node_is_not(const node_t*);
 bool node_is_cmp(const node_t*);
 bool node_implies(mod_t*, const node_t*, const node_t*, bool, bool);
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
-const node_t* node_array(mod_t*, size_t, const node_t**, const dbg_t*);
+const node_t* node_array(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
 const node_t* node_tuple_args(mod_t*, size_t, const dbg_t*, ...);
-const node_t* node_array_args(mod_t*, size_t, const dbg_t*, ...);
+const node_t* node_array_args(mod_t*, size_t, const type_t*, const dbg_t*, ...);
+const node_t* node_array_ptr(mod_t*, size_t, const void*, uint32_t, const dbg_t*);
+const node_t* node_string(mod_t*, const char*, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const dbg_t*);
@@ -276,6 +279,7 @@ const node_t* node_offset(mod_t*, const node_t*, const node_t*, const dbg_t*);
 // Misc.
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_trap(mod_t*, const node_t*, const type_t*, const dbg_t*);
 
 // Functions
 void fn_bind(mod_t*, fn_t*, size_t, const node_t*);
