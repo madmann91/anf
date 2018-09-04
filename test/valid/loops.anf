@@ -1,0 +1,13 @@
+mod loops {
+    def main() {
+        for (i <- range(0, 5)) {
+            print(i)
+            continue()
+        }
+        for (i <- range(1, 7)) print(i)
+        while (false) println(42)
+        while (true) {
+            break()
+        }
+    }
+}

@@ -20,6 +20,11 @@
     f(TOK_VAL,      "val") \
     f(TOK_IF,       "if") \
     f(TOK_ELSE,     "else") \
+    f(TOK_WHILE,    "while") \
+    f(TOK_FOR,      "for") \
+    f(TOK_BREAK,    "break") \
+    f(TOK_CONTINUE, "continue") \
+    f(TOK_RETURN,   "return") \
     f(TOK_MOD,      "mod") \
     f(TOK_LPAREN,   "(") \
     f(TOK_RPAREN,   ")") \
@@ -61,6 +66,8 @@
     f(TOK_RSHFTEQ,  ">>=") \
     f(TOK_DBLAND,   "&&") \
     f(TOK_DBLOR,    "||") \
+    f(TOK_LARROW,   "<-") \
+    f(TOK_RARROW,   "=>") \
     f(TOK_ERR,      "invalid token") \
     f(TOK_EOF,      "end of file")
 

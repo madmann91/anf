@@ -1,0 +1,18 @@
+mod conditions {
+    def c1 = if (true) { 1 } else { 2 }
+    def c2 = if (false) true else false
+    def c3 = if (c2) c1 else { 2 }
+    def c4 = if
+        (
+        true
+        )
+        {1}
+        else (2)
+    val (x, y) = (33, if
+              (
+                true)
+              { 
+                1
+}
+              else ( 2) );
+}

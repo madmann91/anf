@@ -845,8 +845,8 @@ typedef struct {
 
 void usage(void) {
     printf("usage: test [options]\n"
-           "  -h           show this message\n"
-           "  -t [module]  test the given module\n");
+           "  -h           Show this message\n"
+           "  -t [module]  Test the given module\n");
 }
 
 size_t find_test(const char* name, const test_t* tests, size_t ntests) {
@@ -856,9 +856,10 @@ size_t find_test(const char* name, const test_t* tests, size_t ntests) {
     return ntests;
 }
 
-void run_test(const test_t* test) {
+bool run_test(const test_t* test) {
     bool res = test->test_fn();
     printf("- %s: %s\n", test->name, res ? "\33[;32;1mOK\33[0m" : "\33[;31;1mFAIL\33[0m");
+    return res;
 }
 
 int main(int argc, char** argv) {
@@ -880,6 +881,7 @@ int main(int argc, char** argv) {
         {"parse",    test_parse}
     };
     const size_t ntests = sizeof(tests) / sizeof(test_t);
+    bool ok = true;
     if (argc > 1) {
         for (int i = 1; i < argc; ++i) {
             if (!strcmp(argv[i], "-h")) {
@@ -905,7 +907,7 @@ int main(int argc, char** argv) {
     } else {
         printf("running all tests\n");
         for (size_t i = 0; i < ntests; ++i)
-            run_test(&tests[i]);
+            ok &= run_test(&tests[i]);
     }
-    return 0;
+    return ok ? 0 : 1;
 }

@@ -22,10 +22,14 @@ enum ast_tag_e {
     AST_BINOP,
     AST_UNOP,
     AST_LAMBDA,
+    AST_CALL,
     AST_IF,
     AST_MATCH,
     AST_WHILE,
     AST_FOR,
+    AST_BREAK,
+    AST_CONTINUE,
+    AST_RETURN,
     AST_ERR
 };
 
@@ -128,6 +132,7 @@ struct ast_s {
             ast_t*      arg;
         } call;
         struct {
+            ast_t*      cond;
             ast_t*      if_true;
             ast_t*      if_false;
         } if_;
@@ -137,7 +142,7 @@ struct ast_s {
         } while_;
         struct {
             ast_t*      vars;
-            ast_t*      call;
+            ast_t*      expr;
             ast_t*      body;
         } for_;
     } data;

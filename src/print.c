@@ -214,6 +214,37 @@ void ast_print(const ast_t* ast, size_t indent, bool colorize) {
                 if (!prefix) printf("%s", symbol);
             }
             break;
+        case AST_CALL:
+            ast_print(ast->data.call.callee, indent, colorize);
+            ast_print(ast->data.call.arg, indent, colorize);
+            break;
+        case AST_IF:
+            printf(COLORIZE(colorize, COLOR_KEY("if"), " "));
+            ast_print(ast->data.if_.cond, indent, colorize);
+            printf(" ");
+            ast_print(ast->data.if_.if_true, indent, colorize);
+            if (ast->data.if_.if_false) {
+                printf(COLORIZE(colorize, " ", COLOR_KEY("else"), " "));
+                ast_print(ast->data.if_.if_false, indent, colorize);
+            }
+            break;
+        case AST_WHILE:
+            printf(COLORIZE(colorize, COLOR_KEY("while"), " "));
+            ast_print(ast->data.while_.cond, indent, colorize);
+            printf(" ");
+            ast_print(ast->data.while_.body, indent, colorize);
+            break;
+        case AST_FOR:
+            printf(COLORIZE(colorize, COLOR_KEY("for"), " ("));
+            ast_print(ast->data.for_.vars, indent, colorize);
+            printf(" <- ");
+            ast_print(ast->data.for_.expr, indent, colorize);
+            printf(") ");
+            ast_print(ast->data.for_.body, indent, colorize);
+            break;
+        case AST_BREAK:    printf(COLORIZE(colorize, COLOR_KEY("break")));    break;
+        case AST_CONTINUE: printf(COLORIZE(colorize, COLOR_KEY("continue"))); break;
+        case AST_RETURN:   printf(COLORIZE(colorize, COLOR_KEY("return")));   break;
         case AST_ERR:
             printf(COLORIZE(colorize, COLOR_ERR("<syntax error>")));
             break;
