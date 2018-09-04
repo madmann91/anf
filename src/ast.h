@@ -24,9 +24,10 @@ enum ast_tag_e {
     AST_LAMBDA,
     AST_CALL,
     AST_IF,
-    AST_MATCH,
     AST_WHILE,
     AST_FOR,
+    AST_MATCH,
+    AST_CASE,
     AST_BREAK,
     AST_CONTINUE,
     AST_RETURN,
@@ -146,6 +147,14 @@ struct ast_s {
             ast_t*      expr;
             ast_t*      body;
         } for_;
+        struct {
+            ast_t*      expr;
+            ast_list_t* cases;
+        } match;
+        struct {
+            ast_t*      ptrn;
+            ast_t*      value;
+        } case_;
     } data;
     const type_t* type;
     loc_t loc;
@@ -164,8 +173,5 @@ const char* binop_symbol(uint32_t);
 
 bool unop_is_prefix(uint32_t);
 const char* unop_symbol(uint32_t);
-
-void ast_print(const ast_t*, size_t, bool);
-void ast_dump(const ast_t*);
 
 #endif // AST_H

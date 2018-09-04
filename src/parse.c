@@ -122,6 +122,8 @@ static ast_t* parse_block(parser_t*);
 static ast_t* parse_if(parser_t*);
 static ast_t* parse_while(parser_t*);
 static ast_t* parse_for(parser_t*);
+static ast_t* parse_match(parser_t*, ast_t*);
+static ast_t* parse_case(parser_t*);
 static ast_t* parse_break(parser_t*);
 static ast_t* parse_continue(parser_t*);
 static ast_t* parse_return(parser_t*);
@@ -264,8 +266,14 @@ static ast_t* parse_primary(parser_t* parser) {
         ast = parse_post_unop(parser, ast, UNOP_POST_INC);
     else if (parser->ahead.tag == TOK_DEC)
         ast = parse_post_unop(parser, ast, UNOP_POST_DEC);
-    while (parser->ahead.tag == TOK_LPAREN)
-        ast = parse_call(parser, ast);
+    while (true) {
+        switch (parser->ahead.tag) {
+            case TOK_LPAREN: ast = parse_call(parser, ast);  continue;
+            case TOK_MATCH:  ast = parse_match(parser, ast); continue;
+            default: break;
+        }
+        break;
+    }
     return ast;
 }
 
@@ -398,6 +406,37 @@ static ast_t* parse_for(parser_t* parser) {
     expect(parser, "for loop", TOK_RPAREN);
     eat_nl(parser);
     ast->data.for_.body = parse_expr(parser);
+    return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_match(parser_t* parser, ast_t* expr) {
+    ast_t* ast = ast_create(parser, AST_MATCH);
+    eat(parser, TOK_MATCH);
+    eat_nl(parser);
+    expect(parser, "match expression", TOK_LBRACE);
+    eat_nl(parser);
+    ast->data.match.expr = expr;
+    ast_list_t** cur = &ast->data.match.cases;
+    while (parser->ahead.tag == TOK_CASE) {
+        ast_t* arg = parse_case(parser);
+        cur = ast_list_add(parser, cur, arg);
+
+        if (!eat_nl_or_semi(parser))
+            break;
+    }
+    expect(parser, "match expression", TOK_RBRACE);
+    return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_case(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_CASE);
+    eat(parser, TOK_CASE);
+    eat_nl(parser);
+    ast->data.case_.ptrn = parse_ptrn(parser);
+    eat_nl(parser);
+    expect(parser, "match case", TOK_RARROW);
+    eat_nl(parser);
+    ast->data.case_.value = parse_expr(parser);
     return ast_finalize(ast, parser);
 }
 

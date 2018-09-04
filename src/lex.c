@@ -214,7 +214,7 @@ tok_t lex(lexer_t* lexer) {
             return (tok_t) { .tag = TOK_DIV, .loc = make_loc(lexer, brow, bcol) };
         }
 
-        if (isalpha(*lexer->str)) {
+        if (isalpha(*lexer->str) || *lexer->str == '_') {
             const char* beg = lexer->str;
             while (isalnum(*lexer->str) || *lexer->str == '_') eat(lexer);
             char* end = lexer->str;
@@ -227,6 +227,8 @@ tok_t lex(lexer_t* lexer) {
             if (!strcmp(beg, "else"))     return (tok_t) { .tag = TOK_ELSE,     .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "while"))    return (tok_t) { .tag = TOK_WHILE,    .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "for"))      return (tok_t) { .tag = TOK_FOR,      .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "match"))    return (tok_t) { .tag = TOK_MATCH,    .loc = make_loc(lexer, brow, bcol) };
+            if (!strcmp(beg, "case"))     return (tok_t) { .tag = TOK_CASE,     .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "break"))    return (tok_t) { .tag = TOK_BREAK,    .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "continue")) return (tok_t) { .tag = TOK_CONTINUE, .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "return"))   return (tok_t) { .tag = TOK_RETURN,   .loc = make_loc(lexer, brow, bcol) };
@@ -239,9 +241,9 @@ tok_t lex(lexer_t* lexer) {
         if (isdigit(*lexer->str))
             return parse_num(lexer, brow, bcol);
 
-        eat(lexer);
         loc_t loc = make_loc(lexer, brow, bcol);
         lex_error(lexer, &loc, "unknown token '%c'", *lexer->str);
+        eat(lexer);
         return (tok_t) { .tag = TOK_ERR, .loc = loc };
     }
 }

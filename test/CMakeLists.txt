@@ -7,3 +7,4 @@ add_test(NAME literals  COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/literals.an
 add_test(NAME functions COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/functions.anf)
 add_test(NAME loops     COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/loops.anf)
 add_test(NAME ops       COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/ops.anf)
+add_test(NAME pow       COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/pow.anf)

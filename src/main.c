@@ -7,6 +7,7 @@
 #include "parse.h"
 #include "util.h"
 #include "mpool.h"
+#include "print.h"
 
 #if defined(_WIN32) && !defined (__CYGWIN__)
     #define WIN32_LEAN_AND_MEAN 1
@@ -99,8 +100,9 @@ bool process_file(const char* file) {
     ast_t* ast = parse(&parser);
     bool ok = !parser.errs && !lexer.errs;
     if (ok) {
-        ast_print(ast, 0, colorize);
-        printf("\n");
+        file_printer_t file_printer = printer_from_file(stdout, colorize, 0);
+        ast_print(ast, &file_printer.printer);
+        pprintf(&file_printer.printer, "\n");
     }
 
     free(file_data);

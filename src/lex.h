@@ -22,6 +22,8 @@
     f(TOK_ELSE,     "else") \
     f(TOK_WHILE,    "while") \
     f(TOK_FOR,      "for") \
+    f(TOK_MATCH,    "match") \
+    f(TOK_CASE,     "case") \
     f(TOK_BREAK,    "break") \
     f(TOK_CONTINUE, "continue") \
     f(TOK_RETURN,   "return") \

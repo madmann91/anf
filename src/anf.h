@@ -296,10 +296,4 @@ void node_replace(const node_t*, const node_t*);
 const use_t* use_find(const use_t*, size_t, const node_t*);
 size_t node_count_uses(const node_t*);
 
-// Debugging/Inspection
-void type_print(const type_t*, bool);
-void node_print(const node_t*, bool);
-void type_dump(const type_t*);
-void node_dump(const node_t*);
-
 #endif // ANF_H

@@ -7,7 +7,6 @@ set(LIBANF_SRCS
     mpool.c
     scope.c
     io.c
-    io.h
     opt.c
     mem2reg.c
     flatten.c
@@ -23,6 +22,7 @@ set(LIBANF_HDRS
     mpool.h
     scope.h
     io.h
+    print.h
     util.h)
 
 add_library(libanf ${LIBANF_SRCS} ${LIBANF_HDRS})

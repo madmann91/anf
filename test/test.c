@@ -10,6 +10,7 @@
 #include "io.h"
 #include "lex.h"
 #include "parse.h"
+#include "print.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
