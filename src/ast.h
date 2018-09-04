@@ -78,6 +78,7 @@ enum binop_tag_e {
     BINOP_LOGIC_AND,
     BINOP_LOGIC_OR,
     BINOP_CMPEQ,
+    BINOP_CMPNE,
     BINOP_CMPGT,
     BINOP_CMPLT,
     BINOP_CMPGE,

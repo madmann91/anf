@@ -45,6 +45,7 @@ int binop_precedence(uint32_t tag) {
         8,  // BINOP_LOGIC_AND
         9,  // BINOP_LOGIC_OR
         7,  // BINOP_CMPEQ
+        7,  // BINOP_CMPNE
         7,  // BINOP_CMPGT
         7,  // BINOP_CMPLT
         7,  // BINOP_CMPGE
@@ -81,6 +82,7 @@ uint32_t binop_tag_from_token(uint32_t tag) {
         case TOK_DBLAND:  return BINOP_LOGIC_AND;
         case TOK_DBLOR:   return BINOP_LOGIC_OR;
         case TOK_CMPEQ:   return BINOP_CMPEQ;
+        case TOK_NOTEQ:   return BINOP_CMPNE;
         case TOK_LANGLE:  return BINOP_CMPLT;
         case TOK_RANGLE:  return BINOP_CMPGT;
         case TOK_CMPGE:   return BINOP_CMPGE;
@@ -115,6 +117,7 @@ const char* binop_symbol(uint32_t tag) {
         "&&",  // BINOP_LOGIC_AND
         "||",  // BINOP_LOGIC_OR
         "==",  // BINOP_CMPEQ
+        "!=",  // BINOP_CMPNE
         ">",   // BINOP_CMPGT
         "<",   // BINOP_CMPLT
         ">=",  // BINOP_CMPGE
@@ -126,6 +129,7 @@ const char* binop_symbol(uint32_t tag) {
 
 bool unop_is_prefix(uint32_t tag) {
     static const bool prefix[] = {
+        true,  // UNOP_NOT
         true,  // UNOP_NEG
         true,  // UNOP_PLUS
         true,  // UNOP_PRE_INC
@@ -141,6 +145,7 @@ bool unop_is_prefix(uint32_t tag) {
 
 const char* unop_symbol(uint32_t tag) {
     static const char* symbols[] = {
+        "!",  // UNOP_NOT
         "-",  // UNOP_NEG
         "+",  // UNOP_PLUS
         "++", // UNOP_PRE_INC
