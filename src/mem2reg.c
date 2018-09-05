@@ -14,13 +14,15 @@ VEC(state_vec, state_t*)
 
 static const node_t* find_alloc(const node_set_t* allocs, const node_t* ptr, size_t* depth) {
     // Given a pointer, try to find the original alloc instruction
-    if (ptr->tag == NODE_EXTRACT && ptr->ops[0]->tag == NODE_ALLOC) {
-        return node_set_lookup(allocs, ptr->ops[0]) ? ptr : NULL;
-    } else if (ptr->tag == NODE_OFFSET) {
-        (*depth)++;
-        return find_alloc(allocs, ptr->ops[0], depth);
-    } else {
-        return NULL;
+    while (true) {
+        if (ptr->tag == NODE_EXTRACT && ptr->ops[0]->tag == NODE_ALLOC) {
+            return node_set_lookup(allocs, ptr->ops[0]) ? ptr : NULL;
+        } else if (ptr->tag == NODE_OFFSET) {
+            (*depth)++;
+            ptr = ptr->ops[0];
+        } else {
+            return NULL;
+        }
     }
 }
 
