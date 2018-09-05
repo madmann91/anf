@@ -236,6 +236,11 @@ void ast_print(const ast_t* ast, printer_t* printer) {
                 if (!prefix) pprintf(printer, "%s", symbol);
             }
             break;
+        case AST_LAMBDA:
+            ast_print(ast->data.lambda.param, printer);
+            pprintf(printer, " => ");
+            ast_print(ast->data.lambda.body, printer);
+            break;
         case AST_CALL:
             ast_print(ast->data.call.callee, printer);
             ast_print(ast->data.call.arg, printer);

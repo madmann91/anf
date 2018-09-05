@@ -8,3 +8,4 @@ add_test(NAME functions COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/functions.a
 add_test(NAME loops     COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/loops.anf)
 add_test(NAME ops       COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/ops.anf)
 add_test(NAME pow       COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/pow.anf)
+add_test(NAME lambda    COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/lambda.anf)

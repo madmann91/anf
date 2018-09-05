@@ -118,6 +118,7 @@ static ast_t* parse_binop(parser_t*, ast_t*, int);
 static ast_t* parse_call(parser_t*, ast_t*);
 static ast_t* parse_tuple(parser_t*);
 static ast_t* parse_tuple_or_err(parser_t*);
+static ast_t* parse_lambda(parser_t*, ast_t*);
 static ast_t* parse_block(parser_t*);
 static ast_t* parse_if(parser_t*);
 static ast_t* parse_while(parser_t*);
@@ -266,6 +267,9 @@ static ast_t* parse_primary(parser_t* parser) {
         ast = parse_post_unop(parser, ast, UNOP_POST_INC);
     else if (parser->ahead.tag == TOK_DEC)
         ast = parse_post_unop(parser, ast, UNOP_POST_DEC);
+    else if (parser->ahead.tag == TOK_RARROW)
+        ast = parse_lambda(parser, ast);
+
     while (true) {
         switch (parser->ahead.tag) {
             case TOK_LPAREN: ast = parse_call(parser, ast);  continue;
@@ -348,6 +352,14 @@ static ast_t* parse_tuple_or_err(parser_t* parser) {
     if (parser->ahead.tag == TOK_LPAREN)
         return parse_tuple(parser);
     return parse_err(parser, "tuple");
+}
+
+static ast_t* parse_lambda(parser_t* parser, ast_t* param) {
+    ast_t* ast = ast_create_with_loc(parser, AST_LAMBDA, param->loc);
+    eat(parser, TOK_RARROW);
+    ast->data.lambda.param = param;
+    ast->data.lambda.body  = parse_expr(parser);
+    return ast_finalize(ast, parser);
 }
 
 static ast_t* parse_block(parser_t* parser) {
