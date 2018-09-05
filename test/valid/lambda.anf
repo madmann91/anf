@@ -1,0 +1,5 @@
+mod lambda {
+    def x = y => 33
+    def y = (x, y) => x + y
+    def z = (x) => y(x)
+}
