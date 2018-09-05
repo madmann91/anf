@@ -668,36 +668,16 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const type
     });
 }
 
-const node_t* node_array_ptr(mod_t* mod, size_t n, const void* ptr, uint32_t tag, const dbg_t* dbg) {
+const node_t* node_string(mod_t* mod, const char* str, const dbg_t* dbg) {
+    size_t n = strlen(str) + 1;
     bool use_stack = n < 256;
     const node_t* stack_ops[use_stack ? n : 0];
     const node_t** ops = use_stack ? stack_ops : malloc(sizeof(const node_t*) * n);
-    for (size_t i = 0; i < n; ++i) {
-        switch (tag) {
-            case TYPE_I1:  ops[i] = node_i1 (mod, ((bool    *)ptr)[i]); break;
-            case TYPE_U8:  ops[i] = node_u8 (mod, ((uint8_t *)ptr)[i]); break;
-            case TYPE_U16: ops[i] = node_u16(mod, ((uint16_t*)ptr)[i]); break;
-            case TYPE_U32: ops[i] = node_u32(mod, ((uint32_t*)ptr)[i]); break;
-            case TYPE_U64: ops[i] = node_u64(mod, ((uint64_t*)ptr)[i]); break;
-            case TYPE_I8:  ops[i] = node_i8 (mod, ((int8_t  *)ptr)[i]); break;
-            case TYPE_I16: ops[i] = node_i16(mod, ((int16_t *)ptr)[i]); break;
-            case TYPE_I32: ops[i] = node_i32(mod, ((int32_t *)ptr)[i]); break;
-            case TYPE_I64: ops[i] = node_i64(mod, ((int64_t *)ptr)[i]); break;
-            case TYPE_F32: ops[i] = node_f32(mod, ((float   *)ptr)[i]); break;
-            case TYPE_F64: ops[i] = node_f64(mod, ((double  *)ptr)[i]); break;
-            default:
-                assert(false);
-                break;
-        }
-    }
-    const type_t* elem_type = make_type(mod, (type_t) { .tag = tag, .nops = 0, .ops = NULL });
-    const node_t* array = node_array(mod, n, ops, elem_type, dbg);
+    for (size_t i = 0; i < n; ++i)
+        ops[i] = node_u8(mod, str[i]);
+    const node_t* array = node_array(mod, n, ops, type_u8(mod), dbg);
     if (!use_stack) free(ops);
     return array;
-}
-
-const node_t* node_string(mod_t* mod, const char* str, const dbg_t* dbg) {
-    return node_array_ptr(mod, strlen(str) + 1, str, TYPE_U8, dbg);
 }
 
 const node_t* node_tuple_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
@@ -1257,8 +1237,8 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         return make_literal(mod, left->type, res);
     }
 
-    if (left->tag  == NODE_UNDEF || left->tag  == NODE_TRAP) return left;
-    if (right->tag == NODE_UNDEF || right->tag == NODE_TRAP) return right;
+    if (left->tag  == NODE_UNDEF) return left;
+    if (right->tag == NODE_UNDEF) return right;
 
     if (node_should_switch_ops(left, right) && node_is_commutative(tag, left->type))
         node_switch_ops(&left, &right);
@@ -1517,7 +1497,7 @@ const node_t* node_dealloc(mod_t* mod, const node_t* mem, const node_t* ptr, con
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
     if (ptr->tag == NODE_UNDEF)
-        return mem;
+        return node_trap(mod, node_string(mod, "deallocating undefined pointer", NULL), mem->type, dbg);
     assert(ptr->tag == NODE_EXTRACT && ptr->ops[0]->tag == NODE_ALLOC);
     const node_t* ops[] = { mem, ptr };
     return make_node(mod, (node_t) {
@@ -1532,12 +1512,9 @@ const node_t* node_dealloc(mod_t* mod, const node_t* mem, const node_t* ptr, con
 const node_t* node_load(mod_t* mod, const node_t* mem, const node_t* ptr, const dbg_t* dbg) {
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
-    if (ptr->tag == NODE_UNDEF) {
-        const node_t* ops[] = { mem, node_undef(mod, ptr->type->ops[0]) };
-        return node_tuple(mod, 2, ops, dbg);
-    }
-    const type_t* type_ops[] = { mem->type, ptr->type->ops[0] };
-    const type_t* load_type = type_tuple(mod, 2, type_ops);
+    const type_t* load_type = type_tuple_args(mod, 2, mem->type, ptr->type->ops[0]);
+    if (ptr->tag == NODE_UNDEF)
+        return node_trap(mod, node_string(mod, "loading from undefined pointer", NULL), load_type, dbg);
     const node_t* ops[] = { mem, ptr };
     return make_node(mod, (node_t) {
         .tag  = NODE_LOAD,
@@ -1553,7 +1530,7 @@ const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const
     assert(ptr->type->tag == TYPE_PTR);
     assert(val->type == ptr->type->ops[0]);
     if (ptr->tag == NODE_UNDEF)
-        return mem;
+        return node_trap(mod, node_string(mod, "storing to undefined pointer", NULL), mem->type, dbg);
     const node_t* ops[] = { mem, ptr, val };
     return make_node(mod, (node_t) {
         .tag  = NODE_STORE,
@@ -1768,6 +1745,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_PARAM:   return node_param(mod, fn_cast(ops[0]), node->dbg);
         case NODE_APP:     return node_app(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_KNOWN:   return node_known(mod, ops[0], node->dbg);
+        case NODE_TRAP:    return node_trap(mod, ops[0], type, node->dbg);
         case NODE_ALLOC:
             assert(type->tag == TYPE_TUPLE);
             assert(type->ops[0]->tag == TYPE_MEM);

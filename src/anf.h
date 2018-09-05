@@ -238,7 +238,6 @@ const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
 const node_t* node_tuple_args(mod_t*, size_t, const dbg_t*, ...);
 const node_t* node_array_args(mod_t*, size_t, const type_t*, const dbg_t*, ...);
-const node_t* node_array_ptr(mod_t*, size_t, const void*, uint32_t, const dbg_t*);
 const node_t* node_string(mod_t*, const char*, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
