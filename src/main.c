@@ -50,7 +50,7 @@ void usage(void) {
     static const char* usage_str =
         "usage: anf [options] file...\n"
         "options:\n"
-        "  --help     Displays this information\n";
+        "  --help     displays this information\n";
     printf("%s", usage_str);
 }
 

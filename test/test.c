@@ -845,9 +845,9 @@ typedef struct {
 } test_t;
 
 void usage(void) {
-    printf("usage: test [options]\n"
-           "  -h           Show this message\n"
-           "  -t [module]  Test the given module\n");
+    printf("usage: anf_test [options]\n"
+           "  --help       displays this information\n"
+           "  -t [module]  test the given module\n");
 }
 
 size_t find_test(const char* name, const test_t* tests, size_t ntests) {
@@ -885,7 +885,7 @@ int main(int argc, char** argv) {
     bool ok = true;
     if (argc > 1) {
         for (int i = 1; i < argc; ++i) {
-            if (!strcmp(argv[i], "-h")) {
+            if (!strcmp(argv[i], "--help")) {
                 usage();
                 return 0;
             } else if (!strcmp(argv[i], "-t")) {
