@@ -846,7 +846,7 @@ typedef struct {
 
 void usage(void) {
     printf("usage: anf_test [options]\n"
-           "  --help       displays this information\n"
+           "  --help       display this information\n"
            "  -t [module]  test the given module\n");
 }
 
