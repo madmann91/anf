@@ -8,6 +8,7 @@
 #include "util.h"
 #include "mpool.h"
 #include "print.h"
+#include "util.h"
 
 #if defined(_WIN32) && !defined (__CYGWIN__)
     #define WIN32_LEAN_AND_MEAN 1
@@ -59,13 +60,13 @@ char* read_file(const char* file, size_t* size) {
     if (!fp)
         return NULL;
     size_t cap = 1024, i = 0;
-    char* buf = malloc(cap);
+    char* buf = xmalloc(cap);
     while (true) {
         int c = fgetc(fp);
         if (c == EOF)
             break;
         if (i >= cap)
-            buf = realloc(buf, cap * 2);
+            buf = xrealloc(buf, cap * 2);
         buf[i++] = c;
     }
     *size = i;

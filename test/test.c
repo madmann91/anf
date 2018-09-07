@@ -11,6 +11,7 @@
 #include "lex.h"
 #include "parse.h"
 #include "print.h"
+#include "util.h"
 
 #define CHECK(expr) check(env, expr, #expr, __FILE__, __LINE__)
 void check(jmp_buf env, bool cond, const char* expr, const char* file, int line) {
@@ -27,7 +28,7 @@ HSET(elemset, uint32_t, cmp_elem, hash_elem)
 bool test_hset(void) {
     size_t N = 4000;
     size_t inc[3] = {3, 5, 7};
-    uint32_t* values = malloc(sizeof(uint32_t) * N);
+    uint32_t* values = xmalloc(sizeof(uint32_t) * N);
     for (size_t i = 0, j = 0; i < N; ++i, j += inc[j%3]) {
         values[i] = j;
     }
@@ -764,7 +765,7 @@ bool test_lex(void) {
         TOK_RANGLE, TOK_ID, TOK_AND, TOK_INT, TOK_INT, TOK_FLT, TOK_EOF
     };
     size_t num_tags = sizeof(tags) / sizeof(tags[0]);
-    char* buf = malloc(strlen(str) + 1);
+    char* buf = xmalloc(strlen(str) + 1);
     lexer_t lexer = {
         .tmp = 0,
         .str = buf,
@@ -806,7 +807,7 @@ bool test_parse(void) {
         "        {x ; y})\n"
         "    }\n"
         "}";
-    char* buf = malloc(strlen(str) + 1);
+    char* buf = xmalloc(strlen(str) + 1);
     mpool_t* pool = mpool_create();
     lexer_t lexer = {
         .tmp      = 0,

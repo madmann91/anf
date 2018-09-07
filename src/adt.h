@@ -7,6 +7,7 @@
 
 #include "htable.h"
 #include "hash.h"
+#include "util.h"
 
 #define VEC_DEFAULT_CAP  64
 #define HMAP_DEFAULT_CAP 64
@@ -138,7 +139,7 @@
         return (vec##_t) { \
             .cap = cap, \
             .nelems = 0, \
-            .elems = malloc(sizeof(value_t) * cap) \
+            .elems = xmalloc(sizeof(value_t) * cap) \
         }; \
     } \
     static inline vec##_t vec##_create(void) { \
@@ -150,7 +151,7 @@
     static inline void vec##_push(vec##_t* vec, value_t v) { \
         if (vec->nelems >= vec->cap) { \
             vec->cap *= 2; \
-            vec->elems = realloc(vec->elems, sizeof(value_t) * vec->cap); \
+            vec->elems = xrealloc(vec->elems, sizeof(value_t) * vec->cap); \
         } \
         vec->elems[vec->nelems++] = v; \
     } \
@@ -160,12 +161,12 @@
     static inline void vec##_resize(vec##_t* vec, size_t nelems) { \
         if (nelems > vec->cap) { \
             vec->cap = nelems; \
-            vec->elems = realloc(vec->elems, sizeof(value_t) * vec->cap); \
+            vec->elems = xrealloc(vec->elems, sizeof(value_t) * vec->cap); \
         } \
         vec->nelems = nelems; \
     } \
     static inline void vec##_shrink(vec##_t* vec) { \
-        vec->elems = realloc(vec->elems, sizeof(value_t) * vec->nelems); \
+        vec->elems = xrealloc(vec->elems, sizeof(value_t) * vec->nelems); \
         vec->cap = vec->nelems; \
     } \
     static inline value_t* vec##_find(vec##_t* vec, value_t v) { \

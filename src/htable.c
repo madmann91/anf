@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "htable.h"
+#include "util.h"
 
 static inline void* htable_elem(void* elems, size_t index, size_t esize) {
     return ((uint8_t*)elems) + index * esize;
@@ -61,12 +62,12 @@ static inline bool htable_insert_internal(const void* restrict elem, uint32_t ha
 
 htable_t* htable_create(size_t esize, size_t cap, cmpfn_t cmp_fn) {
     assert((cap & (cap - 1)) == 0);
-    htable_t* table = malloc(sizeof(htable_t));
+    htable_t* table = xmalloc(sizeof(htable_t));
     table->esize   = esize;
     table->cap     = cap;
     table->nelems  = 0;
-    table->elems   = malloc(esize * cap);
-    table->hashes  = malloc(sizeof(uint32_t) * cap);
+    table->elems   = xmalloc(esize * cap);
+    table->hashes  = xmalloc(sizeof(uint32_t) * cap);
     table->cmp_fn  = cmp_fn;
     memset(table->hashes, 0, sizeof(uint32_t) * cap);
     return table;
@@ -85,8 +86,8 @@ void htable_clear(htable_t* table) {
 
 void htable_rehash(htable_t* table, size_t new_cap) {
     assert((new_cap & (new_cap - 1)) == 0);
-    void*     new_elems  = malloc(table->esize * new_cap);
-    uint32_t* new_hashes = calloc(new_cap, sizeof(uint32_t));
+    void*     new_elems  = xmalloc(table->esize * new_cap);
+    uint32_t* new_hashes = xcalloc(new_cap, sizeof(uint32_t));
 
     for (size_t i = 0; i < table->cap; ++i) {
         uint32_t hash = table->hashes[i];
@@ -216,12 +217,12 @@ size_t htable_lookup(htable_t* table, const void* elem, uint32_t hash) {
 }
 
 htable_t* htable_copy(const htable_t* from) {
-    htable_t* table = malloc(sizeof(htable_t));
+    htable_t* table = xmalloc(sizeof(htable_t));
     table->esize   = from->esize;
     table->cap     = from->cap;
     table->nelems  = from->nelems;
-    table->elems   = malloc(from->esize * from->cap);
-    table->hashes  = malloc(sizeof(uint32_t) * from->cap);
+    table->elems   = xmalloc(from->esize * from->cap);
+    table->hashes  = xmalloc(sizeof(uint32_t) * from->cap);
     table->cmp_fn  = from->cmp_fn;
     memcpy(table->elems,  from->elems,  from->esize * from->cap);
     memcpy(table->hashes, from->hashes, sizeof(uint32_t) * from->cap);

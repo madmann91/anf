@@ -7,6 +7,7 @@
 #include "anf.h"
 #include "hash.h"
 #include "scope.h"
+#include "util.h"
 
 bool node_cmp(const void* ptr1, const void* ptr2) {
     const node_t* node1 = *(const node_t**)ptr1;
@@ -64,7 +65,7 @@ uint32_t type_hash(const void* ptr) {
 }
 
 mod_t* mod_create(void) {
-    mod_t* mod = malloc(sizeof(mod_t));
+    mod_t* mod = xmalloc(sizeof(mod_t));
     mod->pool  = mpool_create();
     mod->nodes = internal_node_set_create();
     mod->types = internal_type_set_create();
@@ -672,7 +673,7 @@ const node_t* node_string(mod_t* mod, const char* str, const dbg_t* dbg) {
     size_t n = strlen(str) + 1;
     bool use_stack = n < 256;
     const node_t* stack_ops[use_stack ? n : 0];
-    const node_t** ops = use_stack ? stack_ops : malloc(sizeof(const node_t*) * n);
+    const node_t** ops = use_stack ? stack_ops : xmalloc(sizeof(const node_t*) * n);
     for (size_t i = 0; i < n; ++i)
         ops[i] = node_u8(mod, str[i]);
     const node_t* array = node_array(mod, n, ops, type_u8(mod), dbg);
