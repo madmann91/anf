@@ -5,35 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline void die(const char* msg) {
-    fprintf(stderr, "%s\n", msg);
-    abort();
-}
-
-static inline void* xmalloc(size_t size) {
-    void* ptr = malloc(size > 0 ? size : 1);
-    if (!ptr)
-        die("out of memory, malloc() failed");
-#ifndef NDEBUG
-    memset(ptr, 0xA5, size);
-#endif
-    return ptr;
-}
-
-static inline void* xcalloc(size_t num, size_t size) {
-    void* ptr = calloc(num > 0 ? num : 1, size > 0 ? size : 1);
-    if (!ptr)
-        die("out of memory, calloc() failed");
-    return ptr;
-}
-
-static inline void* xrealloc(void* ptr, size_t size) {
-    ptr = realloc(ptr, size > 0 ? size : 1);
-    if (!ptr)
-        die("out of memory, realloc() failed");
-    return ptr;
-}
-
 // Defers/Expands expressions
 #define EMPTY()
 #define DEFER(id) id EMPTY()
@@ -103,5 +74,34 @@ static inline void* xrealloc(void* ptr, size_t size) {
 
 #define COLORIZE(flag, ...) \
     (flag ? COLORIZE_N(ENABLED, __VA_ARGS__) : COLORIZE_N(DISABLED, __VA_ARGS__))
+
+static inline void die(const char* msg) {
+    fprintf(stderr, "%s\n", msg);
+    abort();
+}
+
+static inline void* xmalloc(size_t size) {
+    void* ptr = malloc(size);
+    if (!ptr)
+        die("out of memory, malloc() failed");
+#ifndef NDEBUG
+    memset(ptr, 0xA5, size);
+#endif
+    return ptr;
+}
+
+static inline void* xcalloc(size_t num, size_t size) {
+    void* ptr = calloc(num, size);
+    if (!ptr)
+        die("out of memory, calloc() failed");
+    return ptr;
+}
+
+static inline void* xrealloc(void* ptr, size_t size) {
+    ptr = realloc(ptr, size);
+    if (!ptr)
+        die("out of memory, realloc() failed");
+    return ptr;
+}
 
 #endif // UTIL_H
