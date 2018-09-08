@@ -76,7 +76,7 @@
     (flag ? COLORIZE_N(ENABLED, __VA_ARGS__) : COLORIZE_N(DISABLED, __VA_ARGS__))
 
 static inline void die(const char* msg) {
-    fprintf(stderr, "%s\n", msg);
+    fputs(msg, stderr);
     abort();
 }
 
@@ -85,7 +85,7 @@ static inline void* xmalloc(size_t size) {
         return NULL;
     void* ptr = malloc(size);
     if (!ptr)
-        die("out of memory, malloc() failed");
+        die("out of memory, malloc() failed\n");
 #ifndef NDEBUG
     memset(ptr, 0xC4, size);
 #endif
@@ -97,7 +97,7 @@ static inline void* xcalloc(size_t num, size_t size) {
         return NULL;
     void* ptr = calloc(num, size);
     if (!ptr)
-        die("out of memory, calloc() failed");
+        die("out of memory, calloc() failed\n");
     return ptr;
 }
 
@@ -108,7 +108,7 @@ static inline void* xrealloc(void* ptr, size_t size) {
     }
     ptr = realloc(ptr, size);
     if (!ptr)
-        die("out of memory, realloc() failed");
+        die("out of memory, realloc() failed\n");
     return ptr;
 }
 
