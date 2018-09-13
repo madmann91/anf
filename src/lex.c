@@ -23,7 +23,8 @@ static inline size_t check_utf8(lexer_t* lexer, size_t n) {
     if (lexer->size < n || n > MAX_UTF8_BYTES || n < MIN_UTF8_BYTES)
         goto error;
     for (size_t i = 1; i < n; ++i) {
-        if (lexer->str[i] & 0xC0 != 0x80)
+        uint8_t c = ((uint8_t*)lexer->str)[i];
+        if ((c & 0xC0) != 0x80)
             goto error;
     }
     return n;

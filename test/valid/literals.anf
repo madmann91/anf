@@ -7,4 +7,5 @@ mod literals {
     def f = false
     def g = "Hello world !"
     def h = 't'
+    def i = "āãäâàáēẽëêèéīĩïîìíōõöôòóūũüûùúỹÿŷỳý€¥ß"
 }
