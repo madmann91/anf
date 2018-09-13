@@ -2,9 +2,7 @@ mod ops {
     def a = 1 * 2 + 33 / 5
     def b = (b >> (5 & 2)) - b
     def c = (c ^ 6) << 5
-    def d = &c
-    def e = *d
-    def f = !(c == 3) || (*d > 2 && a <= 5) || (c + 2 >= 6 && e < 9) || a != 3
+    def d = !(c == 3) || (b >= 5 && a <= 5) || (c + 2 >= 6 && a < 9) || a != 3
 
     def test() {
         var x = 2;

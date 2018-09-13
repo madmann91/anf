@@ -65,7 +65,7 @@ static inline bool expect(parser_t* parser, const char* msg, uint32_t tag) {
         char buf1[TOK2STR_BUF_SIZE + 2];
         char buf2[TOK2STR_BUF_SIZE + 2];
         const char* str1 = tok2str_with_quotes(tag, buf1);
-        const char* str2 = parser->ahead.tag == TOK_ID ? parser->ahead.str : tok2str_with_quotes(parser->ahead.tag, buf2);
+        const char* str2 = tok2str_with_quotes(parser->ahead.tag, buf2);
         parse_error(parser, &parser->ahead.loc, "expected %s in %s, but got %s", str1, msg, str2);
         status = false;
     }
@@ -242,8 +242,6 @@ static ast_t* parse_primary(parser_t* parser) {
         case TOK_SUB: ast = parse_pre_unop(parser, UNOP_NEG);       break;
         case TOK_DEC: ast = parse_pre_unop(parser, UNOP_PRE_DEC);   break;
         case TOK_INC: ast = parse_pre_unop(parser, UNOP_PRE_INC);   break;
-        case TOK_AND: ast = parse_pre_unop(parser, UNOP_TAKE_ADDR); break;
-        case TOK_MUL: ast = parse_pre_unop(parser, UNOP_DEREF);     break;
         case TOK_INT:
         case TOK_FLT:
         case TOK_CHR:

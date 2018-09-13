@@ -135,9 +135,7 @@ bool unop_is_prefix(uint32_t tag) {
         true,  // UNOP_PRE_INC
         true,  // UNOP_PRE_DEC
         false, // UNOP_POST_INC
-        false, // UNOP_POST_DEC
-        true,  // UNOP_DEREF
-        true   // UNOP_TAKE_ADDR
+        false  // UNOP_POST_DEC
     };
     assert(tag < sizeof(prefix) / sizeof(prefix[0]));
     return prefix[tag];
@@ -151,9 +149,7 @@ const char* unop_symbol(uint32_t tag) {
         "++", // UNOP_PRE_INC
         "--", // UNOP_PRE_DEC
         "++", // UNOP_POST_INC
-        "--", // UNOP_POST_DEC
-        "*",  // UNOP_DEREF
-        "&"   // UNOP_TAKE_ADDR
+        "--"  // UNOP_POST_DEC
     };
     assert(tag < sizeof(symbols) / sizeof(symbols[0]));
     return symbols[tag];

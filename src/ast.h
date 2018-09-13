@@ -49,9 +49,7 @@ enum unop_tag_e {
     UNOP_PRE_INC,
     UNOP_PRE_DEC,
     UNOP_POST_INC,
-    UNOP_POST_DEC,
-    UNOP_DEREF,
-    UNOP_TAKE_ADDR
+    UNOP_POST_DEC
 };
 
 enum binop_tag_e {

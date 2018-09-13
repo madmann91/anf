@@ -8,4 +8,6 @@ mod literals {
     def g = "Hello world !"
     def h = 't'
     def i = "āãäâàáēẽëêèéīĩïîìíōõöôòóūũüûùúỹÿŷỳý€¥ß"
+    def j = 0b1001001010
+    def k = 0xABCDEF98
 }
