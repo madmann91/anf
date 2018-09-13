@@ -756,7 +756,7 @@ bool test_lex(void) {
     const char* str =
         "hello if\'c\' ^ /* this is a multi-\n"
         " line comment */ else world!  | // another comment \n"
-        " (- ), < * \"string\" +: var; / def=% >something & 0b010010110 0xFFe45 10.3e+7";
+        " (- ), < * \"string\xE2\x82\xAC\" +: var; / def=% >something & 0b010010110 0xFFe45 10.3e+7";
     uint32_t tags[] = {
         TOK_ID, TOK_IF, TOK_CHR, TOK_XOR,
         TOK_ELSE, TOK_ID, TOK_NOT, TOK_OR,
@@ -790,6 +790,7 @@ bool test_lex(void) {
         if (tok.tag == TOK_EOF)
             break;
     }
+    CHECK(lexer.errs == 0);
 
 cleanup:
     free(buf);

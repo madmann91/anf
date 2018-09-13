@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 #include "lex.h"
+#include "util.h"
 
 #define ERR_BUF_SIZE 256
 
@@ -15,16 +16,43 @@ static inline loc_t make_loc(lexer_t* lexer, size_t brow, size_t bcol) {
     };
 }
 
+static inline size_t check_utf8(lexer_t* lexer, size_t n) {
+    loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+    if (lexer->size < n || n > 4 || n < 2)
+        goto error;
+    for (size_t i = 1; i < n; ++i) {
+        if (lexer->str[i] & 0xC0 != 0x80)
+            goto error;
+    }
+    return n;
+error:
+    lex_error(lexer, &loc, "invalid UTF-8 character");
+    return 1;
+}
+
 static inline void eat(lexer_t* lexer) {
     assert(lexer->size > 0);
-    if (*lexer->str == '\n') {
-        lexer->row++;
-        lexer->col = 1;
-    } else {
+    if (*lexer->str & 0x80) {
+        // UTF-8 characters
+        uint8_t c = *(uint8_t*)lexer->str;
+        size_t n = 0;
+        while (c & 0x80 && n < 5) c <<= 1, n++;
+        n = check_utf8(lexer, n);
+        lexer->str += n;
+        lexer->size -=n;
         lexer->col++;
+    } else {
+        // Other characters
+        if (*lexer->str == '\n') {
+            lexer->row++;
+            lexer->col = 0;
+        } else {
+            lexer->col++;
+        }
+
+        lexer->str++;
+        lexer->size--;
     }
-    lexer->str++;
-    lexer->size--;
 }
 
 static inline bool accept(lexer_t* lexer, char c) {
@@ -108,7 +136,7 @@ static tok_t parse_str_or_chr(lexer_t* lexer, bool str, int brow, int bcol) {
     if (!str) eat(lexer);
     else while (lexer->size > 0 && *lexer->str != '\"') eat(lexer);
     char* end = lexer->str;
-    if (!accept(lexer, str ? '\"' : '\'')) {
+    if (lexer->size == 0 || !accept(lexer, str ? '\"' : '\'')) {
         loc_t loc = make_loc(lexer, lexer->row, lexer->col);
         lex_error(lexer, &loc, str ? "unterminated string literal" : "unterminated character literal");
     }
