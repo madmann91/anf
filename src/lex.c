@@ -6,6 +6,8 @@
 #include "util.h"
 
 #define ERR_BUF_SIZE 256
+#define MIN_UTF8_BYTES 2
+#define MAX_UTF8_BYTES 4
 
 static inline loc_t make_loc(lexer_t* lexer, size_t brow, size_t bcol) {
     return (loc_t) {
@@ -18,7 +20,7 @@ static inline loc_t make_loc(lexer_t* lexer, size_t brow, size_t bcol) {
 
 static inline size_t check_utf8(lexer_t* lexer, size_t n) {
     loc_t loc = make_loc(lexer, lexer->row, lexer->col);
-    if (lexer->size < n || n > 4 || n < 2)
+    if (lexer->size < n || n > MAX_UTF8_BYTES || n < MIN_UTF8_BYTES)
         goto error;
     for (size_t i = 1; i < n; ++i) {
         if (lexer->str[i] & 0xC0 != 0x80)
@@ -36,7 +38,7 @@ static inline void eat(lexer_t* lexer) {
         // UTF-8 characters
         uint8_t c = *(uint8_t*)lexer->str;
         size_t n = 0;
-        while (c & 0x80 && n < 5) c <<= 1, n++;
+        while (c & 0x80 && n <= MAX_UTF8_BYTES) c <<= 1, n++;
         n = check_utf8(lexer, n);
         lexer->str += n;
         lexer->size -=n;
