@@ -15,11 +15,15 @@ set(LIBANF_SRCS
 
 set(LIBANF_HDRS
     anf.h
+    adt.h
     ast.h
     lex.h
     parse.h
+    hash.h
     htable.h
+    lex.h
     mpool.h
+    parse.h
     scope.h
     io.h
     print.h
