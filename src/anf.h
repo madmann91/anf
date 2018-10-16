@@ -64,9 +64,10 @@
     f(TYPE_PTR,    "ptr") \
     f(TYPE_TUPLE,  "tuple") \
     f(TYPE_ARRAY,  "array") \
-    f(TYPE_FN,     "fn") \
     f(TYPE_STRUCT, "struct") \
-    f(TYPE_NORET,  "noret")
+    f(TYPE_FN,     "fn") \
+    f(TYPE_NORET,  "noret") \
+    f(TYPE_VAR,    "var")
 
 typedef union  box_u  box_t;
 typedef struct loc_s  loc_t;
@@ -203,9 +204,10 @@ const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_tuple_args(mod_t*, size_t, ...);
 const type_t* type_array(mod_t*, const type_t*);
+type_t* type_struct(mod_t*, size_t);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 const type_t* type_noret(mod_t*);
-type_t* type_struct(mod_t*, size_t);
+const type_t* type_var(mod_t*, uint32_t);
 
 // Values
 uint64_t node_value_u(const node_t*);

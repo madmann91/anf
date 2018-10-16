@@ -172,18 +172,18 @@ static inline const type_t* make_type(mod_t* mod, const type_t type) {
     return type_ptr;
 }
 
-const type_t* type_i1 (mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I1,  .nops = 0, .ops = NULL }); }
-const type_t* type_i8 (mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I8,  .nops = 0, .ops = NULL }); }
-const type_t* type_i16(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I16, .nops = 0, .ops = NULL }); }
-const type_t* type_i32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I32, .nops = 0, .ops = NULL }); }
-const type_t* type_i64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I64, .nops = 0, .ops = NULL }); }
-const type_t* type_u8 (mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U8,  .nops = 0, .ops = NULL }); }
-const type_t* type_u16(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U16, .nops = 0, .ops = NULL }); }
-const type_t* type_u32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U32, .nops = 0, .ops = NULL }); }
-const type_t* type_u64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U64, .nops = 0, .ops = NULL }); }
-const type_t* type_f32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32, .nops = 0, .ops = NULL }); }
-const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64, .nops = 0, .ops = NULL }); }
-const type_t* type_mem(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_MEM, .nops = 0, .ops = NULL }); }
+const type_t* type_i1 (mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I1,  .nops = 0 }); }
+const type_t* type_i8 (mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I8,  .nops = 0 }); }
+const type_t* type_i16(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I16, .nops = 0 }); }
+const type_t* type_i32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I32, .nops = 0 }); }
+const type_t* type_i64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I64, .nops = 0 }); }
+const type_t* type_u8 (mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U8,  .nops = 0 }); }
+const type_t* type_u16(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U16, .nops = 0 }); }
+const type_t* type_u32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U32, .nops = 0 }); }
+const type_t* type_u64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U64, .nops = 0 }); }
+const type_t* type_f32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F32, .nops = 0 }); }
+const type_t* type_f64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_F64, .nops = 0 }); }
+const type_t* type_mem(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_MEM, .nops = 0 }); }
 
 const type_t* type_ptr(mod_t* mod, const type_t* pointee) {
     assert(pointee->tag != TYPE_MEM);
@@ -210,11 +210,6 @@ const type_t* type_array(mod_t* mod, const type_t* elem_type) {
     return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type });
 }
 
-const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
-    const type_t* ops[] = { from, to };
-    return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
-}
-
 type_t* type_struct(mod_t* mod, size_t nops) {
     type_t* type = mpool_alloc(&mod->pool, sizeof(type_t));
     const type_t** ops = mpool_alloc(&mod->pool, sizeof(type_t) * nops);
@@ -226,8 +221,17 @@ type_t* type_struct(mod_t* mod, size_t nops) {
     return type;
 }
 
+const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
+    const type_t* ops[] = { from, to };
+    return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
+}
+
 const type_t* type_noret(mod_t* mod) {
-    return make_type(mod, (type_t) { .tag = TYPE_NORET, .nops = 0, .ops = NULL });
+    return make_type(mod, (type_t) { .tag = TYPE_NORET, .nops = 0 });
+}
+
+const type_t* type_var(mod_t* mod, uint32_t var) {
+    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .var = var });
 }
 
 static inline void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
@@ -283,9 +287,7 @@ const node_t* node_undef(mod_t* mod, const type_t* type) {
     return make_node(mod, (node_t) {
         .tag  = NODE_UNDEF,
         .nops = 0,
-        .ops  = NULL,
         .type = type,
-        .dbg  = NULL
     });
 }
 
@@ -295,7 +297,6 @@ static inline const node_t* make_literal(mod_t* mod, const type_t* type, box_t v
         .nops = 0,
         .box  = value,
         .type = type,
-        .dbg  = NULL
     });
 }
 
