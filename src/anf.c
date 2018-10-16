@@ -1657,7 +1657,7 @@ const node_t* fn_inline(mod_t* mod, const fn_t* fn, const node_t* arg) {
     })
     node2node_insert(&new_nodes, &fn->node, &fn->node);
     node2node_insert(&new_nodes, node_param(mod, fn, NULL), arg);
-    const node_t* body = node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types, true);
+    const node_t* body = node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types, REWRITE_FNS);
     node2node_destroy(&new_nodes);
     type2type_destroy(&new_types);
     node_set_destroy(&scope.nodes);
@@ -1726,6 +1726,8 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
         case TYPE_TUPLE: return type_tuple(mod, type->nops, ops);
         case TYPE_ARRAY: return type_array(mod, ops[0]);
         case TYPE_FN:    return type_fn(mod, ops[0], ops[1]);
+        case TYPE_NORET: return type_noret(mod);
+        case TYPE_VAR:   return type_var(mod, type->var);
         default:
             assert(false);
             return NULL;
@@ -1742,6 +1744,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_UNDEF:   return node_undef(mod, type);
         case NODE_TUPLE:   return node_tuple(mod, node->nops, ops, node->dbg);
         case NODE_ARRAY:   return node_array(mod, node->nops, ops, type->ops[0], node->dbg);
+        case NODE_STRUCT:  return node_struct(mod, node->nops, ops, type, node->dbg);
         case NODE_EXTRACT: return node_extract(mod, ops[0], ops[1], node->dbg);
         case NODE_INSERT:  return node_insert(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_BITCAST: return node_bitcast(mod, ops[0], type, node->dbg);
@@ -1781,34 +1784,49 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
     }
 }
 
-const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_types) {
+const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* new_types, uint32_t flags) {
     const type_t** found = type2type_lookup(new_types, type);
     if (found)
         return *found;
 
+    if (type->tag == TYPE_STRUCT && !(flags & REWRITE_STRUCTS))
+        return type;
+
+    const type_t* new_type = NULL;
+    if (type->tag == TYPE_STRUCT) {
+        new_type = type_struct(mod, type->nops);
+        type2type_insert(new_types, type, new_type);
+    }
+
     const type_t* new_ops[type->nops];
     for (size_t i = 0; i < type->nops; ++i)
-        new_ops[i] = type_rewrite(mod, type->ops[i], new_types);
+        new_ops[i] = type_rewrite(mod, type->ops[i], new_types, flags);
 
-    const type_t* new_type = type_rebuild(mod, type, new_ops);
-    type2type_insert(new_types, type, new_type);
+    if (type->tag == TYPE_STRUCT) {
+        for (size_t i = 0; i < type->nops; ++i)
+            ((type_t*)new_type)->ops[i] = new_ops[i];
+    } else {
+        new_type = type_rebuild(mod, type, new_ops);
+        type2type_insert(new_types, type, new_type);
+    }
+
     return new_type;
 }
 
-const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types, bool rewrite_fns) {
+const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_nodes, type2type_t* new_types, uint32_t flags) {
     while (node->rep) node = node->rep;
     const node_t** found = node2node_lookup(new_nodes, node);
     if (found)
         return *found;
 
-    if (node->tag == NODE_FN && !rewrite_fns)
+    if (node->tag == NODE_FN && !(flags & REWRITE_FNS))
         return node;
 
-    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types) : node->type;
+    const type_t* new_type = new_types ? type_rewrite(mod, node->type, new_types, flags) : node->type;
     const node_t* new_node = NULL;
     if (node->tag == NODE_FN) {
         fn_t* fn = fn_cast(node);
-        fn_t* new_fn = node_fn(mod, type_rewrite(mod, node->type, new_types), node->dbg);
+        fn_t* new_fn = node_fn(mod, type_rewrite(mod, node->type, new_types, flags), node->dbg);
         new_fn->exported  = fn->exported;
         new_fn->imported  = fn->imported;
         new_fn->intrinsic = fn->intrinsic;
@@ -1818,7 +1836,7 @@ const node_t* node_rewrite(mod_t* mod, const node_t* node, node2node_t* new_node
 
     const node_t* new_ops[node->nops];
     for (size_t i = 0; i < node->nops; ++i)
-        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types, rewrite_fns);
+        new_ops[i] = node_rewrite(mod, node->ops[i], new_nodes, new_types, flags);
 
     if (node->tag == NODE_FN) {
         fn_t* new_fn = fn_cast(new_node);

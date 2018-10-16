@@ -62,7 +62,7 @@ bool partial_eval(mod_t* mod) {
                     node2node_clear(&new_nodes);
                     type2type_clear(&new_types);
                     node2node_insert(&new_nodes, param, user->ops[1]);
-                    const node_t* cond = node_rewrite(mod, fn->node.ops[1], &new_nodes, &new_types, false);
+                    const node_t* cond = node_rewrite(mod, fn->node.ops[1], &new_nodes, &new_types, 0);
                     run = (cond->tag == NODE_LITERAL && cond->box.i1);
                 }
                 if (run)
@@ -98,7 +98,7 @@ bool partial_eval(mod_t* mod) {
         node2node_insert(&new_nodes, &fn->node, &fn->node);
         node2node_insert(&new_nodes, node_param(mod, fn, NULL), app->ops[1]);
 
-        node_replace(app, node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types, true));
+        node_replace(app, node_rewrite(mod, fn->node.ops[0], &new_nodes, &new_types, REWRITE_FNS));
     })
     node_set_destroy(&scope.nodes);
     node_set_destroy(&fvs);

@@ -83,7 +83,7 @@ static const node_t* flatten_node(mod_t* mod, const node_t* node, node2node_t* f
             fn_bind(mod, flat_fn, 0, body);
             // Insert the flattened node in the map now, as it may be needed when rewriting
             node2node_insert(flat_nodes, node, new_node);
-            fn_bind(mod, flat_fn, 1, node_rewrite(mod, node->ops[1], flat_nodes, flat_types, false));
+            fn_bind(mod, flat_fn, 1, node_rewrite(mod, node->ops[1], flat_nodes, flat_types, 0));
         } else {
             fn_bind(mod, flat_fn, 0, node_app(mod, node, unflat_arg, node_i1(mod, true), flat_fn->node.dbg));
         }
@@ -155,7 +155,7 @@ bool flatten_tuples(mod_t* mod) {
         use_t* use = fn->node.uses;
         while (use) {
             if (use->user != flat_fn->ops[0])
-                node_replace(use->user, node_rewrite(mod, use->user, &new_nodes, &new_types, false));
+                node_replace(use->user, node_rewrite(mod, use->user, &new_nodes, &new_types, 0));
             use = use->next;
         }
     })

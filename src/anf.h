@@ -150,6 +150,11 @@ enum type_tag_e {
 #undef TYPE
 };
 
+enum rewrite_flag_e {
+    REWRITE_FNS     = 0x01,
+    REWRITE_STRUCTS = 0x02
+};
+
 bool type_cmp(const void*, const void*);
 bool node_cmp(const void*, const void*);
 uint32_t type_hash(const void*);
@@ -295,8 +300,8 @@ const node_t* node_app(mod_t*, const node_t*, const node_t*, const node_t*, cons
 // Rebuild/Rewrite/Replace
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
-const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
-const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*, bool);
+const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*, uint32_t);
+const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*, uint32_t);
 void node_replace(const node_t*, const node_t*);
 
 // Uses

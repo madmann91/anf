@@ -13,7 +13,7 @@ void mod_import(mod_t* from, mod_t* to) {
     FORALL_VEC(from->fns, const fn_t*, fn, {
         if (!fn->exported || node2node_lookup(&new_nodes, &fn->node))
             continue;
-        node_rewrite(to, &fn->node, &new_nodes, &new_types, true);
+        node_rewrite(to, &fn->node, &new_nodes, &new_types, REWRITE_FNS | REWRITE_STRUCTS);
     })
 
     node2node_destroy(&new_nodes);
