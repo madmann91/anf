@@ -17,6 +17,7 @@
     f(NODE_LITERAL, "literal") \
     f(NODE_TUPLE,   "tuple") \
     f(NODE_ARRAY,   "array") \
+    f(NODE_STRUCT,  "struct") \
     f(NODE_EXTRACT, "extract") \
     f(NODE_INSERT,  "insert") \
     f(NODE_BITCAST, "bitcast") \
@@ -48,24 +49,24 @@
     f(NODE_TRAP,    "trap")
 
 #define TYPE_LIST(f) \
-    f(TYPE_I1,    "i1") \
-    f(TYPE_I8,    "i8") \
-    f(TYPE_I16,   "i16") \
-    f(TYPE_I32,   "i32") \
-    f(TYPE_I64,   "i64") \
-    f(TYPE_U8,    "u8") \
-    f(TYPE_U16,   "u16") \
-    f(TYPE_U32,   "u32") \
-    f(TYPE_U64,   "u64") \
-    f(TYPE_F32,   "f32") \
-    f(TYPE_F64,   "f64") \
-    f(TYPE_MEM,   "mem") \
-    f(TYPE_PTR,   "ptr") \
-    f(TYPE_TUPLE, "tuple") \
-    f(TYPE_ARRAY, "array") \
-    f(TYPE_FN,    "fn") \
-    f(TYPE_NORET, "noret") \
-    f(TYPE_VAR,   "var")
+    f(TYPE_I1,     "i1") \
+    f(TYPE_I8,     "i8") \
+    f(TYPE_I16,    "i16") \
+    f(TYPE_I32,    "i32") \
+    f(TYPE_I64,    "i64") \
+    f(TYPE_U8,     "u8") \
+    f(TYPE_U16,    "u16") \
+    f(TYPE_U32,    "u32") \
+    f(TYPE_U64,    "u64") \
+    f(TYPE_F32,    "f32") \
+    f(TYPE_F64,    "f64") \
+    f(TYPE_MEM,    "mem") \
+    f(TYPE_PTR,    "ptr") \
+    f(TYPE_TUPLE,  "tuple") \
+    f(TYPE_ARRAY,  "array") \
+    f(TYPE_FN,     "fn") \
+    f(TYPE_STRUCT, "struct") \
+    f(TYPE_NORET,  "noret")
 
 typedef union  box_u  box_t;
 typedef struct loc_s  loc_t;
@@ -204,7 +205,7 @@ const type_t* type_tuple_args(mod_t*, size_t, ...);
 const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 const type_t* type_noret(mod_t*);
-const type_t* type_var(mod_t*, uint32_t);
+type_t* type_struct(mod_t*, size_t);
 
 // Values
 uint64_t node_value_u(const node_t*);
@@ -236,6 +237,7 @@ bool node_is_cmp(const node_t*);
 bool node_implies(mod_t*, const node_t*, const node_t*, bool, bool);
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
+const node_t* node_struct(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
 const node_t* node_tuple_args(mod_t*, size_t, const dbg_t*, ...);
 const node_t* node_array_args(mod_t*, size_t, const type_t*, const dbg_t*, ...);
 const node_t* node_string(mod_t*, const char*, const dbg_t*);

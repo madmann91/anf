@@ -215,12 +215,19 @@ const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
 }
 
-const type_t* type_noret(mod_t* mod) {
-    return make_type(mod, (type_t) { .tag = TYPE_NORET, .nops = 0, .ops = NULL });
+type_t* type_struct(mod_t* mod, size_t nops) {
+    type_t* type = mpool_alloc(&mod->pool, sizeof(type_t));
+    const type_t** ops = mpool_alloc(&mod->pool, sizeof(type_t) * nops);
+    *type = (type_t) {
+        .tag  = TYPE_STRUCT,
+        .nops = nops,
+        .ops  = ops
+    };
+    return type;
 }
 
-const type_t* type_var(mod_t* mod, uint32_t var) {
-    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .ops = NULL, .var = var });
+const type_t* type_noret(mod_t* mod) {
+    return make_type(mod, (type_t) { .tag = TYPE_NORET, .nops = 0, .ops = NULL });
 }
 
 static inline void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
@@ -669,6 +676,21 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const type
     });
 }
 
+const node_t* node_struct(mod_t* mod, size_t nops, const node_t** ops, const type_t* type, const dbg_t* dbg) {
+    assert(type->tag == TYPE_STRUCT);
+#ifndef NDEBUG
+    for (size_t i = 0; i < nops; ++i)
+        assert(ops[i]->type == type->ops[i]);
+#endif
+    return make_node(mod, (node_t) {
+        .tag  = NODE_STRUCT,
+        .nops = nops,
+        .ops  = ops,
+        .type = type,
+        .dbg  = dbg
+    });
+}
+
 const node_t* node_string(mod_t* mod, const char* str, const dbg_t* dbg) {
     size_t n = strlen(str) + 1;
     bool use_stack = n < 256;
@@ -715,7 +737,7 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
         } while (insert->tag == NODE_INSERT);
     }
 
-    if (value->type->tag == TYPE_TUPLE) {
+    if (value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_STRUCT) {
         assert(index->tag == NODE_LITERAL);
         assert(index->box.u64 < value->type->nops);
         elem_type = value->type->ops[index->box.u64];
@@ -749,11 +771,11 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
 const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, const node_t* elem, const dbg_t* dbg) {
     assert(type_is_u(index->type) || type_is_i(index->type));
 
-    if (value->type->tag == TYPE_TUPLE) {
+    if (value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_STRUCT) {
         assert(index->tag == NODE_LITERAL);
         assert(index->box.u64 < value->type->nops);
         assert(elem->type == value->type->ops[index->box.u64]);
-        if (value->tag == NODE_TUPLE) {
+        if (value->tag == NODE_TUPLE || value->tag == NODE_STRUCT) {
             const node_t* ops[value->nops];
             for (size_t i = 0; i < value->nops; ++i)
                 ops[i] = value->ops[i];
