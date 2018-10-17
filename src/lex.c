@@ -5,6 +5,8 @@
 #include "lex.h"
 #include "util.h"
 
+#include "lex.inc"
+
 #define ERR_BUF_SIZE 256
 #define MIN_UTF8_BYTES 2
 #define MAX_UTF8_BYTES 4
@@ -251,25 +253,9 @@ tok_t lex(lexer_t* lexer) {
             char* end = lexer->str;
             lexer->tmp = *end;
             *end = 0;
-#define PRIM(name, str) if (!strcmp(beg, str)) return (tok_t) { .tag = TOK_##name, .loc = make_loc(lexer, brow, bcol) };
-            PRIM_LIST(, PRIM)
-#undef PRIM
-            if (!strcmp(beg, "def"))      return (tok_t) { .tag = TOK_DEF,      .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "var"))      return (tok_t) { .tag = TOK_VAR,      .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "val"))      return (tok_t) { .tag = TOK_VAL,      .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "if"))       return (tok_t) { .tag = TOK_IF,       .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "else"))     return (tok_t) { .tag = TOK_ELSE,     .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "while"))    return (tok_t) { .tag = TOK_WHILE,    .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "for"))      return (tok_t) { .tag = TOK_FOR,      .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "match"))    return (tok_t) { .tag = TOK_MATCH,    .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "case"))     return (tok_t) { .tag = TOK_CASE,     .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "break"))    return (tok_t) { .tag = TOK_BREAK,    .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "continue")) return (tok_t) { .tag = TOK_CONTINUE, .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "return"))   return (tok_t) { .tag = TOK_RETURN,   .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "mod"))      return (tok_t) { .tag = TOK_MOD,      .loc = make_loc(lexer, brow, bcol) };
-            if (!strcmp(beg, "true"))     return (tok_t) { .tag = TOK_BOOL,     .loc = make_loc(lexer, brow, bcol), .lit = { .bval = true  } };
-            if (!strcmp(beg, "false"))    return (tok_t) { .tag = TOK_BOOL,     .loc = make_loc(lexer, brow, bcol), .lit = { .bval = false } };
-            return (tok_t) { .tag = TOK_ID, .str = beg, .loc = make_loc(lexer, brow, bcol) };
+
+            loc_t loc = make_loc(lexer, brow, bcol);
+            return token_from_str(beg, loc); // Generated implementation in lex.inc
         }
 
         if (isdigit(*lexer->str))

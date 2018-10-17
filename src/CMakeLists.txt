@@ -1,3 +1,11 @@
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex.inc
+    COMMAND ${PYTHON_EXECUTABLE} lex_gen.py > ${CMAKE_CURRENT_BINARY_DIR}/lex.inc
+    DEPENDS ${PYTHON_EXECUTABLE} lex_gen.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+add_custom_target(lex_gen DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/lex.inc)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 set(LIBANF_SRCS
     anf.c
     ast.c
@@ -29,7 +37,8 @@ set(LIBANF_HDRS
     print.h
     util.h)
 
-add_library(libanf ${LIBANF_SRCS} ${LIBANF_HDRS})
+add_library(libanf ${LIBANF_SRCS} ${LIBANF_HDRS} lex.inc)
+add_dependencies(libanf lex_gen)
 set_target_properties(libanf PROPERTIES PREFIX "")
 
 add_executable(anf main.c)
