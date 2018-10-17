@@ -118,8 +118,8 @@ static ast_t* parse_post_unop(parser_t*, ast_t*, uint32_t);
 static ast_t* parse_pre_unop(parser_t*, uint32_t);
 static ast_t* parse_binop(parser_t*, ast_t*, int);
 static ast_t* parse_call(parser_t*, ast_t*);
-static ast_t* parse_tuple(parser_t*, ast_t* (*) (parser_t*));
-static ast_t* parse_tuple_or_err(parser_t*, ast_t* (*) (parser_t*));
+static ast_t* parse_tuple(parser_t*, const char*, ast_t* (*) (parser_t*));
+static ast_t* parse_tuple_or_err(parser_t*, const char*, ast_t* (*) (parser_t*));
 static ast_t* parse_lambda(parser_t*, ast_t*);
 static ast_t* parse_block(parser_t*);
 static ast_t* parse_if(parser_t*);
@@ -154,9 +154,14 @@ static ast_t* parse_ptrn(parser_t* parser) {
         case TOK_BOOL:
             ast = parse_lit(parser);
             break;
-        case TOK_ID:     ast = parse_id(parser);                break;
-        case TOK_LPAREN: ast = parse_tuple(parser, parse_ptrn); break;
-        default:         return parse_err(parser, "pattern");
+        case TOK_ID:
+            ast = parse_id(parser);
+            break;
+        case TOK_LPAREN:
+            ast = parse_tuple(parser, "tuple pattern", parse_ptrn);
+            break;
+        default:
+            return parse_err(parser, "pattern");
     }
     if (parser->ahead.tag == TOK_COLON)
         ast = parse_annot(parser, ast);
@@ -207,7 +212,7 @@ static ast_t* parse_type(parser_t* parser) {
         PRIM_LIST(,PRIM)
 #undef PRIM
         case TOK_ID:     return parse_id(parser);
-        case TOK_LPAREN: return parse_tuple(parser, parse_type);
+        case TOK_LPAREN: return parse_tuple(parser, "tuple type", parse_type);
         default:
             break;
     }
@@ -258,11 +263,11 @@ static ast_t* parse_lit(parser_t* parser) {
 static ast_t* parse_primary(parser_t* parser) {
     ast_t* ast = NULL;
     switch (parser->ahead.tag) {
-        case TOK_NOT: ast = parse_pre_unop(parser, UNOP_NOT);       break;
-        case TOK_ADD: ast = parse_pre_unop(parser, UNOP_PLUS);      break;
-        case TOK_SUB: ast = parse_pre_unop(parser, UNOP_NEG);       break;
-        case TOK_DEC: ast = parse_pre_unop(parser, UNOP_PRE_DEC);   break;
-        case TOK_INC: ast = parse_pre_unop(parser, UNOP_PRE_INC);   break;
+        case TOK_NOT: ast = parse_pre_unop(parser, UNOP_NOT);     break;
+        case TOK_ADD: ast = parse_pre_unop(parser, UNOP_PLUS);    break;
+        case TOK_SUB: ast = parse_pre_unop(parser, UNOP_NEG);     break;
+        case TOK_DEC: ast = parse_pre_unop(parser, UNOP_PRE_DEC); break;
+        case TOK_INC: ast = parse_pre_unop(parser, UNOP_PRE_INC); break;
         case TOK_INT:
         case TOK_FLT:
         case TOK_CHR:
@@ -270,13 +275,13 @@ static ast_t* parse_primary(parser_t* parser) {
         case TOK_BOOL:
             ast = parse_lit(parser);
             break;
-        case TOK_IF:       ast = parse_if(parser);                break;
-        case TOK_BREAK:    ast = parse_break(parser);             break;
-        case TOK_CONTINUE: ast = parse_continue(parser);          break;
-        case TOK_RETURN:   ast = parse_return(parser);            break;
-        case TOK_ID:       ast = parse_id(parser);                break;
-        case TOK_LPAREN:   ast = parse_tuple(parser, parse_expr); break;
-        case TOK_LBRACE:   ast = parse_block(parser);             break;
+        case TOK_IF:       ast = parse_if(parser);                         break;
+        case TOK_BREAK:    ast = parse_break(parser);                      break;
+        case TOK_CONTINUE: ast = parse_continue(parser);                   break;
+        case TOK_RETURN:   ast = parse_return(parser);                     break;
+        case TOK_ID:       ast = parse_id(parser);                         break;
+        case TOK_LPAREN:   ast = parse_tuple(parser, "tuple", parse_expr); break;
+        case TOK_LBRACE:   ast = parse_block(parser);                      break;
         default:
             ast = parse_err(parser, "primary expression");
             break;
@@ -322,7 +327,7 @@ static ast_t* parse_pre_unop(parser_t* parser, uint32_t tag) {
 static ast_t* parse_call(parser_t* parser, ast_t* callee) {
     ast_t* ast = ast_create(parser, AST_CALL);
     ast->data.call.callee = callee;
-    ast->data.call.arg    = parse_tuple_or_err(parser, parse_expr);
+    ast->data.call.arg    = parse_tuple_or_err(parser, "function call argument", parse_expr);
     return ast_finalize(ast, parser);
 }
 
@@ -352,7 +357,7 @@ static ast_t* parse_binop(parser_t* parser, ast_t* left, int max_prec) {
     return left;
 }
 
-static ast_t* parse_tuple(parser_t* parser, ast_t* (*parse_elem) (parser_t*)) {
+static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
     ast_t* ast = ast_create(parser, AST_TUPLE);
     eat(parser, TOK_LPAREN);
     eat_nl(parser);
@@ -366,14 +371,14 @@ static ast_t* parse_tuple(parser_t* parser, ast_t* (*parse_elem) (parser_t*)) {
             break;
         eat_nl(parser);
     }
-    expect(parser, "tuple", TOK_RPAREN);
+    expect(parser, msg, TOK_RPAREN);
     return ast_finalize(ast, parser);
 }
 
-static ast_t* parse_tuple_or_err(parser_t* parser, ast_t* (*parse_elem) (parser_t*)) {
+static ast_t* parse_tuple_or_err(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
     if (parser->ahead.tag == TOK_LPAREN)
-        return parse_tuple(parser, parse_elem);
-    return parse_err(parser, "tuple");
+        return parse_tuple(parser, msg, parse_elem);
+    return parse_err(parser, msg);
 }
 
 static ast_t* parse_lambda(parser_t* parser, ast_t* param) {
@@ -404,7 +409,7 @@ static ast_t* parse_if(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_IF);
     eat(parser, TOK_IF);
     eat_nl(parser);
-    ast->data.if_.cond = parse_tuple_or_err(parser, parse_expr);
+    ast->data.if_.cond = parse_tuple_or_err(parser, "if condition", parse_expr);
     eat_nl(parser);
     ast->data.if_.if_true = parse_expr(parser);
     eat_nl(parser);
@@ -419,7 +424,7 @@ static ast_t* parse_while(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_WHILE);
     eat(parser, TOK_WHILE);
     eat_nl(parser);
-    ast->data.while_.cond = parse_tuple_or_err(parser, parse_expr);
+    ast->data.while_.cond = parse_tuple_or_err(parser, "while condition", parse_expr);
     eat_nl(parser);
     ast->data.while_.body = parse_expr(parser);
     return ast_finalize(ast, parser);
@@ -514,7 +519,7 @@ static ast_t* parse_def(parser_t* parser) {
     ast->data.def.id = parse_id(parser);
     eat_nl(parser);
     if (parser->ahead.tag == TOK_LPAREN) {
-        ast->data.def.param = parse_tuple(parser, parse_ptrn);
+        ast->data.def.param = parse_tuple(parser, "function parameter", parse_ptrn);
         if (ast_is_refutable(ast->data.def.param))
             parse_error(parser, &ast->data.def.param->loc, "invalid function parameter");
         if (parser->ahead.tag == TOK_LBRACE)

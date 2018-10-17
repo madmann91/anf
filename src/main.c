@@ -51,7 +51,8 @@ void usage(void) {
     static const char* usage_str =
         "usage: anf [options] file...\n"
         "options:\n"
-        "  --help     display this information\n";
+        "  --help       display this information\n"
+        "  --must-fail  inverts the return code: returns 0 on failure, otherwise 1\n";
     printf("%s", usage_str);
 }
 
@@ -121,11 +122,14 @@ int main(int argc, char** argv) {
     }
 
     bool ok = true;
+    bool must_fail = false;
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             if (!strcmp(argv[i], "--help")) {
                 usage();
                 return 0;
+            } else if (!strcmp(argv[i], "--must-fail")) {
+                must_fail = true;
             } else {
                 error(NULL, NULL, "unknown option '%s'", argv[i]);
                 return 1;
@@ -135,5 +139,5 @@ int main(int argc, char** argv) {
         }
     }
 
-    return ok ? 0 : 1;
+    return must_fail ^ ok ? 0 : 1;
 }
