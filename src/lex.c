@@ -51,7 +51,7 @@ static inline void eat(lexer_t* lexer) {
         // Other characters
         if (*lexer->str == '\n') {
             lexer->row++;
-            lexer->col = 0;
+            lexer->col = 1;
         } else {
             lexer->col++;
         }
