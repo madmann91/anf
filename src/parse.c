@@ -416,6 +416,7 @@ static ast_t* parse_if(parser_t* parser) {
     eat_nl(parser);
     if (parser->ahead.tag == TOK_ELSE) {
         eat(parser, TOK_ELSE);
+        eat_nl(parser);
         ast->data.if_.if_false = parse_expr(parser);
     }
     return ast_finalize(ast, parser);
