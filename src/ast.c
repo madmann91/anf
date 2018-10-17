@@ -19,6 +19,17 @@ bool ast_is_refutable(const ast_t* ast) {
     }
 }
 
+const char* prim2str(uint32_t tag) {
+    switch (tag) {
+#define PRIM(name, str) case name: return str;
+        PRIM_LIST(PRIM_, PRIM)
+#undef PRIM
+        default:
+            assert(false);
+            return "";
+    }
+}
+
 int binop_precedence(uint32_t tag) {
     static const int prec[] = {
         2,  // BINOP_ADD

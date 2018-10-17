@@ -204,6 +204,14 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             pprintf(printer, " = ");
             ast_print(ast->data.varl.value, printer);
             break;
+        case AST_ANNOT:
+            ast_print(ast->data.annot.ast, printer);
+            pprintf(printer, " : ");
+            ast_print(ast->data.annot.type, printer);
+            break;
+        case AST_PRIM:
+            pprintf(printer, COLORIZE(colorize, COLOR_KEY("%s")), prim2str(ast->data.prim.tag));
+            break;
         case AST_BLOCK:
             pprintf(printer, "{\n");
             printer->indent++;

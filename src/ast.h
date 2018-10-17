@@ -17,6 +17,8 @@ enum ast_tag_e {
     AST_DEF,
     AST_VAR,
     AST_VAL,
+    AST_ANNOT,
+    AST_PRIM,
     AST_BLOCK,
     AST_TUPLE,
     AST_BINOP,
@@ -84,6 +86,12 @@ enum binop_tag_e {
     BINOP_CMPLE
 };
 
+enum prim_tag_e {
+#define PRIM(name, str) PRIM_##name = TYPE_##name,
+    PRIM_LIST(, PRIM)
+#undef PRIM
+};
+
 struct ast_s {
     uint32_t tag;
     union {
@@ -108,6 +116,13 @@ struct ast_s {
             ast_t*      ptrn;
             ast_t*      value;
         } varl;
+        struct {
+            ast_t*      ast;
+            ast_t*      type;
+        } annot;
+        struct {
+            uint32_t    tag;
+        } prim;
         struct {
             ast_list_t* stmts;
         } block;
@@ -164,6 +179,8 @@ struct ast_list_s {
 };
 
 bool ast_is_refutable(const ast_t*);
+
+const char* prim2str(uint32_t);
 
 int binop_precedence(uint32_t);
 uint32_t binop_tag_from_token(uint32_t);

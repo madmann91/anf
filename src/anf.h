@@ -48,18 +48,21 @@
     f(NODE_KNOWN,   "known") \
     f(NODE_TRAP,    "trap")
 
+#define PRIM_LIST(prefix, f) \
+    f(prefix##I1,     "i1") \
+    f(prefix##I8,     "i8") \
+    f(prefix##I16,    "i16") \
+    f(prefix##I32,    "i32") \
+    f(prefix##I64,    "i64") \
+    f(prefix##U8,     "u8") \
+    f(prefix##U16,    "u16") \
+    f(prefix##U32,    "u32") \
+    f(prefix##U64,    "u64") \
+    f(prefix##F32,    "f32") \
+    f(prefix##F64,    "f64")
+
 #define TYPE_LIST(f) \
-    f(TYPE_I1,     "i1") \
-    f(TYPE_I8,     "i8") \
-    f(TYPE_I16,    "i16") \
-    f(TYPE_I32,    "i32") \
-    f(TYPE_I64,    "i64") \
-    f(TYPE_U8,     "u8") \
-    f(TYPE_U16,    "u16") \
-    f(TYPE_U32,    "u32") \
-    f(TYPE_U64,    "u64") \
-    f(TYPE_F32,    "f32") \
-    f(TYPE_F64,    "f64") \
+    PRIM_LIST(TYPE_, f) \
     f(TYPE_MEM,    "mem") \
     f(TYPE_PTR,    "ptr") \
     f(TYPE_TUPLE,  "tuple") \

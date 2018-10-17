@@ -251,6 +251,9 @@ tok_t lex(lexer_t* lexer) {
             char* end = lexer->str;
             lexer->tmp = *end;
             *end = 0;
+#define PRIM(name, str) if (!strcmp(beg, str)) return (tok_t) { .tag = TOK_##name, .loc = make_loc(lexer, brow, bcol) };
+            PRIM_LIST(, PRIM)
+#undef PRIM
             if (!strcmp(beg, "def"))      return (tok_t) { .tag = TOK_DEF,      .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "var"))      return (tok_t) { .tag = TOK_VAR,      .loc = make_loc(lexer, brow, bcol) };
             if (!strcmp(beg, "val"))      return (tok_t) { .tag = TOK_VAL,      .loc = make_loc(lexer, brow, bcol) };
