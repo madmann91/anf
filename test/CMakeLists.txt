@@ -13,3 +13,4 @@ add_test(NAME lambda    COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/lambda.anf)
 
 add_test(NAME params    COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/params.anf)
 add_test(NAME comment   COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/comment.anf)
+add_test(NAME utf8      COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/utf8.anf)
