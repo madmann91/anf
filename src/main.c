@@ -63,12 +63,12 @@ char* read_file(const char* file, size_t* size) {
     size_t cap = 1024, i = 0;
     char* buf = xmalloc(cap);
     while (true) {
-        int c = fgetc(fp);
-        if (c == EOF)
+        size_t read = fread(buf + i, sizeof(char), cap - i, fp);
+        i += read;
+        if (read < cap - i)
             break;
-        if (i >= cap)
-            buf = xrealloc(buf, cap * 2);
-        buf[i++] = c;
+        cap *= 2;
+        buf = xrealloc(buf, cap);
     }
     *size = i;
     fclose(fp);

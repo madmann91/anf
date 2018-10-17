@@ -12,4 +12,4 @@ add_test(NAME pow       COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/pow.anf)
 add_test(NAME lambda    COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/lambda.anf)
 
 add_test(NAME params    COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/params.anf)
-
+add_test(NAME comment   COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/comment.anf)
