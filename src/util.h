@@ -86,9 +86,6 @@ static inline void* xmalloc(size_t size) {
     void* ptr = malloc(size);
     if (!ptr)
         die("out of memory, malloc() failed\n");
-#ifndef NDEBUG
-    memset(ptr, 0xC4, size);
-#endif
     return ptr;
 }
 
