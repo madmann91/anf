@@ -41,7 +41,7 @@ static char* tok2str_with_quotes(uint32_t tag, char* buf) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
-        case TOK_BOOL:
+        case TOK_BLT:
         case TOK_ID:
         case TOK_NL:
         case TOK_ERR:
@@ -151,7 +151,7 @@ static ast_t* parse_ptrn(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
-        case TOK_BOOL:
+        case TOK_BLT:
             ast = parse_lit(parser);
             break;
         case TOK_ID:
@@ -178,7 +178,7 @@ static ast_t* parse_stmt(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
-        case TOK_BOOL:
+        case TOK_BLT:
         case TOK_ID:
         case TOK_LPAREN:
         case TOK_LBRACE:
@@ -211,6 +211,7 @@ static ast_t* parse_type(parser_t* parser) {
 #define PRIM(name, str) case TOK_##name: return parse_prim(parser, PRIM_##name);
         PRIM_LIST(,PRIM)
 #undef PRIM
+        case TOK_BOOL:   return parse_prim(parser, PRIM_BOOL);
         case TOK_ID:     return parse_id(parser);
         case TOK_LPAREN: return parse_tuple(parser, "tuple type", parse_type);
         default:
@@ -248,7 +249,7 @@ static ast_t* parse_lit(parser_t* parser) {
            parser->ahead.tag == TOK_FLT ||
            parser->ahead.tag == TOK_CHR ||
            parser->ahead.tag == TOK_STR ||
-           parser->ahead.tag == TOK_BOOL);
+           parser->ahead.tag == TOK_BLT);
     if (parser->ahead.str) {
         char* str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
         strcpy(str, parser->ahead.str);
@@ -272,7 +273,7 @@ static ast_t* parse_primary(parser_t* parser) {
         case TOK_FLT:
         case TOK_CHR:
         case TOK_STR:
-        case TOK_BOOL:
+        case TOK_BLT:
             ast = parse_lit(parser);
             break;
         case TOK_IF:       ast = parse_if(parser);                         break;

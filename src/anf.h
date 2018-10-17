@@ -49,7 +49,6 @@
     f(NODE_TRAP,    "trap")
 
 #define PRIM_LIST(prefix, f) \
-    f(prefix##I1,     "i1") \
     f(prefix##I8,     "i8") \
     f(prefix##I16,    "i16") \
     f(prefix##I32,    "i32") \
@@ -62,6 +61,7 @@
     f(prefix##F64,    "f64")
 
 #define TYPE_LIST(f) \
+    f(TYPE_I1, "i1") \
     PRIM_LIST(TYPE_, f) \
     f(TYPE_MEM,    "mem") \
     f(TYPE_PTR,    "ptr") \

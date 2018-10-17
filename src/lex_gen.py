@@ -56,7 +56,7 @@ def keyword(x):
 
 root = TrieNode('')
 
-add(root, "i1" ,      keyword("TOK_I1"))
+add(root, "bool" ,    keyword("TOK_I1"))
 add(root, "i8" ,      keyword("TOK_I8"))
 add(root, "i16",      keyword("TOK_I16"))
 add(root, "i32",      keyword("TOK_I32"))
@@ -80,9 +80,9 @@ add(root, "break",    keyword("TOK_BREAK"))
 add(root, "continue", keyword("TOK_CONTINUE"))
 add(root, "return",   keyword("TOK_RETURN"))
 add(root, "mod",      keyword("TOK_MOD"))
-
-add(root, "true",     "(tok_t) { .tag = TOK_BOOL, .loc = loc, .lit = { .bval = true  } }")
-add(root, "false",    "(tok_t) { .tag = TOK_BOOL, .loc = loc, .lit = { .bval = false } }")
+add(root, "bool",     keyword("TOK_BOOL"))
+add(root, "true",     "(tok_t) { .tag = TOK_BLT, .loc = loc, .lit = { .bval = true } }")
+add(root, "false",    "(tok_t) { .tag = TOK_BLT, .loc = loc, .lit = { .bval = false } }")
 
 display(root, 0)
 print("static inline tok_t token_from_str(const char* str, loc_t loc) {")

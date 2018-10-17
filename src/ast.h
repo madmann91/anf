@@ -37,11 +37,11 @@ enum ast_tag_e {
 };
 
 enum lit_tag_e {
-    LIT_FLT  = TOK_FLT,
     LIT_INT  = TOK_INT,
-    LIT_CHR  = TOK_CHR,
+    LIT_FLT  = TOK_FLT,
     LIT_STR  = TOK_STR,
-    LIT_BOOL = TOK_BOOL
+    LIT_CHR  = TOK_CHR,
+    LIT_BOOL = TOK_BLT
 };
 
 enum unop_tag_e {
@@ -87,6 +87,7 @@ enum binop_tag_e {
 };
 
 enum prim_tag_e {
+    PRIM_BOOL = TYPE_I1,
 #define PRIM(name, str) PRIM_##name = TYPE_##name,
     PRIM_LIST(, PRIM)
 #undef PRIM
