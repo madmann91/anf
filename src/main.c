@@ -52,7 +52,7 @@ void usage(void) {
         "usage: anf [options] file...\n"
         "options:\n"
         "  --help       display this information\n"
-        "  --must-fail  inverts the return code: returns 0 on failure, otherwise 1\n";
+        "  --must-fail  invert the return code\n";
     printf("%s", usage_str);
 }
 

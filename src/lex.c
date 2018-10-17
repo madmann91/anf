@@ -5,6 +5,7 @@
 #include "lex.h"
 #include "util.h"
 
+// Generated file
 #include "lex.inc"
 
 #define ERR_BUF_SIZE 256
