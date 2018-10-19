@@ -256,7 +256,7 @@ tok_t lex(lexer_t* lexer) {
             *end = 0;
 
             loc_t loc = make_loc(lexer, brow, bcol);
-            return tok_from_str(beg, loc); // Generated implementation in lex.inc*/
+            return tok_from_str(beg, loc); // Generated implementation in lex.inc
         }
 
         if (isdigit(*lexer->str))
