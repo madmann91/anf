@@ -33,6 +33,7 @@ enum ast_tag_e {
     AST_BREAK,
     AST_CONTINUE,
     AST_RETURN,
+    AST_PROGRAM,
     AST_ERR
 };
 
@@ -169,6 +170,9 @@ struct ast_s {
             ast_t*      ptrn;
             ast_t*      value;
         } case_;
+        struct {
+            ast_list_t* mods;
+        } program;
     } data;
     const type_t* type;
     loc_t loc;

@@ -65,10 +65,11 @@ char* read_file(const char* file, size_t* size) {
     while (true) {
         size_t read = fread(buf + i, sizeof(char), cap - i, fp);
         i += read;
-        if (read != cap - i)
-            break;
-        cap *= 2;
-        buf = xrealloc(buf, cap);
+        if (read != cap - i) {
+            if (feof(fp)) break;
+            cap *= 2;
+            buf = xrealloc(buf, cap);
+        }
     }
     // Notify caller on read error
     if (ferror(fp)) {

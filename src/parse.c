@@ -138,6 +138,7 @@ static ast_t* parse_prim(parser_t*, uint32_t);
 static ast_t* parse_def(parser_t*);
 static ast_t* parse_var_or_val(parser_t*, bool);
 static ast_t* parse_mod(parser_t*);
+static ast_t* parse_program(parser_t*);
 
 static ast_t* parse_expr(parser_t* parser) {
     ast_t* ast = parse_primary(parser);
@@ -566,9 +567,22 @@ static ast_t* parse_mod(parser_t* parser) {
     return ast_finalize(ast, parser);
 }
 
+static ast_t* parse_program(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_PROGRAM);
+    ast_list_t** cur = &ast->data.program.mods;
+    while (parser->ahead.tag == TOK_MOD) {
+        eat_nl(parser);
+        ast_t* mod = parse_mod(parser);
+        eat_nl(parser);
+        cur = ast_list_add(parser, cur, mod);
+    }
+    expect(parser, "program", TOK_EOF);
+    return ast;
+}
+
 ast_t* parse(parser_t* parser) {
     next(parser);
-    return parse_mod(parser);
+    return parse_program(parser);
 }
 
 void parse_error(parser_t* parser, const loc_t* loc, const char* fmt, ...) {

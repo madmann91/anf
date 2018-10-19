@@ -176,13 +176,13 @@ tok_t lex(lexer_t* lexer) {
         if (lexer->size == 0)
             return (tok_t) { .tag = TOK_EOF, .loc = make_loc(lexer, brow, bcol) };
 
-        if (accept(lexer, '\n')) return (tok_t) { .tag = TOK_NL,       .loc = make_loc(lexer, brow, bcol) };
-        if (accept(lexer, '('))  return (tok_t) { .tag = TOK_LPAREN,   .loc = make_loc(lexer, brow, bcol) };
-        if (accept(lexer, ')'))  return (tok_t) { .tag = TOK_RPAREN,   .loc = make_loc(lexer, brow, bcol) };
-        if (accept(lexer, '{'))  return (tok_t) { .tag = TOK_LBRACE,   .loc = make_loc(lexer, brow, bcol) };
-        if (accept(lexer, '}'))  return (tok_t) { .tag = TOK_RBRACE,   .loc = make_loc(lexer, brow, bcol) };
-        if (accept(lexer, ','))  return (tok_t) { .tag = TOK_COMMA,    .loc = make_loc(lexer, brow, bcol) };
-        if (accept(lexer, ';'))  return (tok_t) { .tag = TOK_SEMI,     .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '\n')) return (tok_t) { .tag = TOK_NL,     .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '('))  return (tok_t) { .tag = TOK_LPAREN, .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, ')'))  return (tok_t) { .tag = TOK_RPAREN, .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '{'))  return (tok_t) { .tag = TOK_LBRACE, .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '}'))  return (tok_t) { .tag = TOK_RBRACE, .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, ','))  return (tok_t) { .tag = TOK_COMMA,  .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, ';'))  return (tok_t) { .tag = TOK_SEMI,   .loc = make_loc(lexer, brow, bcol) };
 
         if (accept(lexer, '\'')) return parse_str_or_chr(lexer, false, brow, bcol);
         if (accept(lexer, '\"')) return parse_str_or_chr(lexer, true,  brow, bcol);
@@ -256,7 +256,7 @@ tok_t lex(lexer_t* lexer) {
             *end = 0;
 
             loc_t loc = make_loc(lexer, brow, bcol);
-            return token_from_str(beg, loc); // Generated implementation in lex.inc
+            return tok_from_str(beg, loc); // Generated implementation in lex.inc*/
         }
 
         if (isdigit(*lexer->str))

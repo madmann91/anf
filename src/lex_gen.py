@@ -4,6 +4,7 @@ class TrieNode:
         self.key = c
         self.val = None
 
+# Adds an element to a trie
 def add(root, str, val):
     node = root
     p = 0
@@ -15,6 +16,7 @@ def add(root, str, val):
         node = node.elems[c]
     node.val = val
 
+# Displays a trie with C comments
 def display(root, depth):
     if depth != 0:
         print("// {} {}".format("|" + "-" * depth, root.key))
@@ -23,6 +25,7 @@ def display(root, depth):
     for key, value in root.elems.items():
         display(value, depth + 1)
 
+# Generates C code to match a string against a trie
 def generate(root, depth, indent):
     tab = "    "
     if len(root.elems) > 1:
@@ -44,6 +47,7 @@ def generate(root, depth, indent):
     else:
         print("{}if (str[{}] == \'\\0\') return {};".format(tab * indent, depth, root.val))
 
+# Generates inefficient C code to match a string against a trie. Do not use except for debugging.
 def generate_linear(root, str, indent):
     tab = "    "
     if not root.val is None:
@@ -85,7 +89,7 @@ add(root, "true",     "(tok_t) { .tag = TOK_BLT, .loc = loc, .lit = { .bval = tr
 add(root, "false",    "(tok_t) { .tag = TOK_BLT, .loc = loc, .lit = { .bval = false } }")
 
 display(root, 0)
-print("static inline tok_t token_from_str(const char* str, loc_t loc) {")
+print("static inline tok_t tok_from_str(const char* str, loc_t loc) {")
 generate(root, 0, 1)
 #generate_linear(root, "", 1)
 print("    return (tok_t) { .tag = TOK_ID, .str = str, .loc = loc };")

@@ -34,4 +34,13 @@ static inline uint32_t hash_ptr(uint32_t h, const void* ptr) {
     return hash_bytes(h, &ptr, sizeof(void*));
 }
 
+static inline uint32_t hash_str(uint32_t h, const char* ptr) {
+    char c = *ptr;
+    while (c != 0) {
+        h = hash_uint8(h, c);
+        c = *(++ptr);
+    }
+    return h;
+}
+
 #endif // HASH_H
