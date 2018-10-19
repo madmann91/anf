@@ -294,9 +294,9 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             pprintf(printer, " => ");
             ast_print(ast->data.case_.value, printer);
             break;
-        case AST_BREAK:    pprintf(printer, COLORIZE(colorize, COLOR_KEY("break")));          break;
-        case AST_CONTINUE: pprintf(printer, COLORIZE(colorize, COLOR_KEY("continue")));       break;
-        case AST_RETURN:   pprintf(printer, COLORIZE(colorize, COLOR_KEY("return")));         break;
+        case AST_BREAK:    pprintf(printer, COLORIZE(colorize, COLOR_KEY("break")));    break;
+        case AST_CONTINUE: pprintf(printer, COLORIZE(colorize, COLOR_KEY("continue"))); break;
+        case AST_RETURN:   pprintf(printer, COLORIZE(colorize, COLOR_KEY("return")));   break;
         case AST_PROGRAM:
             ast_print_list(ast->data.program.mods, printer, "\n", true);
             break;
