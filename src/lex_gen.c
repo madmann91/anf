@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <assert.h>
 
 typedef void (*action_t) (void*);
 typedef struct trie_s trie_t;
@@ -33,6 +34,7 @@ static trie_t* add(trie_t* trie, const char* str) {
         trie = trie->children[c];
         str++;
     }
+    assert(!trie->action && !trie->data);
     return trie;
 }
 
@@ -58,11 +60,6 @@ static void display(const trie_t* trie, int depth) {
     }
 }
 
-static void print_indent(int indent) {
-    const char* tab = "    ";
-    for (int i = 0; i < indent; ++i) printf(tab);
-}
-
 static void print_keyword(void* data) {
     printf("(tok_t) { .tag = %s, .loc = loc }", (const char*)data);
 }
@@ -86,39 +83,31 @@ static void add_boolean(trie_t* trie, const char* key, const char* value) {
 static void generate(const trie_t* trie, int depth, int indent) {
     int nelems = trie->end - trie->beg;
     if (nelems > 1 || (trie->action && nelems > 0)) {
-        print_indent(indent);
-        printf("switch (str[%d]) {\n", depth);
+        printf("%*sswitch (str[%d]) {\n", indent * 4, "", depth);
         for (int i = trie->beg; i < trie->end; ++i) {
             if (trie->children[i]) {
-                print_indent(indent + 1);
-                printf("case \'%c\':\n", trie->children[i]->val);
+                printf("%*scase \'%c\':\n", (indent + 1) * 4, "", trie->children[i]->val);
                 generate(trie->children[i], depth + 1, indent + 2);
-                print_indent(indent + 2);
-                printf("break;\n");
+                printf("%*sbreak;\n", (indent + 2) * 4, "");
             }
         }
         if (trie->action) {
-            print_indent(indent + 1);
-            printf("case \'\\0\': return ");
+            printf("%*scase \'\\0\': return ", (indent + 1) * 4, "");
             trie->action(trie->data);
             printf(";\n");
         }
-        print_indent(indent);
-        printf("}\n");
+        printf("%*s}\n", indent * 4, "");
     } else if (nelems > 0) {
         for (int i = trie->beg; i < trie->end; ++i) {
             if (trie->children[i]) {
-                print_indent(indent);
-                printf("if (str[%d] == \'%c\') {\n", depth, trie->children[i]->val);
+                printf("%*sif (str[%d] == \'%c\') {\n", indent * 4, "", depth, trie->children[i]->val);
                 generate(trie->children[i], depth + 1, indent + 1);
-                print_indent(indent);
-                printf("}\n");
+                printf("%*s}\n", indent * 4, "");
                 break;
             }
         }
     } else {
-        print_indent(indent);
-        printf("if (str[%d] == \'\\0\') return ", depth);
+        printf("%*sif (str[%d] == \'\\0\') return ", indent * 4, "", depth);
         trie->action(trie->data);
         printf(";\n");
     }
