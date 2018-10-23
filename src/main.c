@@ -128,7 +128,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    bool ok = true;
     bool must_fail = false;
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
@@ -141,9 +140,13 @@ int main(int argc, char** argv) {
                 error(NULL, NULL, "unknown option '%s'", argv[i]);
                 return 1;
             }
-        } else {
-            ok &= process_file(argv[i]);
         }
+    }
+
+    bool ok = true;
+    for (int i = 1; i < argc; ++i) {
+        if (argv[i][0] != '-')
+            ok &= process_file(argv[i]);
     }
 
     return must_fail ^ ok ? 0 : 1;
