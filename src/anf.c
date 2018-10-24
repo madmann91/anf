@@ -1611,6 +1611,13 @@ const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true,
         return if_true; // Arbitrary, could be if_false
     if (if_true == if_false)
         return if_true;
+    // select(~a, b, c) => select(a, c, b)
+    if (node_is_not(cond)) {
+        cond = cond->ops[1];
+        const node_t* tmp = if_true;
+        if_true  = if_false;
+        if_false = tmp;
+    }
     const node_t* ops[] = { cond, if_true, if_false };
     return make_node(mod, (node_t) {
         .tag  = NODE_SELECT,
