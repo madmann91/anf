@@ -120,6 +120,7 @@ static ast_t* parse_binop(parser_t*, ast_t*, int);
 static ast_t* parse_call(parser_t*, ast_t*);
 static ast_t* parse_tuple(parser_t*, const char*, ast_t* (*) (parser_t*));
 static ast_t* parse_tuple_or_err(parser_t*, const char*, ast_t* (*) (parser_t*));
+static ast_t* parse_array(parser_t*);
 static ast_t* parse_lambda(parser_t*, ast_t*);
 static ast_t* parse_block(parser_t*);
 static ast_t* parse_if(parser_t*);
@@ -283,6 +284,7 @@ static ast_t* parse_primary(parser_t* parser) {
         case TOK_RETURN:   ast = parse_return(parser);                     break;
         case TOK_ID:       ast = parse_id(parser);                         break;
         case TOK_LPAREN:   ast = parse_tuple(parser, "tuple", parse_expr); break;
+        case TOK_LBRACKET: ast = parse_array(parser);                      break;
         case TOK_LBRACE:   ast = parse_block(parser);                      break;
         default:
             ast = parse_err(parser, "primary expression");
@@ -381,6 +383,33 @@ static ast_t* parse_tuple_or_err(parser_t* parser, const char* msg, ast_t* (*par
     if (parser->ahead.tag == TOK_LPAREN)
         return parse_tuple(parser, msg, parse_elem);
     return parse_err(parser, msg);
+}
+
+static ast_t* parse_array(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_ARRAY);
+    eat(parser, TOK_LBRACKET);
+    eat_nl(parser);
+    ast_list_t** cur = &ast->data.array.elems;
+    bool regular = false, first = true;
+    while (parser->ahead.tag != TOK_RBRACKET) {
+        ast_t* elem = parse_expr(parser);
+        cur = ast_list_add(parser, cur, elem);
+
+        eat_nl(parser);
+        loc_t loc = parser->ahead.loc;
+        bool comma = accept(parser, TOK_COMMA);
+        bool semi  = !comma && accept(parser, TOK_SEMI);
+        if (!comma && !semi)
+            break;
+        if (!first && regular != semi)
+            parse_error(parser, &loc, "cannot mix regular and irregular arrays");
+        first   = false;
+        regular = semi;
+        eat_nl(parser);
+    }
+    ast->data.array.regular = regular;
+    expect(parser, "array", TOK_RBRACKET);
+    return ast_finalize(ast, parser);
 }
 
 static ast_t* parse_lambda(parser_t* parser, ast_t* param) {

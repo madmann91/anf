@@ -21,6 +21,7 @@ enum ast_tag_e {
     AST_PRIM,
     AST_BLOCK,
     AST_TUPLE,
+    AST_ARRAY,
     AST_BINOP,
     AST_UNOP,
     AST_LAMBDA,
@@ -131,6 +132,10 @@ struct ast_s {
         struct {
             ast_list_t* args;
         } tuple;
+        struct {
+            ast_list_t* elems;
+            bool        regular;
+        } array;
         struct {
             uint32_t    tag;
             ast_t*      left;

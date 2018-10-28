@@ -34,6 +34,8 @@
     f(TOK_RPAREN,   ")") \
     f(TOK_LBRACE,   "{") \
     f(TOK_RBRACE,   "}") \
+    f(TOK_LBRACKET, "[") \
+    f(TOK_RBRACKET, "]") \
     f(TOK_LANGLE,   "<") \
     f(TOK_RANGLE,   ">") \
     f(TOK_COMMA,    ",") \
