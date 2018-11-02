@@ -154,6 +154,23 @@ bool type_contains(const type_t* type, const type_t* op) {
     return false;
 }
 
+size_t type_order(const type_t* type) {
+    if (type->tag == TYPE_FN) {
+        size_t dom   = type_order(type->ops[0]);
+        size_t codom = type_order(type->ops[1]);
+        return 1 + (dom > codom + 1 ? dom : codom + 1);
+    } else if (type->tag == TYPE_NORET) {
+        return -1;
+    } else {
+        size_t order = 0;
+        for (size_t i = 0; i < type->nops; ++i) {
+            size_t op = type_order(type->ops[i]);
+            order = order > op ? order : op;
+        }
+        return order;
+    }
+}
+
 static inline const type_t* make_type(mod_t* mod, const type_t type) {
     const type_t** lookup = internal_type_set_lookup(&mod->types, &type);
     if (lookup)
@@ -1643,6 +1660,10 @@ void fn_bind(mod_t* mod, fn_t* fn, size_t i, const node_t* op) {
 fn_t* fn_cast(const node_t* node) {
     assert(node->tag == NODE_FN);
     return (fn_t*)node;
+}
+
+size_t fn_order(const fn_t* fn) {
+    return type_order(fn->node.type);
 }
 
 const node_t* fn_inline(mod_t* mod, const fn_t* fn, const node_t* arg) {

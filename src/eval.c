@@ -19,28 +19,48 @@ static bool is_tuple_shuffle(const node_t* node, const node_t* base) {
     return true;
 }
 
-static inline bool is_eta_convertible(mod_t* mod, const fn_t* fn) {
+static inline bool is_eta_convertible(mod_t* mod, const fn_t* fn, const scope_t* scope) {
     // Functions whose bodies are only calling another function
     // with a permutation of their parameters are all eta-convertible
     if (fn->node.ops[0]->tag != NODE_APP)
         return false;
     const node_t* app = fn->node.ops[0];
     const node_t* param = node_param(mod, fn, NULL);
-    // The callee must be a known function or an extract from the function parameter
-    if (app->ops[0]->tag != NODE_FN && !is_from_extract(app->ops[0], param))
-        return false;
     // The argument must be a shuffled version of the parameter
-    return is_tuple_shuffle(app->ops[1], param);
+    if (!is_tuple_shuffle(app->ops[1], param))
+        return false;
+    // The callee must be a known function or an extract from the function parameter
+    if (is_from_extract(app->ops[0], param))
+        return true;
+    if (app->ops[0]->tag != NODE_FN)
+        return false;
+    // If the callee is a function, it must not be inside the scope
+    // Consider the following example:
+    // f(a, b, c) {
+    //   g(d) {
+    //     a + b + h(c)
+    //   }
+    //   h(e) {
+    //     e + a
+    //   }
+    //   g(a)
+    // }
+    // Here, replacing f with g moves h inside the scope of the caller
+    return !node_set_lookup(&scope->nodes, app->ops[0]);
 }
 
-static inline bool should_always_inline(const fn_t* fn) {
+static inline bool should_always_inline(const fn_t* fn, const scope_t* scope) {
     use_t* use = fn->node.uses;
     size_t n = 0;
     while (use) {
-        if (use->user->tag != NODE_PARAM) n++;
+        // If the use is a parameter, it should be ignored
+        if (use->user->tag != NODE_PARAM && n++ > 1)
+            return false;
         use = use->next;
     }
-    return n <= 1;
+    // Should not inline functions that create computation
+    // (i.e functions calling something that depend on their parameters)
+    return !node_set_lookup(&scope->nodes, fn->node.ops[0]);
 }
 
 bool partial_eval(mod_t* mod) {
@@ -49,8 +69,15 @@ bool partial_eval(mod_t* mod) {
     type2type_t new_types = type2type_create();
 
     // Gather all the application nodes that need evaluation
+    scope_t scope = { .nodes = node_set_create() };
     FORALL_VEC(mod->fns, const fn_t*, fn, {
-        bool always_inline  = node_is_one(fn->node.ops[1]) || should_always_inline(fn) || is_eta_convertible(mod, fn);
+        scope.entry = fn;
+        node_set_clear(&scope.nodes);
+        scope_compute(mod, &scope);
+
+        bool always_inline  = node_is_one(fn->node.ops[1]) ||
+                              should_always_inline(fn, &scope) ||
+                              is_eta_convertible(mod, fn, &scope);
         bool zero_cond      = node_is_zero(fn->node.ops[1]);
         const node_t* param = node_param(mod, fn, NULL);
         use_t* use = fn->node.uses;
@@ -73,7 +100,6 @@ bool partial_eval(mod_t* mod) {
     })
 
     // Generate a specialized version for each call
-    scope_t scope = { .entry = NULL, .nodes = node_set_create() };
     node_set_t fvs = node_set_create();
     const fn_t* prev_fn = NULL;
     FORALL_VEC(apps, const node_t*, app, {

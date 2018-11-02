@@ -196,6 +196,7 @@ bool type_is_i(const type_t*);
 bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
 bool type_contains(const type_t*, const type_t*);
+size_t type_order(const type_t*);
 const type_t* type_i1(mod_t*);
 const type_t* type_i8(mod_t*);
 const type_t* type_i16(mod_t*);
@@ -295,6 +296,7 @@ const node_t* node_trap(mod_t*, const node_t*, const type_t*, const dbg_t*);
 // Functions
 void fn_bind(mod_t*, fn_t*, size_t, const node_t*);
 fn_t* fn_cast(const node_t*);
+size_t fn_order(const fn_t*);
 const node_t* fn_inline(mod_t*, const fn_t*, const node_t*);
 fn_t* node_fn(mod_t*, const type_t*, const dbg_t*);
 const node_t* node_param(mod_t*, const fn_t*, const dbg_t*);
