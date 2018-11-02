@@ -1,0 +1,5 @@
+mod array {
+    def a = [1, 2, 3]
+    def b = [[1, 2]; [3, 4]]
+    def c = [a ; a]
+}

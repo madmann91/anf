@@ -227,6 +227,11 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             ast_print_list(ast->data.tuple.args, printer, ", ", false);
             pprintf(printer, ")");
             break;
+        case AST_ARRAY:
+            pprintf(printer, "[");
+            ast_print_list(ast->data.array.elems, printer, ast->data.array.regular ? "; " : ", ", false);
+            pprintf(printer, "]");
+            break;
         case AST_BINOP:
             {
                 int prec = binop_precedence(ast->data.binop.tag);
