@@ -101,6 +101,7 @@ struct ast_s {
     union {
         struct {
             const char* str;
+            ast_t*      to;
         } id;
         struct {
             uint32_t    tag;

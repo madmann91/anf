@@ -5,6 +5,7 @@
 #include "anf.h"
 #include "lex.h"
 #include "parse.h"
+#include "bind.h"
 #include "util.h"
 #include "mpool.h"
 #include "print.h"
@@ -17,6 +18,13 @@
 #else
     #include <unistd.h>
 #endif
+
+typedef struct binder_with_file_s binder_with_file_t;
+
+struct binder_with_file_s {
+    binder_t binder;
+    const char* file;
+};
 
 static bool colorize = false;
 
@@ -45,6 +53,10 @@ static void lexer_error_fn(lexer_t* lexer, const loc_t* loc, const char* str) {
 
 static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
     error(parser->lexer->file, loc, "%s", str);
+}
+
+static void binder_error_fn(binder_t* binder, const loc_t* loc, const char* str) {
+    error(((binder_with_file_t*)binder)->file, loc, "%s", str);
 }
 
 void usage(void) {
@@ -106,8 +118,25 @@ bool process_file(const char* file) {
         .error_fn = parser_error_fn
     };
 
+    // Parse program
     ast_t* ast = parse(&parser);
     bool ok = !parser.errs && !lexer.errs;
+    if (ok) {
+        // Bind identifiers to AST nodes
+        id2ast_t id2ast = id2ast_create();
+        binder_with_file_t binder_with_file = {
+            .binder = (binder_t) {
+                .id2ast   = &id2ast,
+                .error_fn = binder_error_fn
+            },
+            .file = file
+        };
+        id2ast_destroy(&id2ast);
+        bind(&binder_with_file.binder, ast);
+        ok &= !binder_with_file.binder.errs;
+    }
+
+    // Display program on success
     if (ok) {
         file_printer_t file_printer = printer_from_file(stdout, colorize, 0);
         ast_print(ast, &file_printer.printer);
