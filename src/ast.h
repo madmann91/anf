@@ -14,6 +14,7 @@ enum ast_tag_e {
     AST_ID,
     AST_LIT,
     AST_MOD,
+    AST_STRUCT,
     AST_DEF,
     AST_VAR,
     AST_VAL,
@@ -111,6 +112,11 @@ struct ast_s {
             ast_list_t* decls;
         } mod;
         struct {
+            bool        byref;
+            ast_t*      id;
+            ast_t*      members;
+        } struct_;
+        struct {
             ast_t*      id;
             ast_t*      param;
             ast_t*      value;
@@ -133,8 +139,8 @@ struct ast_s {
             ast_list_t* args;
         } tuple;
         struct {
-            ast_list_t* elems;
             bool        regular;
+            ast_list_t* elems;
         } array;
         struct {
             uint32_t    tag;

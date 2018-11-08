@@ -188,6 +188,10 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             print_indent(printer);
             pprintf(printer, "}");
             break;
+        case AST_STRUCT:
+            pprintf(printer, ast->data.struct_.byref ? COLORIZE(colorize, COLOR_KEY("struct"), " ", COLOR_KEY("byref"), " %s") : COLORIZE(colorize, COLOR_KEY("struct"), " %s"), ast->data.struct_.id->data.id.str);
+            ast_print(ast->data.struct_.members, printer);
+            break;
         case AST_DEF:
             pprintf(printer, COLORIZE(colorize, COLOR_KEY("def"), " %s"), ast->data.mod.id->data.id.str);
             if (ast->data.def.param) {

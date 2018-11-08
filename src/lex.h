@@ -30,6 +30,8 @@
     f(TOK_CONTINUE, "continue") \
     f(TOK_RETURN,   "return") \
     f(TOK_MOD,      "mod") \
+    f(TOK_STRUCT,   "struct") \
+    f(TOK_BYREF,    "byref") \
     f(TOK_LPAREN,   "(") \
     f(TOK_RPAREN,   ")") \
     f(TOK_LBRACE,   "{") \

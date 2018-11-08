@@ -141,6 +141,8 @@ int main(int argc, char** argv) {
     add_keyword(trie, "return",   "TOK_RETURN");
     add_keyword(trie, "mod",      "TOK_MOD");
     add_keyword(trie, "bool",     "TOK_BOOL");
+    add_keyword(trie, "struct",   "TOK_STRUCT");
+    add_keyword(trie, "byref",    "TOK_BYREF");
 
     add_boolean(trie, "true",  "true");
     add_boolean(trie, "false", "false");

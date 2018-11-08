@@ -136,6 +136,7 @@ static ast_t* parse_return(parser_t*);
 static ast_t* parse_prim(parser_t*, uint32_t);
 
 // Declarations
+static ast_t* parse_struct(parser_t*);
 static ast_t* parse_def(parser_t*);
 static ast_t* parse_var_or_val(parser_t*, bool);
 static ast_t* parse_mod(parser_t*);
@@ -199,9 +200,10 @@ static ast_t* parse_stmt(parser_t* parser) {
 
 static ast_t* parse_decl(parser_t* parser) {
     switch (parser->ahead.tag) {
-        case TOK_DEF: return parse_def(parser);
-        case TOK_VAR: return parse_var_or_val(parser, true);
-        case TOK_VAL: return parse_var_or_val(parser, false);
+        case TOK_STRUCT: return parse_struct(parser);
+        case TOK_DEF:    return parse_def(parser);
+        case TOK_VAR:    return parse_var_or_val(parser, true);
+        case TOK_VAL:    return parse_var_or_val(parser, false);
         default:
             break;
     }
@@ -544,6 +546,20 @@ static ast_t* parse_prim(parser_t* parser, uint32_t tag) {
     return ast_finalize(ast, parser);
 }
 
+static ast_t* parse_struct(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_STRUCT);
+    eat(parser, TOK_STRUCT);
+    if (parser->ahead.tag == TOK_BYREF) {
+        eat(parser, TOK_BYREF);
+        ast->data.struct_.byref = true;
+    }
+    ast->data.struct_.id = parse_id(parser);
+    ast->data.struct_.members = parse_tuple(parser, "structure definition", parse_ptrn);
+    if (ast_is_refutable(ast->data.struct_.members))
+        parse_error(parser, &ast->data.struct_.members->loc, "invalid structure definition");
+    return ast_finalize(ast, parser);
+}
+
 static ast_t* parse_def(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_DEF);
     eat(parser, TOK_DEF);
@@ -569,6 +585,8 @@ static ast_t* parse_var_or_val(parser_t* parser, bool var) {
     eat(parser, var ? TOK_VAR : TOK_VAL);
     eat_nl(parser);
     ast->data.varl.ptrn = parse_ptrn(parser);
+    if (ast_is_refutable(ast->data.varl.ptrn))
+        parse_error(parser, &ast->data.varl.ptrn->loc, var ? "invalid variable pattern" : "invalid value pattern");
     eat_nl(parser);
     expect(parser, var ? "variable" : "value", TOK_EQ);
     eat_nl(parser);
