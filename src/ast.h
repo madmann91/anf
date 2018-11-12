@@ -10,6 +10,12 @@ typedef struct ast_list_s ast_list_t;
 #define MAX_BINOP_PRECEDENCE 10
 #define INVALID_TAG ((uint32_t)-1)
 
+#define FORALL_AST(first, elem, ...) \
+    for (ast_list_t* list = (first); list; list = list->next) { \
+        ast_t* elem = list->ast; \
+        __VA_ARGS__ \
+    }
+
 enum ast_tag_e {
     AST_ID,
     AST_LIT,
@@ -32,9 +38,7 @@ enum ast_tag_e {
     AST_FOR,
     AST_MATCH,
     AST_CASE,
-    AST_BREAK,
-    AST_CONTINUE,
-    AST_RETURN,
+    AST_CONT,
     AST_PROGRAM,
     AST_ERR
 };
@@ -89,6 +93,12 @@ enum binop_tag_e {
     BINOP_CMPLE
 };
 
+enum cont_tag_e {
+    CONT_BREAK,
+    CONT_CONTINUE,
+    CONT_RETURN
+};
+
 enum prim_tag_e {
     PRIM_BOOL = TYPE_I1,
 #define PRIM(name, str) PRIM_##name = TYPE_##name,
@@ -100,8 +110,8 @@ struct ast_s {
     uint32_t tag;
     union {
         struct {
-            const char* str;
-            ast_t*      to;
+            const char*  str;
+            const ast_t* to;
         } id;
         struct {
             uint32_t    tag;
@@ -182,6 +192,10 @@ struct ast_s {
             ast_t*      ptrn;
             ast_t*      value;
         } case_;
+        struct {
+            uint32_t    tag;
+            ast_t*      parent;
+        } cont;
         struct {
             ast_list_t* mods;
         } program;

@@ -128,9 +128,7 @@ static ast_t* parse_while(parser_t*);
 static ast_t* parse_for(parser_t*);
 static ast_t* parse_match(parser_t*, ast_t*);
 static ast_t* parse_case(parser_t*);
-static ast_t* parse_break(parser_t*);
-static ast_t* parse_continue(parser_t*);
-static ast_t* parse_return(parser_t*);
+static ast_t* parse_cont(parser_t*, uint32_t);
 
 // Types
 static ast_t* parse_prim(parser_t*, uint32_t);
@@ -281,9 +279,9 @@ static ast_t* parse_primary(parser_t* parser) {
             ast = parse_lit(parser);
             break;
         case TOK_IF:       ast = parse_if(parser);                         break;
-        case TOK_BREAK:    ast = parse_break(parser);                      break;
-        case TOK_CONTINUE: ast = parse_continue(parser);                   break;
-        case TOK_RETURN:   ast = parse_return(parser);                     break;
+        case TOK_BREAK:    ast = parse_cont(parser, CONT_BREAK);           break;
+        case TOK_CONTINUE: ast = parse_cont(parser, CONT_CONTINUE);        break;
+        case TOK_RETURN:   ast = parse_cont(parser, CONT_RETURN);          break;
         case TOK_ID:       ast = parse_id(parser);                         break;
         case TOK_LPAREN:   ast = parse_tuple(parser, "tuple", parse_expr); break;
         case TOK_LBRACKET: ast = parse_array(parser);                      break;
@@ -513,21 +511,10 @@ static ast_t* parse_case(parser_t* parser) {
     return ast_finalize(ast, parser);
 }
 
-static ast_t* parse_break(parser_t* parser) {
-    ast_t* ast = ast_create(parser, AST_BREAK);
-    eat(parser, TOK_BREAK);
-    return ast_finalize(ast, parser);
-}
-
-static ast_t* parse_continue(parser_t* parser) {
-    ast_t* ast = ast_create(parser, AST_CONTINUE);
-    eat(parser, TOK_CONTINUE);
-    return ast_finalize(ast, parser);
-}
-
-static ast_t* parse_return(parser_t* parser) {
-    ast_t* ast = ast_create(parser, AST_RETURN);
-    eat(parser, TOK_RETURN);
+static ast_t* parse_cont(parser_t* parser, uint32_t tag) {
+    ast_t* ast = ast_create(parser, AST_CONT);
+    ast->data.cont.tag = tag;
+    next(parser);
     return ast_finalize(ast, parser);
 }
 

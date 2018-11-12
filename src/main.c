@@ -26,40 +26,65 @@ struct binder_with_file_s {
     const char* file;
 };
 
+enum msg_type_e {
+    MSG_ERROR,
+    MSG_WARN,
+    MSG_NOTE
+};
+
 static bool colorize = false;
 
-static void error(const char* file, const loc_t* loc, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
+static void message(uint32_t type, const char* file, const loc_t* loc, const char* msg) {
+    FILE* out = type == MSG_ERROR ? stderr : stdout;
+    switch (type) {
+        case MSG_ERROR: fputs(COLORIZE(colorize, COLOR_ERR("error")), out); break;
+        case MSG_WARN:  fputs(COLORIZE(colorize, COLOR_WARN("warn")), out); break;
+        case MSG_NOTE:  fputs(COLORIZE(colorize, COLOR_NOTE("note")), out); break;
+        default: break;
+    }
     if (loc && file) {
         if (loc->brow != loc->erow || loc->bcol != loc->ecol) {
-            const char* prologue = COLORIZE(colorize, COLOR_ERR("error"), " in ", COLOR_LOC("%s(%zu, %zu - %zu, %zu)"), ": ");
-            fprintf(stderr, prologue, file, loc->brow, loc->bcol, loc->erow, loc->ecol);
+            const char* fmt = COLORIZE(colorize, " in ", COLOR_LOC("%s(%zu, %zu - %zu, %zu)"), ": %s\n");
+            fprintf(out, fmt, file, loc->brow, loc->bcol, loc->erow, loc->ecol, msg);
         } else {
-            const char* prologue = COLORIZE(colorize, COLOR_ERR("error"), " in ", COLOR_LOC("%s(%zu, %zu)"), ": ");
-            fprintf(stderr, prologue, file, loc->brow, loc->bcol);
+            const char* fmt = COLORIZE(colorize, " in ", COLOR_LOC("%s(%zu, %zu)"), ": %s\n");
+            fprintf(out, fmt, file, loc->brow, loc->bcol, msg);
         }
     } else {
-        fprintf(stderr, COLORIZE(colorize, COLOR_ERR("error"), ": "));
+        fprintf(out, ": %s\n", msg);
     }
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-    va_end(args);
 }
 
 static void lexer_error_fn(lexer_t* lexer, const loc_t* loc, const char* str) {
-    error(lexer->file, loc, "%s", str);
+    message(MSG_ERROR, lexer->file, loc, str);
 }
 
 static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
-    error(parser->lexer->file, loc, "%s", str);
+    message(MSG_ERROR, parser->lexer->file, loc, str);
 }
 
 static void binder_error_fn(binder_t* binder, const loc_t* loc, const char* str) {
-    error(((binder_with_file_t*)binder)->file, loc, "%s", str);
+    message(MSG_ERROR, ((binder_with_file_t*)binder)->file, loc, str);
 }
 
-void usage(void) {
+static void binder_warn_fn(binder_t* binder, const loc_t* loc, const char* str) {
+    message(MSG_WARN, ((binder_with_file_t*)binder)->file, loc, str);
+}
+
+static void binder_note_fn(binder_t* binder, const loc_t* loc, const char* str) {
+    message(MSG_NOTE, ((binder_with_file_t*)binder)->file, loc, str);
+}
+
+static void error(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    fputs(COLORIZE(colorize, COLOR_ERR("error"), ": "), stderr);
+    vfprintf(stderr, fmt, args);
+    fputc('\n', stderr);
+    va_end(args);
+}
+
+static void usage(void) {
     static const char* usage_str =
         "usage: anf [options] file...\n"
         "options:\n"
@@ -68,7 +93,7 @@ void usage(void) {
     printf("%s", usage_str);
 }
 
-char* read_file(const char* file, size_t* size) {
+static char* read_file(const char* file, size_t* size) {
     FILE* fp = fopen(file, "r");
     if (!fp)
         return NULL;
@@ -94,11 +119,11 @@ char* read_file(const char* file, size_t* size) {
     return buf;
 }
 
-bool process_file(const char* file) {
+static bool process_file(const char* file) {
     size_t file_size = 0;
     char* file_data = read_file(file, &file_size);
     if (!file_data) {
-        error(NULL, NULL, "cannot read file '%s'", file);
+        error("cannot read file '%s'", file);
         return false;
     }
 
@@ -126,8 +151,10 @@ bool process_file(const char* file) {
         id2ast_t id2ast = id2ast_create();
         binder_with_file_t binder_with_file = {
             .binder = (binder_t) {
-                .id2ast   = &id2ast,
-                .error_fn = binder_error_fn
+                .env      = NULL,
+                .error_fn = binder_error_fn,
+                .warn_fn  = binder_warn_fn,
+                .note_fn  = binder_note_fn
             },
             .file = file
         };
@@ -153,7 +180,7 @@ int main(int argc, char** argv) {
     colorize = isatty(fileno(stdout)) && isatty(fileno(stderr));
 
     if (argc <= 1) {
-        error(NULL, NULL, "no input files");
+        error("no input files");
         return 1;
     }
 
@@ -166,7 +193,7 @@ int main(int argc, char** argv) {
             } else if (!strcmp(argv[i], "--must-fail")) {
                 must_fail = true;
             } else {
-                error(NULL, NULL, "unknown option '%s'", argv[i]);
+                error("unknown option '%s'", argv[i]);
                 return 1;
             }
         }

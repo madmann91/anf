@@ -1,0 +1,4 @@
+mod structs {
+    struct S(a: i32, b: i32)
+    struct byref S2(s: S)
+}

@@ -1,0 +1,4 @@
+mod patterns {
+    val 1 = 2
+    var (1, a) = (3, 4)
+}

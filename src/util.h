@@ -59,6 +59,8 @@
 #define COLOR_KEY(x)  (x, "\33[34;1m")
 #define COLOR_LIT(x)  (x, "\33[36;1m")
 #define COLOR_ERR(x)  (x, "\33[31;1m")
+#define COLOR_WARN(x) (x, "\33[33;1m")
+#define COLOR_NOTE(x) (x, "\33[34;1m")
 
 #define COLORIZE_ENABLED_0(...) __VA_ARGS__
 #define COLORIZE_ENABLED_1(x) COLORIZE_ENABLED_PAIR x
