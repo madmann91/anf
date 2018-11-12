@@ -12,6 +12,7 @@ set(LIBANF_SRCS
     anf.c
     ast.c
     lex.c
+    log.c
     parse.c
     bind.c
     htable.c
@@ -29,6 +30,7 @@ set(LIBANF_HDRS
     adt.h
     ast.h
     lex.h
+    log.h
     parse.h
     bind.h
     hash.h

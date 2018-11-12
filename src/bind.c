@@ -2,8 +2,6 @@
 
 #include "bind.h"
 
-#define MSG_BUF_SIZE 256
-
 static inline env_t* alloc_env(env_t* prev) {
     env_t* env = malloc(sizeof(env_t));
     env->id2ast = id2ast_create();
@@ -53,12 +51,12 @@ static inline void insert_env(binder_t* binder, ast_t* id, ast_t* ast) {
     assert(id->tag == AST_ID);
     const ast_t* prev = lookup_env(binder, id->data.id.str);
     if (!id2ast_insert(&binder->env->id2ast, id->data.id.str, ast)) {
-        bind_error(binder, &id->loc, "identifier '%s' has already been declared", id->data.id.str);
+        log_error(binder->log, &id->loc, "identifier '%s' has already been declared", id->data.id.str);
     } else if (prev)
-        bind_warn(binder, &id->loc, "identifier '%s' shadows previous declaration", id->data.id.str);
+        log_warn(binder->log, &id->loc, "identifier '%s' shadows previous declaration", id->data.id.str);
 
     if (prev)
-        bind_note(binder, &prev->loc, "previous declaration site was here");
+        log_note(binder->log, &prev->loc, "previous declaration site was here");
 }
 
 static void bind_ptrn(binder_t* binder, ast_t* ast) {
@@ -137,7 +135,7 @@ void bind(binder_t* binder, ast_t* ast) {
                 // This is a use of a previously declared identifier
                 const ast_t* to = lookup_env(binder, ast->data.id.str);
                 if (!to) {
-                    bind_error(binder, &ast->loc, "unknown identifier '%s'", ast->data.id.str);
+                    log_error(binder->log, &ast->loc, "unknown identifier '%s'", ast->data.id.str);
                     return;
                 }
                 ast->data.id.to = to;
@@ -250,13 +248,13 @@ void bind(binder_t* binder, ast_t* ast) {
             switch (ast->data.cont.tag) {
                 case CONT_RETURN:
                     if (!binder->fn)
-                        bind_error(binder, &ast->loc, "use of 'return' outside of a function");
+                        log_error(binder->log, &ast->loc, "use of 'return' outside of a function");
                     ast->data.cont.parent = binder->fn;
                     break;
                 case CONT_BREAK:
                 case CONT_CONTINUE:
                     if (!binder->loop)
-                        bind_error(binder, &ast->loc, "use of '%s' outside of a loop", ast->data.cont.tag == CONT_BREAK ? "break" : "continue");
+                        log_error(binder->log, &ast->loc, "use of '%s' outside of a loop", ast->data.cont.tag == CONT_BREAK ? "break" : "continue");
                     ast->data.cont.parent = binder->loop;
                     break;
             }
@@ -268,28 +266,4 @@ void bind(binder_t* binder, ast_t* ast) {
             assert(false);
             break;
     }
-}
-
-#define bind_msg(binder, fn, loc, fmt) \
-    { \
-        char buf[MSG_BUF_SIZE]; \
-        va_list args; \
-        va_start(args, fmt); \
-        vsnprintf(buf, MSG_BUF_SIZE, fmt, args); \
-        fn(binder, loc, buf); \
-        va_end(args); \
-    }
-
-void bind_error(binder_t* binder, const loc_t* loc, const char* fmt, ...) {
-    binder->errs++;
-    bind_msg(binder, binder->error_fn, loc, fmt);
-}
-
-void bind_warn(binder_t* binder, const loc_t* loc, const char* fmt, ...) {
-    binder->warns++;
-    bind_msg(binder, binder->warn_fn, loc, fmt);
-}
-
-void bind_note(binder_t* binder, const loc_t* loc, const char* fmt, ...) {
-    bind_msg(binder, binder->note_fn, loc, fmt);
 }

@@ -19,61 +19,7 @@
     #include <unistd.h>
 #endif
 
-typedef struct binder_with_file_s binder_with_file_t;
-
-struct binder_with_file_s {
-    binder_t binder;
-    const char* file;
-};
-
-enum msg_type_e {
-    MSG_ERROR,
-    MSG_WARN,
-    MSG_NOTE
-};
-
 static bool colorize = false;
-
-static void message(uint32_t type, const char* file, const loc_t* loc, const char* msg) {
-    FILE* out = type == MSG_ERROR ? stderr : stdout;
-    switch (type) {
-        case MSG_ERROR: fputs(COLORIZE(colorize, COLOR_ERR("error")), out); break;
-        case MSG_WARN:  fputs(COLORIZE(colorize, COLOR_WARN("warn")), out); break;
-        case MSG_NOTE:  fputs(COLORIZE(colorize, COLOR_NOTE("note")), out); break;
-        default: break;
-    }
-    if (loc && file) {
-        if (loc->brow != loc->erow || loc->bcol != loc->ecol) {
-            const char* fmt = COLORIZE(colorize, " in ", COLOR_LOC("%s(%zu, %zu - %zu, %zu)"), ": %s\n");
-            fprintf(out, fmt, file, loc->brow, loc->bcol, loc->erow, loc->ecol, msg);
-        } else {
-            const char* fmt = COLORIZE(colorize, " in ", COLOR_LOC("%s(%zu, %zu)"), ": %s\n");
-            fprintf(out, fmt, file, loc->brow, loc->bcol, msg);
-        }
-    } else {
-        fprintf(out, ": %s\n", msg);
-    }
-}
-
-static void lexer_error_fn(lexer_t* lexer, const loc_t* loc, const char* str) {
-    message(MSG_ERROR, lexer->file, loc, str);
-}
-
-static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
-    message(MSG_ERROR, parser->lexer->file, loc, str);
-}
-
-static void binder_error_fn(binder_t* binder, const loc_t* loc, const char* str) {
-    message(MSG_ERROR, ((binder_with_file_t*)binder)->file, loc, str);
-}
-
-static void binder_warn_fn(binder_t* binder, const loc_t* loc, const char* str) {
-    message(MSG_WARN, ((binder_with_file_t*)binder)->file, loc, str);
-}
-
-static void binder_note_fn(binder_t* binder, const loc_t* loc, const char* str) {
-    message(MSG_NOTE, ((binder_with_file_t*)binder)->file, loc, str);
-}
 
 static void error(const char* fmt, ...) {
     va_list args;
@@ -128,39 +74,34 @@ static bool process_file(const char* file) {
     }
 
     mpool_t* pool = mpool_create();
+    log_t log = log_create_default(file, colorize);
     lexer_t lexer = {
-        .tmp      = 0,
-        .str      = file_data,
-        .size     = file_size,
-        .file     = file,
-        .row      = 1,
-        .col      = 1,
-        .error_fn = lexer_error_fn
+        .tmp  = 0,
+        .str  = file_data,
+        .size = file_size,
+        .row  = 1,
+        .col  = 1,
+        .log  = &log
     };
     parser_t parser = {
-        .lexer    = &lexer,
-        .pool     = &pool,
-        .error_fn = parser_error_fn
+        .lexer = &lexer,
+        .pool  = &pool,
+        .log   = &log
     };
 
     // Parse program
     ast_t* ast = parse(&parser);
-    bool ok = !parser.errs && !lexer.errs;
+    bool ok = !log.errs;
     if (ok) {
         // Bind identifiers to AST nodes
         id2ast_t id2ast = id2ast_create();
-        binder_with_file_t binder_with_file = {
-            .binder = (binder_t) {
-                .env      = NULL,
-                .error_fn = binder_error_fn,
-                .warn_fn  = binder_warn_fn,
-                .note_fn  = binder_note_fn
-            },
-            .file = file
+        binder_t binder = {
+            .env = NULL,
+            .log = &log
         };
         id2ast_destroy(&id2ast);
-        bind(&binder_with_file.binder, ast);
-        ok &= !binder_with_file.binder.errs;
+        bind(&binder, ast);
+        ok &= !log.errs;
     }
 
     // Display program on success
@@ -172,6 +113,7 @@ static bool process_file(const char* file) {
 
     free(file_data);
     mpool_destroy(pool);
+    log_destroy(&log);
     return ok;
 }
 

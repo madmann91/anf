@@ -744,14 +744,6 @@ cleanup:
     return status == 0;
 }
 
-static void lexer_error_fn(lexer_t* lexer, const loc_t* loc, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", lexer->file, loc->brow, loc->bcol, str);
-}
-
-static void parser_error_fn(parser_t* parser, const loc_t* loc, const char* str) {
-    fprintf(stderr, "%s (%zu, %zu): %s\n", parser->lexer->file, loc->brow, loc->bcol, str);
-}
-
 bool test_lex(void) {
     const char* str =
         "hello if\'c\' ^ /* this is a multi-\n"
@@ -766,14 +758,14 @@ bool test_lex(void) {
     };
     size_t num_tags = sizeof(tags) / sizeof(tags[0]);
     char* buf = xmalloc(strlen(str) + 1);
+    log_t log = log_create_silent();
     lexer_t lexer = {
-        .tmp = 0,
-        .str = buf,
+        .tmp  = 0,
+        .str  = buf,
         .size = strlen(str),
-        .file = "inline string",
         .row  = 1,
         .col  = 1,
-        .error_fn = lexer_error_fn,
+        .log  = &log
     };
     strcpy(buf, str);
 
@@ -790,9 +782,10 @@ bool test_lex(void) {
         if (tok.tag == TOK_EOF)
             break;
     }
-    CHECK(lexer.errs == 0);
+    CHECK(log.errs == 0);
 
 cleanup:
+    log_destroy(&log);
     free(buf);
     return status == 0;
 }
@@ -810,19 +803,19 @@ bool test_parse(void) {
         "}";
     char* buf = xmalloc(strlen(str) + 1);
     mpool_t* pool = mpool_create();
+    log_t log = log_create_silent();
     lexer_t lexer = {
-        .tmp      = 0,
-        .str      = buf,
-        .size     = strlen(str),
-        .file     = "inline string",
-        .row      = 1,
-        .col      = 1,
-        .error_fn = lexer_error_fn
+        .tmp  = 0,
+        .str  = buf,
+        .size = strlen(str),
+        .row  = 1,
+        .col  = 1,
+        .log  = &log
     };
     parser_t parser = {
-        .lexer    = &lexer,
-        .pool     = &pool,
-        .error_fn = parser_error_fn
+        .lexer = &lexer,
+        .pool  = &pool,
+        .log   = &log
     };
     strcpy(buf, str);
 
@@ -832,10 +825,11 @@ bool test_parse(void) {
         goto cleanup;
 
     ast_t* ast = parse(&parser);
-    CHECK(parser.errs == 0 && lexer.errs == 0);
+    CHECK(log.errs == 0);
     CHECK(ast);
 
 cleanup:
+    log_destroy(&log);
     mpool_destroy(pool);
     free(buf);
     return status == 0;

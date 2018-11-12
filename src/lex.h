@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "anf.h"
+#include "log.h"
 
 #define TOK2STR_BUF_SIZE 32
 
@@ -103,19 +104,16 @@ struct tok_s {
 };
 
 struct lexer_s {
-    char        tmp;
-    const char* file;
-    size_t      row;
-    size_t      col;
-    size_t      errs;
-    char*       str;
-    size_t      size;
-    void        (*error_fn)(lexer_t*, const loc_t*, const char*);
+    char   tmp;
+    size_t row;
+    size_t col;
+    char*  str;
+    size_t size;
+    log_t* log;
 };
 
 char* tok2str(uint32_t, char*);
 
 tok_t lex(lexer_t*);
-void lex_error(lexer_t*, const loc_t*, const char*, ...);
 
 #endif // LEX_H

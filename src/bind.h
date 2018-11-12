@@ -4,6 +4,7 @@
 #include "adt.h"
 #include "hash.h"
 #include "ast.h"
+#include "log.h"
 
 typedef struct env_s    env_t;
 typedef struct binder_s binder_t;
@@ -25,19 +26,12 @@ struct env_s {
 };
 
 struct binder_s {
-    ast_t*    fn;
-    ast_t*    loop;
-    env_t*    env;
-    size_t    errs;
-    size_t    warns;
-    void      (*error_fn)(binder_t*, const loc_t*, const char*);
-    void      (*warn_fn)(binder_t*, const loc_t*, const char*);
-    void      (*note_fn)(binder_t*, const loc_t*, const char*);
+    ast_t* fn;
+    ast_t* loop;
+    env_t* env;
+    log_t* log;
 };
 
 void bind(binder_t*, ast_t*);
-void bind_error(binder_t*, const loc_t*, const char*, ...);
-void bind_warn(binder_t*, const loc_t*, const char*, ...);
-void bind_note(binder_t*, const loc_t*, const char*, ...);
 
 #endif // BIND_H

@@ -3,8 +3,6 @@
 
 #include "parse.h"
 
-#define ERR_BUF_SIZE 256
-
 static inline void next(parser_t* parser) {
     parser->prev_loc = parser->ahead.loc;
     parser->ahead    = lex(parser->lexer);
@@ -66,7 +64,7 @@ static inline bool expect(parser_t* parser, const char* msg, uint32_t tag) {
         char buf2[TOK2STR_BUF_SIZE + 2];
         const char* str1 = tok2str_with_quotes(tag, buf1);
         const char* str2 = tok2str_with_quotes(parser->ahead.tag, buf2);
-        parse_error(parser, &parser->ahead.loc, "expected %s in %s, but got %s", str1, msg, str2);
+        log_error(parser->log, &parser->ahead.loc, "expected %s in %s, but got %s", str1, msg, str2);
         status = false;
     }
     next(parser);
@@ -225,7 +223,7 @@ static ast_t* parse_type(parser_t* parser) {
 static ast_t* parse_err(parser_t* parser, const char* msg) {
     ast_t* ast = ast_create(parser, AST_ERR);
     char buf[TOK2STR_BUF_SIZE + 2];
-    parse_error(parser, &parser->ahead.loc, "expected %s, got %s", msg, tok2str_with_quotes(parser->ahead.tag, buf));
+    log_error(parser->log, &parser->ahead.loc, "expected %s, got %s", msg, tok2str_with_quotes(parser->ahead.tag, buf));
     next(parser);
     return ast_finalize(ast, parser);
 }
@@ -235,7 +233,7 @@ static ast_t* parse_id(parser_t* parser) {
     char* str = "";
     if (parser->ahead.tag != TOK_ID) {
         char buf[TOK2STR_BUF_SIZE + 2];
-        parse_error(parser, &parser->ahead.loc, "identifier expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
+        log_error(parser->log, &parser->ahead.loc, "identifier expected, got %s", tok2str_with_quotes(parser->ahead.tag, buf));
     } else {
         str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
         strcpy(str, parser->ahead.str);
@@ -402,7 +400,7 @@ static ast_t* parse_array(parser_t* parser) {
         if (!comma && !semi)
             break;
         if (!first && regular != semi)
-            parse_error(parser, &loc, "cannot mix regular and irregular arrays");
+            log_error(parser->log, &loc, "cannot mix regular and irregular arrays");
         first   = false;
         regular = semi;
         eat_nl(parser);
@@ -543,7 +541,7 @@ static ast_t* parse_struct(parser_t* parser) {
     ast->data.struct_.id = parse_id(parser);
     ast->data.struct_.members = parse_tuple(parser, "structure definition", parse_ptrn);
     if (ast_is_refutable(ast->data.struct_.members))
-        parse_error(parser, &ast->data.struct_.members->loc, "invalid structure definition");
+        log_error(parser->log, &ast->data.struct_.members->loc, "invalid structure definition");
     return ast_finalize(ast, parser);
 }
 
@@ -556,7 +554,7 @@ static ast_t* parse_def(parser_t* parser) {
     if (parser->ahead.tag == TOK_LPAREN) {
         ast->data.def.param = parse_tuple(parser, "function parameter", parse_ptrn);
         if (ast_is_refutable(ast->data.def.param))
-            parse_error(parser, &ast->data.def.param->loc, "invalid function parameter");
+            log_error(parser->log, &ast->data.def.param->loc, "invalid function parameter");
         if (parser->ahead.tag == TOK_LBRACE)
             ast->data.def.value = parse_block(parser);
     } else {
@@ -573,7 +571,7 @@ static ast_t* parse_var_or_val(parser_t* parser, bool var) {
     eat_nl(parser);
     ast->data.varl.ptrn = parse_ptrn(parser);
     if (ast_is_refutable(ast->data.varl.ptrn))
-        parse_error(parser, &ast->data.varl.ptrn->loc, var ? "invalid variable pattern" : "invalid value pattern");
+        log_error(parser->log, &ast->data.varl.ptrn->loc, var ? "invalid variable pattern" : "invalid value pattern");
     eat_nl(parser);
     expect(parser, var ? "variable" : "value", TOK_EQ);
     eat_nl(parser);
@@ -617,14 +615,4 @@ static ast_t* parse_program(parser_t* parser) {
 ast_t* parse(parser_t* parser) {
     next(parser);
     return parse_program(parser);
-}
-
-void parse_error(parser_t* parser, const loc_t* loc, const char* fmt, ...) {
-    char buf[ERR_BUF_SIZE];
-    parser->errs++;
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, ERR_BUF_SIZE, fmt, args);
-    parser->error_fn(parser, loc, buf);
-    va_end(args);
 }

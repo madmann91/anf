@@ -8,7 +8,6 @@
 // Generated file
 #include "lex.inc"
 
-#define ERR_BUF_SIZE 256
 #define MIN_UTF8_BYTES 2
 #define MAX_UTF8_BYTES 4
 
@@ -32,7 +31,7 @@ static inline size_t check_utf8(lexer_t* lexer, size_t n) {
     }
     return n;
 error:
-    lex_error(lexer, &loc, "invalid UTF-8 character");
+    log_error(lexer->log, &loc, "invalid UTF-8 character");
     return 1;
 }
 
@@ -79,7 +78,7 @@ static void eat_comments(lexer_t* lexer) {
         while (lexer->size > 0 && *lexer->str != '*') eat(lexer);
         if (lexer->size == 0) {
             loc_t loc = make_loc(lexer, lexer->row, lexer->col);
-            lex_error(lexer, &loc, "non-terminated multiline comment");
+            log_error(lexer->log, &loc, "non-terminated multiline comment");
             return;
         }
         eat(lexer);
@@ -144,7 +143,7 @@ static tok_t parse_str_or_chr(lexer_t* lexer, bool str, int brow, int bcol) {
     char* end = lexer->str;
     if (lexer->size == 0 || !accept(lexer, str ? '\"' : '\'')) {
         loc_t loc = make_loc(lexer, lexer->row, lexer->col);
-        lex_error(lexer, &loc, str ? "unterminated string literal" : "unterminated character literal");
+        log_error(lexer->log, &loc, str ? "unterminated string literal" : "unterminated character literal");
     }
     *end = 0;
     return (tok_t) { .tag = str ? TOK_STR : TOK_CHR, .str = beg, .loc = make_loc(lexer, brow, bcol) };
@@ -265,18 +264,8 @@ tok_t lex(lexer_t* lexer) {
             return parse_num(lexer, brow, bcol);
 
         loc_t loc = make_loc(lexer, brow, bcol);
-        lex_error(lexer, &loc, "unknown token '%c'", *lexer->str);
+        log_error(lexer->log, &loc, "unknown token '%c'", *lexer->str);
         eat(lexer);
         return (tok_t) { .tag = TOK_ERR, .loc = loc };
     }
-}
-
-void lex_error(lexer_t* lexer, const loc_t* loc, const char* fmt, ...) {
-    char buf[ERR_BUF_SIZE];
-    lexer->errs++;
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, ERR_BUF_SIZE, fmt, args);
-    lexer->error_fn(lexer, loc, buf);
-    va_end(args);
 }
