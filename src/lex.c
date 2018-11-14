@@ -1,6 +1,5 @@
 #include <ctype.h>
 #include <stdio.h>
-#include <stdarg.h>
 
 #include "lex.h"
 #include "util.h"

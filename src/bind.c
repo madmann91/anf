@@ -1,5 +1,3 @@
-#include <stdarg.h>
-
 #include "bind.h"
 
 static inline env_t* alloc_env(env_t* prev) {
