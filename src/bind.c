@@ -59,7 +59,8 @@ static inline void insert_env(binder_t* binder, ast_t* id, ast_t* ast) {
 }
 
 static void bind_ptrn(binder_t* binder, ast_t* ast) {
-    // This function creating bindings for patterns
+    // This function put variables contained
+    // in patterns into the environment
     switch (ast->tag) {
         case AST_ID: 
             insert_env(binder, ast, ast);
