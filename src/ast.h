@@ -29,6 +29,7 @@ enum ast_tag_e {
     AST_BLOCK,
     AST_TUPLE,
     AST_ARRAY,
+    AST_FIELD,
     AST_BINOP,
     AST_UNOP,
     AST_LAMBDA,
@@ -154,13 +155,17 @@ struct ast_s {
             ast_list_t* elems;
         } array;
         struct {
+            ast_t*      arg;
+            ast_t*      id;
+        } field;
+        struct {
             uint32_t    tag;
             ast_t*      left;
             ast_t*      right;
         } binop;
         struct {
             uint32_t    tag;
-            ast_t*      op;
+            ast_t*      arg;
         } unop;
         struct {
             ast_t*      param;
@@ -185,7 +190,7 @@ struct ast_s {
             ast_t*      body;
         } for_;
         struct {
-            ast_t*      expr;
+            ast_t*      arg;
             ast_list_t* cases;
         } match;
         struct {
@@ -209,6 +214,7 @@ struct ast_list_s {
     ast_list_t* next;
 };
 
+bool ast_is_ptrn(const ast_t*);
 bool ast_is_refutable(const ast_t*);
 
 const char* prim2str(uint32_t);

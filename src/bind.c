@@ -175,6 +175,9 @@ void bind(binder_t* binder, ast_t* ast) {
                 bind(binder, elem);
             })
             break;
+        case AST_FIELD:
+            bind(binder, ast->data.field.arg);
+            break;
         case AST_BLOCK:
             push_env(binder);
             bind_head(binder, ast);
@@ -184,7 +187,7 @@ void bind(binder_t* binder, ast_t* ast) {
             pop_env(binder);
             break;
         case AST_UNOP:
-            bind(binder, ast->data.unop.op);
+            bind(binder, ast->data.unop.arg);
             break;
         case AST_BINOP:
             bind(binder, ast->data.binop.left);
@@ -232,7 +235,7 @@ void bind(binder_t* binder, ast_t* ast) {
             }
             break;
         case AST_MATCH:
-            bind(binder, ast->data.match.expr);
+            bind(binder, ast->data.match.arg);
             FORALL_AST(ast->data.match.cases, case_, {
                 bind(binder, case_);
             })

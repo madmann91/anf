@@ -118,6 +118,7 @@ static ast_t* parse_call(parser_t*, ast_t*);
 static ast_t* parse_tuple(parser_t*, const char*, ast_t* (*) (parser_t*));
 static ast_t* parse_tuple_or_err(parser_t*, const char*, ast_t* (*) (parser_t*));
 static ast_t* parse_array(parser_t*);
+static ast_t* parse_field(parser_t*, ast_t*);
 static ast_t* parse_lambda(parser_t*, ast_t*);
 static ast_t* parse_block(parser_t*);
 static ast_t* parse_if(parser_t*);
@@ -299,6 +300,7 @@ static ast_t* parse_primary(parser_t* parser) {
         switch (parser->ahead.tag) {
             case TOK_LPAREN: ast = parse_call(parser, ast);  continue;
             case TOK_MATCH:  ast = parse_match(parser, ast); continue;
+            case TOK_DOT:    ast = parse_field(parser, ast); continue;
             default: break;
         }
         break;
@@ -309,11 +311,11 @@ static ast_t* parse_primary(parser_t* parser) {
     return ast;
 }
 
-static ast_t* parse_post_unop(parser_t* parser, ast_t* op, uint32_t tag) {
-    ast_t* ast = ast_create_with_loc(parser, AST_UNOP, op->loc);
+static ast_t* parse_post_unop(parser_t* parser, ast_t* arg, uint32_t tag) {
+    ast_t* ast = ast_create_with_loc(parser, AST_UNOP, arg->loc);
     next(parser);
     ast->data.unop.tag = tag;
-    ast->data.unop.op  = op;
+    ast->data.unop.arg = arg;
     return ast_finalize(ast, parser);
 }
 
@@ -321,7 +323,7 @@ static ast_t* parse_pre_unop(parser_t* parser, uint32_t tag) {
     ast_t* ast = ast_create(parser, AST_UNOP);
     next(parser);
     ast->data.unop.tag = tag;
-    ast->data.unop.op  = parse_primary(parser);
+    ast->data.unop.arg = parse_primary(parser);
     return ast_finalize(ast, parser);
 }
 
@@ -409,10 +411,20 @@ static ast_t* parse_array(parser_t* parser) {
     return ast_finalize(ast, parser);
 }
 
+static ast_t* parse_field(parser_t* parser, ast_t* arg) {
+    ast_t* ast = ast_create_with_loc(parser, AST_FIELD, arg->loc);
+    eat(parser, TOK_DOT);
+    ast->data.field.arg = arg;
+    ast->data.field.id  = parse_id(parser);
+    return ast_finalize(ast, parser);
+}
+
 static ast_t* parse_lambda(parser_t* parser, ast_t* param) {
     ast_t* ast = ast_create_with_loc(parser, AST_LAMBDA, param->loc);
     eat(parser, TOK_RARROW);
     ast->data.lambda.param = param;
+    if (!ast_is_ptrn(param) || ast_is_refutable(param))
+        log_error(parser->log, &param->loc, "invalid function parameter");
     ast->data.lambda.body  = parse_expr(parser);
     return ast_finalize(ast, parser);
 }
@@ -477,13 +489,13 @@ static ast_t* parse_for(parser_t* parser) {
     return ast_finalize(ast, parser);
 }
 
-static ast_t* parse_match(parser_t* parser, ast_t* expr) {
+static ast_t* parse_match(parser_t* parser, ast_t* arg) {
     ast_t* ast = ast_create(parser, AST_MATCH);
     eat(parser, TOK_MATCH);
     eat_nl(parser);
     expect(parser, "match expression", TOK_LBRACE);
     eat_nl(parser);
-    ast->data.match.expr = expr;
+    ast->data.match.arg = arg;
     ast_list_t** cur = &ast->data.match.cases;
     while (parser->ahead.tag == TOK_CASE) {
         ast_t* arg = parse_case(parser);

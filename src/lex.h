@@ -41,6 +41,7 @@
     f(TOK_RBRACKET, "]") \
     f(TOK_LANGLE,   "<") \
     f(TOK_RANGLE,   ">") \
+    f(TOK_DOT,      ".") \
     f(TOK_COMMA,    ",") \
     f(TOK_COLON,    ":") \
     f(TOK_DBLCOLON, "::") \

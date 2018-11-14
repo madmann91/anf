@@ -181,6 +181,7 @@ tok_t lex(lexer_t* lexer) {
         if (accept(lexer, '}'))  return (tok_t) { .tag = TOK_RBRACE,   .loc = make_loc(lexer, brow, bcol) };
         if (accept(lexer, '['))  return (tok_t) { .tag = TOK_LBRACKET, .loc = make_loc(lexer, brow, bcol) };
         if (accept(lexer, ']'))  return (tok_t) { .tag = TOK_RBRACKET, .loc = make_loc(lexer, brow, bcol) };
+        if (accept(lexer, '.'))  return (tok_t) { .tag = TOK_DOT,      .loc = make_loc(lexer, brow, bcol) };
         if (accept(lexer, ','))  return (tok_t) { .tag = TOK_COMMA,    .loc = make_loc(lexer, brow, bcol) };
         if (accept(lexer, ';'))  return (tok_t) { .tag = TOK_SEMI,     .loc = make_loc(lexer, brow, bcol) };
 

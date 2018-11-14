@@ -236,6 +236,10 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             ast_print_list(ast->data.array.elems, printer, ast->data.array.regular ? "; " : ", ", false);
             pprintf(printer, "]");
             break;
+        case AST_FIELD:
+            ast_print(ast->data.field.arg, printer);
+            pprintf(printer, ".%s", ast->data.field.id->data.id.str);
+            break;
         case AST_BINOP:
             {
                 int prec = binop_precedence(ast->data.binop.tag);
@@ -249,7 +253,7 @@ void ast_print(const ast_t* ast, printer_t* printer) {
                 bool prefix = unop_is_prefix(ast->data.unop.tag);
                 const char* symbol = unop_symbol(ast->data.unop.tag);
                 if (prefix) pprintf(printer, "%s", symbol);
-                ast_print(ast->data.unop.op, printer);
+                ast_print(ast->data.unop.arg, printer);
                 if (!prefix) pprintf(printer, "%s", symbol);
             }
             break;
@@ -287,7 +291,7 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             ast_print(ast->data.for_.body, printer);
             break;
         case AST_MATCH:
-            ast_print(ast->data.match.expr, printer);
+            ast_print(ast->data.match.arg, printer);
             pprintf(printer, COLORIZE(colorize, " ", COLOR_KEY("match"), " {\n"));
             printer->indent++;
             print_indent(printer);

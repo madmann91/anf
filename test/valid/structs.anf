@@ -2,4 +2,9 @@ mod structs {
     struct S(a: i32, b: i32)
     struct byref S2(s: S3)
     struct byref S3(s: S2)
+
+    def test() {
+        var x = S(1, 2)
+        var y = x.a + x.b
+    }
 }

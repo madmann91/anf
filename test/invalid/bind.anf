@@ -1,10 +1,10 @@
 mod bind {
     def test() {
-        def exit = break;
+        def exit = break
         while (true)
-            exit();
+            exit()
     }
-    var x = return;
-    var y = z;
-    var y = z;
+    var x = return
+    var y = z
+    var y = z
 }
