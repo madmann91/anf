@@ -1,0 +1,9 @@
+mod bind {
+    def test() {
+        def exit = break;
+        while (true)
+            exit();
+    }
+    var x = return;
+    var y = z;
+}

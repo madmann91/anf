@@ -2,7 +2,7 @@ mod functions {
     def test1(a, b) {
         return(a)
     }
-    def test2(x) { x }
+    def test2(x) { test3(x) }
     def test3(y, z) {
         test1(z)
         y

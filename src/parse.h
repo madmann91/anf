@@ -4,6 +4,7 @@
 #include "anf.h"
 #include "ast.h"
 #include "lex.h"
+#include "log.h"
 
 typedef struct parser_s parser_t;
 

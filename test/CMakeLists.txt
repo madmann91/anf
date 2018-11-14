@@ -19,3 +19,4 @@ add_test(NAME invalid_params   COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/tes
 add_test(NAME invalid_comment  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/comment.anf)
 add_test(NAME invalid_utf8     COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/utf8.anf)
 add_test(NAME invalid_patterns COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/patterns.anf)
+add_test(NAME invalid_bind     COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/bind.anf)

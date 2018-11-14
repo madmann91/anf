@@ -1,4 +1,5 @@
 mod structs {
     struct S(a: i32, b: i32)
-    struct byref S2(s: S)
+    struct byref S2(s: S3)
+    struct byref S3(s: S2)
 }

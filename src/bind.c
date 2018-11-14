@@ -52,11 +52,12 @@ static inline void insert_env(binder_t* binder, ast_t* id, ast_t* ast) {
     const ast_t* prev = lookup_env(binder, id->data.id.str);
     if (!id2ast_insert(&binder->env->id2ast, id->data.id.str, ast)) {
         log_error(binder->log, &id->loc, "identifier '%s' has already been declared", id->data.id.str);
-    } else if (prev)
+    } else if (prev) {
         log_warn(binder->log, &id->loc, "identifier '%s' shadows previous declaration", id->data.id.str);
+    }
 
     if (prev)
-        log_note(binder->log, &prev->loc, "previous declaration site was here");
+        log_note(binder->log, &prev->loc, "previous declaration was here");
 }
 
 static void bind_ptrn(binder_t* binder, ast_t* ast) {
