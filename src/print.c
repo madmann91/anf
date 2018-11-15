@@ -305,7 +305,9 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             pprintf(printer, COLORIZE(colorize, COLOR_KEY("case"), " "));
             ast_print(ast->data.case_.ptrn, printer);
             pprintf(printer, " => ");
+            printer->indent++;
             ast_print(ast->data.case_.value, printer);
+            printer->indent--;
             break;
         case AST_CONT:
             switch (ast->data.cont.tag) {
