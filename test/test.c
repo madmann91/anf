@@ -785,7 +785,6 @@ bool test_lex(void) {
     CHECK(log.errs == 0);
 
 cleanup:
-    log_destroy(&log);
     free(buf);
     return status == 0;
 }
@@ -829,7 +828,6 @@ bool test_parse(void) {
     CHECK(ast);
 
 cleanup:
-    log_destroy(&log);
     mpool_destroy(pool);
     free(buf);
     return status == 0;

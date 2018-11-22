@@ -74,34 +74,34 @@ static bool process_file(const char* file) {
     }
 
     mpool_t* pool = mpool_create();
-    log_t log = log_create_default(file, colorize);
+    default_log_t default_log = log_create_default(file, colorize);
     lexer_t lexer = {
         .tmp  = 0,
         .str  = file_data,
         .size = file_size,
         .row  = 1,
         .col  = 1,
-        .log  = &log
+        .log  = &default_log.log
     };
     parser_t parser = {
         .lexer = &lexer,
         .pool  = &pool,
-        .log   = &log
+        .log   = &default_log.log
     };
 
     // Parse program
     ast_t* ast = parse(&parser);
-    bool ok = !log.errs;
+    bool ok = !default_log.log.errs;
     if (ok) {
         // Bind identifiers to AST nodes
         id2ast_t id2ast = id2ast_create();
         binder_t binder = {
             .env = NULL,
-            .log = &log
+            .log = &default_log.log
         };
         id2ast_destroy(&id2ast);
         bind(&binder, ast);
-        ok &= !log.errs;
+        ok &= !default_log.log.errs;
     }
 
     // Display program on success
@@ -113,7 +113,6 @@ static bool process_file(const char* file) {
 
     free(file_data);
     mpool_destroy(pool);
-    log_destroy(&log);
     return ok;
 }
 
