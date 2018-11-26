@@ -5,15 +5,14 @@
 #include "ast.h"
 #include "util.h"
 
-#define pprintf(printer, ...) (printer)->printf((printer), EXPAND(__VA_ARGS__))
-
 typedef struct printer_s printer_t;
 typedef struct file_printer_s file_printer_t;
 
 struct printer_s {
-    void (*printf)(printer_t*, const char*, ...);
-    size_t indent;
+    void (*format)(printer_t*, const char*, const fmt_arg_t*);
     bool colorize;
+    const char* tab;
+    size_t indent;
 };
 
 struct file_printer_s {
@@ -21,7 +20,16 @@ struct file_printer_s {
     FILE* fp;
 };
 
-file_printer_t printer_from_file(FILE*, bool, size_t);
+#define print(printer, fmt, ...) \
+    do { \
+        fmt_arg_t args[] = { \
+            { .u64 = 0 }, \
+            __VA_ARGS__ \
+        }; \
+        (printer)->format((printer), fmt, args + 1); \
+    } while (false)
+
+file_printer_t printer_from_file(FILE*, bool, const char*, size_t);
 
 void type_print(const type_t*, printer_t*);
 void type_dump(const type_t*);

@@ -19,16 +19,7 @@
     #include <unistd.h>
 #endif
 
-static bool colorize = false;
-
-static void error(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    fputs(COLORIZE(colorize, COLOR_ERR("error"), ": "), stderr);
-    vfprintf(stderr, fmt, args);
-    fputc('\n', stderr);
-    va_end(args);
-}
+static default_log_t global_log;
 
 static void usage(void) {
     static const char* usage_str =
@@ -36,7 +27,7 @@ static void usage(void) {
         "options:\n"
         "  --help       display this information\n"
         "  --must-fail  invert the return code\n";
-    printf("%s", usage_str);
+    fputs(usage_str, stdout);
 }
 
 static char* read_file(const char* file, size_t* size) {
@@ -69,46 +60,46 @@ static bool process_file(const char* file) {
     size_t file_size = 0;
     char* file_data = read_file(file, &file_size);
     if (!file_data) {
-        error("cannot read file '%s'", file);
+        log_error(&global_log.log, NULL, "cannot read file '{0:s}'", { .str = file });
         return false;
     }
 
     mpool_t* pool = mpool_create();
-    default_log_t default_log = log_create_default(file, colorize);
+    default_log_t file_log = log_create_default(file, global_log.log.colorize);
     lexer_t lexer = {
         .tmp  = 0,
         .str  = file_data,
         .size = file_size,
         .row  = 1,
         .col  = 1,
-        .log  = &default_log.log
+        .log  = &file_log.log
     };
     parser_t parser = {
         .lexer = &lexer,
         .pool  = &pool,
-        .log   = &default_log.log
+        .log   = &file_log.log
     };
 
     // Parse program
     ast_t* ast = parse(&parser);
-    bool ok = !default_log.log.errs;
+    bool ok = !file_log.log.errs;
     if (ok) {
         // Bind identifiers to AST nodes
         id2ast_t id2ast = id2ast_create();
         binder_t binder = {
             .env = NULL,
-            .log = &default_log.log
+            .log = &file_log.log
         };
         id2ast_destroy(&id2ast);
         bind(&binder, ast);
-        ok &= !default_log.log.errs;
+        ok &= !file_log.log.errs;
     }
 
     // Display program on success
     if (ok) {
-        file_printer_t file_printer = printer_from_file(stdout, colorize, 0);
+        file_printer_t file_printer = printer_from_file(stdout, global_log.log.colorize, "    ", 0);
         ast_print(ast, &file_printer.printer);
-        pprintf(&file_printer.printer, "\n");
+        print(&file_printer.printer, "\n");
     }
 
     free(file_data);
@@ -118,10 +109,11 @@ static bool process_file(const char* file) {
 
 int main(int argc, char** argv) {
     // Detect if the standard output is a tty
-    colorize = isatty(fileno(stdout)) && isatty(fileno(stderr));
+    bool colorize = isatty(fileno(stdout)) && isatty(fileno(stderr));
+    global_log = log_create_default(NULL, colorize);
 
     if (argc <= 1) {
-        error("no input files");
+        log_error(&global_log.log, NULL, "no input files");
         return 1;
     }
 
@@ -134,7 +126,7 @@ int main(int argc, char** argv) {
             } else if (!strcmp(argv[i], "--must-fail")) {
                 must_fail = true;
             } else {
-                error("unknown option '%s'", argv[i]);
+                log_error(&global_log.log, NULL, "unknown option '{0:s}'", { .str = argv[i] });
                 return 1;
             }
         }

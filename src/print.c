@@ -5,19 +5,16 @@
 
 #include "print.h"
 
-static void file_printer_printf(printer_t* printer, const char* fmt, ...) {
-    file_printer_t* file_printer = (file_printer_t*)printer;
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(file_printer->fp, fmt, args);
-    va_end(args);
+static void file_printer_format(printer_t* printer, const char* fmt, const fmt_arg_t* args) {
+    format_to_file(((file_printer_t*)printer)->fp, fmt, args, printer->colorize ? FMT_COLORIZE : 0);
 }
 
-file_printer_t printer_from_file(FILE* fp, bool colorize, size_t indent) {
+file_printer_t printer_from_file(FILE* fp, bool colorize, const char* tab, size_t indent) {
     return (file_printer_t) {
         .printer = (printer_t) {
-            .printf   = file_printer_printf,
+            .format   = file_printer_format,
             .colorize = colorize,
+            .tab      = tab,
             .indent   = indent
         },
         .fp = fp
@@ -25,43 +22,42 @@ file_printer_t printer_from_file(FILE* fp, bool colorize, size_t indent) {
 }
 
 void type_print(const type_t* type, printer_t* printer) {
-    bool colorize = printer->colorize;
     switch (type->tag) {
-        case TYPE_I1:  pprintf(printer, COLORIZE(colorize, COLOR_KEY("i1" ))); break;
-        case TYPE_I8:  pprintf(printer, COLORIZE(colorize, COLOR_KEY("i8" ))); break;
-        case TYPE_I16: pprintf(printer, COLORIZE(colorize, COLOR_KEY("i16"))); break;
-        case TYPE_I32: pprintf(printer, COLORIZE(colorize, COLOR_KEY("i32"))); break;
-        case TYPE_I64: pprintf(printer, COLORIZE(colorize, COLOR_KEY("i64"))); break;
-        case TYPE_U8:  pprintf(printer, COLORIZE(colorize, COLOR_KEY("u8" ))); break;
-        case TYPE_U16: pprintf(printer, COLORIZE(colorize, COLOR_KEY("u16"))); break;
-        case TYPE_U32: pprintf(printer, COLORIZE(colorize, COLOR_KEY("u32"))); break;
-        case TYPE_U64: pprintf(printer, COLORIZE(colorize, COLOR_KEY("u64"))); break;
-        case TYPE_F32: pprintf(printer, COLORIZE(colorize, COLOR_KEY("f32"))); break;
-        case TYPE_F64: pprintf(printer, COLORIZE(colorize, COLOR_KEY("f64"))); break;
-        case TYPE_MEM: pprintf(printer, COLORIZE(colorize, COLOR_KEY("mem"))); break;
+        case TYPE_I1:  print(printer, "{$key}i1{$}");  break;
+        case TYPE_I8:  print(printer, "{$key}i8{$}");  break;
+        case TYPE_I16: print(printer, "{$key}i16{$}"); break;
+        case TYPE_I32: print(printer, "{$key}i32{$}"); break;
+        case TYPE_I64: print(printer, "{$key}i64{$}"); break;
+        case TYPE_U8:  print(printer, "{$key}u8{$}");  break;
+        case TYPE_U16: print(printer, "{$key}u16{$}"); break;
+        case TYPE_U32: print(printer, "{$key}u32{$}"); break;
+        case TYPE_U64: print(printer, "{$key}u64{$}"); break;
+        case TYPE_F32: print(printer, "{$key}f32{$}"); break;
+        case TYPE_F64: print(printer, "{$key}f64{$}"); break;
+        case TYPE_MEM: print(printer, "{$key}mem{$}"); break;
         case TYPE_PTR:
             type_print(type->ops[0], printer);
-            pprintf(printer, "*");
+            print(printer, "*");
             break;
         case TYPE_TUPLE:
-            pprintf(printer, "(");
+            print(printer, "(");
             for (size_t i = 0; i < type->nops; ++i) {
                 type_print(type->ops[i], printer);
                 if (i != type->nops - 1)
-                    pprintf(printer, ", ");
+                    print(printer, ", ");
             }
-            pprintf(printer, ")");
+            print(printer, ")");
             break;
         case TYPE_ARRAY:
-            pprintf(printer, "[");
+            print(printer, "[");
             type_print(type->ops[0], printer);
-            pprintf(printer, "]");
+            print(printer, "]");
             break;
         case TYPE_FN:
-            if (type->ops[0]->tag == TYPE_FN) pprintf(printer, "(");
+            if (type->ops[0]->tag == TYPE_FN) print(printer, "(");
             type_print(type->ops[0], printer);
-            if (type->ops[0]->tag == TYPE_FN) pprintf(printer, ")");
-            pprintf(printer, " -> ");
+            if (type->ops[0]->tag == TYPE_FN) print(printer, ")");
+            print(printer, " -> ");
             type_print(type->ops[1], printer);
             break;
         default:
@@ -71,33 +67,32 @@ void type_print(const type_t* type, printer_t* printer) {
 }
 
 void type_dump(const type_t* type) {
-    file_printer_t file_printer = printer_from_file(stdout, true, 0);
+    file_printer_t file_printer = printer_from_file(stdout, true, "    ", 0);
     type_print(type, &file_printer.printer);
-    pprintf(&file_printer.printer, "\n");
+    print(&file_printer.printer, "\n");
 }
 
 static inline void node_print_name(const node_t* node, printer_t* printer) {
-    if (node->dbg && strlen(node->dbg->name) > 0)
-        pprintf(printer, COLORIZE(printer->colorize, "<%s : ", COLOR_ID("%"PRIxPTR), ">"), node->dbg->name, (uintptr_t)node);
-    else
-        pprintf(printer, COLORIZE(printer->colorize, "<", COLOR_ID("%"PRIxPTR), ">"), (uintptr_t)node);
+    print(printer, "<{0:s}{1:s}{$id}{2:p}{$}>",
+        { .str = node->dbg ? node->dbg->name : "" },
+        { .str = node->dbg ? " : " : "" },
+        { .ptr = node });
 }
 
 void node_print(const node_t* node, printer_t* printer) {
-    bool colorize = printer->colorize;
     if (node->tag == NODE_LITERAL) {
         switch (node->type->tag) {
-            case TYPE_I1:  pprintf(printer, COLORIZE(colorize, COLOR_KEY("i1" ), " ", COLOR_LIT("%s")),      node->box.i1 ? "true" : "false"); break;
-            case TYPE_I8:  pprintf(printer, COLORIZE(colorize, COLOR_KEY("i8" ), " ", COLOR_LIT("%"PRIi8)),  node->box.i8);  break;
-            case TYPE_I16: pprintf(printer, COLORIZE(colorize, COLOR_KEY("i16"), " ", COLOR_LIT("%"PRIi16)), node->box.i16); break;
-            case TYPE_I32: pprintf(printer, COLORIZE(colorize, COLOR_KEY("i32"), " ", COLOR_LIT("%"PRIi32)), node->box.i32); break;
-            case TYPE_I64: pprintf(printer, COLORIZE(colorize, COLOR_KEY("i64"), " ", COLOR_LIT("%"PRIi64)), node->box.i64); break;
-            case TYPE_U8:  pprintf(printer, COLORIZE(colorize, COLOR_KEY("u8" ), " ", COLOR_LIT("%"PRIu8)),  node->box.u8);  break;
-            case TYPE_U16: pprintf(printer, COLORIZE(colorize, COLOR_KEY("u16"), " ", COLOR_LIT("%"PRIu16)), node->box.u16); break;
-            case TYPE_U32: pprintf(printer, COLORIZE(colorize, COLOR_KEY("u32"), " ", COLOR_LIT("%"PRIu32)), node->box.u32); break;
-            case TYPE_U64: pprintf(printer, COLORIZE(colorize, COLOR_KEY("u64"), " ", COLOR_LIT("%"PRIu64)), node->box.u64); break;
-            case TYPE_F32: pprintf(printer, COLORIZE(colorize, COLOR_KEY("f32"), " ", COLOR_LIT("%f")),      node->box.f32); break;
-            case TYPE_F64: pprintf(printer, COLORIZE(colorize, COLOR_KEY("f64"), " ", COLOR_LIT("%g")),      node->box.f64); break;
+            case TYPE_I1:  print(printer, "{$key}i1{$} {$lit}{0:i1}{$}",   { .b   = node->box.i1  }); break;
+            case TYPE_I8:  print(printer, "{$key}i8{$} {$lit}{0:i8}{$}",   { .i8  = node->box.i8  }); break;
+            case TYPE_I16: print(printer, "{$key}i16{$} {$lit}{0:i16}{$}", { .i16 = node->box.i16 }); break;
+            case TYPE_I32: print(printer, "{$key}i32{$} {$lit}{0:i32}{$}", { .i32 = node->box.i32 }); break;
+            case TYPE_I64: print(printer, "{$key}i64{$} {$lit}{0:i64}{$}", { .i64 = node->box.i64 }); break;
+            case TYPE_U8:  print(printer, "{$key}u8{$} {$lit}{0:u8}{$}",   { .u8  = node->box.u8  }); break;
+            case TYPE_U16: print(printer, "{$key}u16{$} {$lit}{0:u16}{$}", { .i16 = node->box.u16 }); break;
+            case TYPE_U32: print(printer, "{$key}u32{$} {$lit}{0:u32}{$}", { .i32 = node->box.u32 }); break;
+            case TYPE_U64: print(printer, "{$key}u64{$} {$lit}{0:u64}{$}", { .i64 = node->box.u64 }); break;
+            case TYPE_F32: print(printer, "{$key}f32{$} {$lit}{0:f32}{$}", { .f32 = node->box.f32 }); break;
+            case TYPE_F64: print(printer, "{$key}f64{$} {$lit}{0:f64}{$}", { .f64 = node->box.f64 }); break;
             default:
                 assert(false);
                 break;
@@ -105,7 +100,7 @@ void node_print(const node_t* node, printer_t* printer) {
     } else {
         if (node->nops > 0) {
             node_print_name(node, printer);
-            pprintf(printer, " = ");
+            print(printer, " = ");
         }
         type_print(node->type, printer);
         const char* op = NULL;
@@ -117,9 +112,9 @@ void node_print(const node_t* node, printer_t* printer) {
                 assert(false);
                 break;
         }
-        pprintf(printer, COLORIZE(colorize, " ", COLOR_KEY("%s")), op);
+        print(printer, " {$key}{0:s}{$}", {.str = op });
         if (node->nops > 0) {
-            pprintf(printer, " ");
+            print(printer, " ");
             for (size_t i = 0; i < node->nops; ++i) {
                 if (node->ops[i]->nops == 0) {
                     // Print literals and undefs inline
@@ -128,28 +123,28 @@ void node_print(const node_t* node, printer_t* printer) {
                     node_print_name(node->ops[i], printer);
                 }
                 if (i != node->nops - 1)
-                    pprintf(printer, ", ");
+                    print(printer, ", ");
             }
         }
     }
 }
 
 void node_dump(const node_t* node) {
-    file_printer_t file_printer = printer_from_file(stdout, true, 0);
+    file_printer_t file_printer = printer_from_file(stdout, true, "    ", 0);
     node_print(node, &file_printer.printer);
-    pprintf(&file_printer.printer, "\n");
+    print(&file_printer.printer, "\n");
 }
 
 static inline void print_indent(printer_t* printer) {
     for (size_t i = 0; i < printer->indent; ++i)
-        pprintf(printer, "    ");
+        print(printer, "{0:s}", { .str = printer->tab });
 }
 
 static inline void ast_print_list(const ast_list_t* list, printer_t* printer, const char* sep, bool new_line) {
     while (list) {
         ast_print(list->ast, printer);
         if (list->next) {
-            pprintf(printer, sep);
+            print(printer, sep);
             if (new_line) print_indent(printer);
         }
         list = list->next;
@@ -158,93 +153,98 @@ static inline void ast_print_list(const ast_list_t* list, printer_t* printer, co
 
 static inline void ast_print_binop_op(const ast_t* op, printer_t* printer, int prec) {
     bool needs_parens = op->tag == AST_BINOP && binop_precedence(op->data.binop.tag) > prec;
-    if (needs_parens) pprintf(printer, "(");
+    if (needs_parens) print(printer, "(");
     ast_print(op, printer);
-    if (needs_parens) pprintf(printer, ")");
+    if (needs_parens) print(printer, ")");
 }
 
 void ast_print(const ast_t* ast, printer_t* printer) {
-    bool colorize = printer->colorize;
     switch (ast->tag) {
-        case AST_ID:  pprintf(printer, "%s", ast->data.id.str); break;
+        case AST_ID: print(printer, "{$id}{0:s}{$}", { .str = ast->data.id.str }); break;
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_FLT:
                 case LIT_INT:
-                    pprintf(printer, COLORIZE(colorize, COLOR_LIT("%s")), ast->data.lit.str);
+                    print(printer, "{$lit}{0:s}{$}", { .str = ast->data.lit.str });
                     break;
-                case LIT_STR:  pprintf(printer, COLORIZE(colorize, COLOR_LIT("\"%s\"")), ast->data.lit.str); break;
-                case LIT_CHR:  pprintf(printer, COLORIZE(colorize, COLOR_LIT("\'%s\'")), ast->data.lit.str); break;
-                case LIT_BOOL: pprintf(printer, COLORIZE(colorize, COLOR_LIT("%s")), ast->data.lit.value.bval ? "true" : "false"); break;
+                case LIT_STR:  print(printer, "{$lit}\"{0:s}\"{$}", { .str = ast->data.lit.str }); break;
+                case LIT_CHR:  print(printer, "{$lit}\'{0:s}\'{$}", { .str = ast->data.lit.str }); break;
+                case LIT_BOOL: print(printer, "{$lit}{0:b}{$}", { .b = ast->data.lit.value.bval });  break;
+                default:
+                    assert(false);
+                    break;
             }
             break;
         case AST_MOD:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("mod"), " %s {\n"), ast->data.mod.id->data.id.str);
+            print(printer, "{$key}mod{$} {0:s} {{\n", { .str = ast->data.mod.id->data.id.str });
             printer->indent++;
             print_indent(printer);
             ast_print_list(ast->data.mod.decls, printer, "\n", true);
             printer->indent--;
-            pprintf(printer, "\n");
+            print(printer, "\n");
             print_indent(printer);
-            pprintf(printer, "}");
+            print(printer, "}");
             break;
         case AST_STRUCT:
-            pprintf(printer, ast->data.struct_.byref ? COLORIZE(colorize, COLOR_KEY("struct"), " ", COLOR_KEY("byref"), " %s") : COLORIZE(colorize, COLOR_KEY("struct"), " %s"), ast->data.struct_.id->data.id.str);
+            print(printer, "{$key}struct{$}{0:s}{$key}{1:s}{$} {2:s}",
+                { .str = ast->data.struct_.byref ? " " : ""},
+                { .str = ast->data.struct_.byref ? "byref" : ""},
+                { .str = ast->data.struct_.id->data.id.str });
             ast_print(ast->data.struct_.members, printer);
             break;
         case AST_DEF:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("def"), " %s"), ast->data.mod.id->data.id.str);
+            print(printer, "{$key}def{$} {0:s}", { .str = ast->data.mod.id->data.id.str });
             if (ast->data.def.param) {
                 ast_print(ast->data.def.param, printer);
-                pprintf(printer, " ");
+                print(printer, " ");
             } else
-                pprintf(printer, " = ");
+                print(printer, " = ");
             ast_print(ast->data.def.value, printer);
             break;
         case AST_VAR:
         case AST_VAL:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("%s"), " "), ast->tag == AST_VAR ? "var" : "val");
+            print(printer, "{$key}{0:s}{$} ", { .str = ast->tag == AST_VAR ? "var" : "val" });
             ast_print(ast->data.varl.ptrn, printer);
-            pprintf(printer, " = ");
+            print(printer, " = ");
             ast_print(ast->data.varl.value, printer);
             break;
         case AST_ANNOT:
             ast_print(ast->data.annot.ast, printer);
-            pprintf(printer, " : ");
+            print(printer, " : ");
             ast_print(ast->data.annot.type, printer);
             break;
         case AST_PRIM:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("%s")), prim2str(ast->data.prim.tag));
+            print(printer, "{$key}{0:s}{$}", { .str = prim2str(ast->data.prim.tag) });
             break;
         case AST_BLOCK:
-            pprintf(printer, "{\n");
+            print(printer, "{{\n");
             printer->indent++;
             print_indent(printer);
             ast_print_list(ast->data.block.stmts, printer, "\n", true);
             printer->indent--;
-            pprintf(printer, "\n");
+            print(printer, "\n");
             print_indent(printer);
-            pprintf(printer, "}");
+            print(printer, "}");
             break;
         case AST_TUPLE:
-            pprintf(printer, "(");
+            print(printer, "(");
             ast_print_list(ast->data.tuple.args, printer, ", ", false);
-            pprintf(printer, ")");
+            print(printer, ")");
             break;
         case AST_ARRAY:
-            pprintf(printer, "[");
+            print(printer, "[");
             ast_print_list(ast->data.array.elems, printer, ast->data.array.regular ? "; " : ", ", false);
-            pprintf(printer, "]");
+            print(printer, "]");
             break;
         case AST_FIELD:
             ast_print(ast->data.field.arg, printer);
-            pprintf(printer, ".%s", ast->data.field.id->data.id.str);
+            print(printer, ".{0:s}", { .str = ast->data.field.id->data.id.str });
             break;
         case AST_BINOP:
             {
                 int prec = binop_precedence(ast->data.binop.tag);
                 ast_print_binop_op(ast->data.binop.left, printer, prec);
-                pprintf(printer, " %s ", binop_symbol(ast->data.binop.tag));
+                print(printer, " {0:s} ", { .str = binop_symbol(ast->data.binop.tag) });
                 ast_print_binop_op(ast->data.binop.right, printer, prec);
             }
             break;
@@ -252,14 +252,14 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             {
                 bool prefix = unop_is_prefix(ast->data.unop.tag);
                 const char* symbol = unop_symbol(ast->data.unop.tag);
-                if (prefix) pprintf(printer, "%s", symbol);
+                if (prefix) print(printer, "{0:s}", { .str = symbol });
                 ast_print(ast->data.unop.arg, printer);
-                if (!prefix) pprintf(printer, "%s", symbol);
+                if (!prefix) print(printer, "{0:s}", { .str = symbol });
             }
             break;
         case AST_LAMBDA:
             ast_print(ast->data.lambda.param, printer);
-            pprintf(printer, " => ");
+            print(printer, " => ");
             ast_print(ast->data.lambda.body, printer);
             break;
         case AST_CALL:
@@ -267,53 +267,53 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             ast_print(ast->data.call.arg, printer);
             break;
         case AST_IF:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("if"), " "));
+            print(printer, "{$key}if{$} ");
             ast_print(ast->data.if_.cond, printer);
-            pprintf(printer, " ");
+            print(printer, " ");
             ast_print(ast->data.if_.if_true, printer);
             if (ast->data.if_.if_false) {
-                pprintf(printer, COLORIZE(colorize, " ", COLOR_KEY("else"), " "));
+                print(printer, " {$key}else{$} ");
                 ast_print(ast->data.if_.if_false, printer);
             }
             break;
         case AST_WHILE:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("while"), " "));
+            print(printer, "{$key}while{$} ");
             ast_print(ast->data.while_.cond, printer);
-            pprintf(printer, " ");
+            print(printer, " ");
             ast_print(ast->data.while_.body, printer);
             break;
         case AST_FOR:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("for"), " ("));
+            print(printer, "{$key}for{$} (");
             ast_print(ast->data.for_.vars, printer);
-            pprintf(printer, " <- ");
+            print(printer, " <- ");
             ast_print(ast->data.for_.expr, printer);
-            pprintf(printer, ") ");
+            print(printer, ") ");
             ast_print(ast->data.for_.body, printer);
             break;
         case AST_MATCH:
             ast_print(ast->data.match.arg, printer);
-            pprintf(printer, COLORIZE(colorize, " ", COLOR_KEY("match"), " {\n"));
+            print(printer, "{$key}match{$} {{");
             printer->indent++;
             print_indent(printer);
             ast_print_list(ast->data.match.cases, printer, "\n", true);
             printer->indent--;
-            pprintf(printer, "\n");
+            print(printer, "\n");
             print_indent(printer);
-            pprintf(printer, "}");
+            print(printer, "}");
             break;
         case AST_CASE:
-            pprintf(printer, COLORIZE(colorize, COLOR_KEY("case"), " "));
+            print(printer, "{$key}case{$} ");
             ast_print(ast->data.case_.ptrn, printer);
-            pprintf(printer, " => ");
+            print(printer, " => ");
             printer->indent++;
             ast_print(ast->data.case_.value, printer);
             printer->indent--;
             break;
         case AST_CONT:
             switch (ast->data.cont.tag) {
-                case CONT_BREAK:    pprintf(printer, COLORIZE(colorize, COLOR_KEY("break")));    break;
-                case CONT_CONTINUE: pprintf(printer, COLORIZE(colorize, COLOR_KEY("continue"))); break;
-                case CONT_RETURN:   pprintf(printer, COLORIZE(colorize, COLOR_KEY("return")));   break;
+                case CONT_BREAK:    print(printer, "{$key}break{$}");    break;
+                case CONT_CONTINUE: print(printer, "{$key}continue{$}"); break;
+                case CONT_RETURN:   print(printer, "{$key}return{$}");   break;
                 default:
                     assert(false);
                     break;
@@ -323,7 +323,7 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             ast_print_list(ast->data.program.mods, printer, "\n", true);
             break;
         case AST_ERR:
-            pprintf(printer, COLORIZE(colorize, COLOR_ERR("<syntax error>")));
+            print(printer, "{$err}<syntax error>{$}");
             break;
         default:
             assert(false);
@@ -332,7 +332,7 @@ void ast_print(const ast_t* ast, printer_t* printer) {
 }
 
 void ast_dump(const ast_t* ast) {
-    file_printer_t file_printer = printer_from_file(stdout, true, 0);
+    file_printer_t file_printer = printer_from_file(stdout, true, "    ", 0);
     ast_print(ast, &file_printer.printer);
-    pprintf(&file_printer.printer, "\n");
+    print(&file_printer.printer, "\n");
 }

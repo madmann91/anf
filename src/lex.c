@@ -264,7 +264,7 @@ tok_t lex(lexer_t* lexer) {
             return parse_num(lexer, brow, bcol);
 
         loc_t loc = make_loc(lexer, brow, bcol);
-        log_error(lexer->log, &loc, "unknown token '%c'", *lexer->str);
+        log_error(lexer->log, &loc, "unknown token '{0:c}'", { .c = *lexer->str });
         eat(lexer);
         return (tok_t) { .tag = TOK_ERR, .loc = loc };
     }

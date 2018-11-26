@@ -49,9 +49,9 @@ static inline void insert_env(binder_t* binder, ast_t* id, ast_t* ast) {
     assert(id->tag == AST_ID);
     const ast_t* prev = lookup_env(binder, id->data.id.str);
     if (!id2ast_insert(&binder->env->id2ast, id->data.id.str, ast)) {
-        log_error(binder->log, &id->loc, "identifier '%s' has already been declared", id->data.id.str);
+        log_error(binder->log, &id->loc, "identifier '{0:s}' has already been declared", { .str = id->data.id.str });
     } else if (prev) {
-        log_warn(binder->log, &id->loc, "identifier '%s' shadows previous declaration", id->data.id.str);
+        log_warn(binder->log, &id->loc, "identifier '{0:s}' shadows previous declaration", { .str = id->data.id.str });
     }
 
     if (prev)
@@ -135,7 +135,7 @@ void bind(binder_t* binder, ast_t* ast) {
                 // This is a use of a previously declared identifier
                 const ast_t* to = lookup_env(binder, ast->data.id.str);
                 if (!to) {
-                    log_error(binder->log, &ast->loc, "unknown identifier '%s'", ast->data.id.str);
+                    log_error(binder->log, &ast->loc, "unknown identifier '{0:s}'", { .str = ast->data.id.str });
                     return;
                 }
                 ast->data.id.to = to;
@@ -251,13 +251,13 @@ void bind(binder_t* binder, ast_t* ast) {
             switch (ast->data.cont.tag) {
                 case CONT_RETURN:
                     if (!binder->fn)
-                        log_error(binder->log, &ast->loc, "use of 'return' outside of a function");
+                        log_error(binder->log, &ast->loc, "use of '{$key}return{$}' outside of a function");
                     ast->data.cont.parent = binder->fn;
                     break;
                 case CONT_BREAK:
                 case CONT_CONTINUE:
                     if (!binder->loop)
-                        log_error(binder->log, &ast->loc, "use of '%s' outside of a loop", ast->data.cont.tag == CONT_BREAK ? "break" : "continue");
+                        log_error(binder->log, &ast->loc, "use of '{$key}{0:s}{$}' outside of a loop", { .str = ast->data.cont.tag == CONT_BREAK ? "break" : "continue" });
                     ast->data.cont.parent = binder->loop;
                     break;
             }

@@ -23,7 +23,8 @@ set(LIBANF_SRCS
     mem2reg.c
     flatten.c
     eval.c
-    print.c)
+    print.c
+    util.c)
 
 set(LIBANF_HDRS
     anf.h
