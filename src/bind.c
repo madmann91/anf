@@ -1,7 +1,7 @@
 #include "bind.h"
 
 static inline env_t* alloc_env(env_t* prev) {
-    env_t* env = malloc(sizeof(env_t));
+    env_t* env = xmalloc(sizeof(env_t));
     env->id2ast = id2ast_create();
     env->prev = prev;
     env->next = NULL;
