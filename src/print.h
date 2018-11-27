@@ -7,6 +7,7 @@
 
 typedef struct printer_s printer_t;
 typedef struct file_printer_s file_printer_t;
+typedef struct mem_printer_s  mem_printer_t;
 
 struct printer_s {
     void (*format)(printer_t*, const char*, const fmt_arg_t*);
