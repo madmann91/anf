@@ -20,6 +20,13 @@ struct file_printer_s {
     FILE* fp;
 };
 
+struct mem_printer_s {
+    printer_t printer;
+    char* buf;
+    size_t cap;
+    long off;
+};
+
 #define print(printer, fmt, ...) \
     do { \
         fmt_arg_t args[] = { \
@@ -30,6 +37,7 @@ struct file_printer_s {
     } while (false)
 
 file_printer_t printer_from_file(FILE*, bool, const char*, size_t);
+mem_printer_t printer_from_buffer(char*, size_t, bool, bool);
 
 void type_print(const type_t*, printer_t*);
 void type_dump(const type_t*);
