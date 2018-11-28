@@ -98,7 +98,7 @@ size_t try_format(char* buf, size_t buf_len, const char* fmt, const fmt_arg_t* a
                         break;
                     case 'n':
                         assert(!strncmp(ptr, "not", 3)); ptr += 3;
-                        color = "\33[34;1m";
+                        color = "\33[36;1m";
                         color_len = 7;
                         break;
                     case '}':

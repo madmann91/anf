@@ -29,7 +29,7 @@ static void log_default(uint32_t type, log_t* log, const loc_t* loc, const char*
         };
         bool range_loc = loc->brow != loc->erow || loc->bcol != loc->ecol;
         format_to_file(out,
-            range_loc ? " in {$loc}{0:s}({1:u32},{2:u32} - {3:u32},{4:u32}{$}: {5:s}\n" : " in {$loc}{0:s}({1:u32},{2:u32}){$}: {5:s}\n",
+            range_loc ? " in {$loc}{0:s}({1:u32},{2:u32} - {3:u32},{4:u32}){$}: {5:s}\n" : " in {$loc}{0:s}({1:u32},{2:u32}){$}: {5:s}\n",
             args, fmt_flags);
     } else {
         fmt_arg_t args = { .str = msg };

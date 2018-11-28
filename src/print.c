@@ -160,7 +160,7 @@ static inline void ast_print_binop_op(const ast_t* op, printer_t* printer, int p
 
 void ast_print(const ast_t* ast, printer_t* printer) {
     switch (ast->tag) {
-        case AST_ID: print(printer, "{$id}{0:s}{$}", { .str = ast->data.id.str }); break;
+        case AST_ID: print(printer, "{0:s}", { .str = ast->data.id.str }); break;
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_FLT:
@@ -292,7 +292,7 @@ void ast_print(const ast_t* ast, printer_t* printer) {
             break;
         case AST_MATCH:
             ast_print(ast->data.match.arg, printer);
-            print(printer, "{$key}match{$} {{");
+            print(printer, " {$key}match{$} {{\n");
             printer->indent++;
             print_indent(printer);
             ast_print_list(ast->data.match.cases, printer, "\n", true);
