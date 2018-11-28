@@ -2,39 +2,41 @@
 #include <stdarg.h>
 
 #include "log.h"
-#include "util.h"
+#include "print.h"
 
 #define LOG_BUF_SIZE 256
 
-static void log_default(uint32_t type, log_t* log, const loc_t* loc, const char* msg) {
+static void log_default(log_t* log, uint32_t type, const loc_t* loc, const char* fmt, const fmt_arg_t* args) {
     FILE* out = type == LOG_ERR ? stderr : stdout;
-    uint32_t fmt_flags = log->colorize ? FMT_COLORIZE : 0;
-    const char* file = ((default_log_t*)log)->file;
+    file_printer_t file_printer = printer_from_file(out);
+    file_printer.printer.colorize = log->colorize;
+    printer_t* printer = &file_printer.printer;
+
     switch (type) {
-        case LOG_ERR:  format_to_file(out, "{$err}error{$}",   NULL, fmt_flags); break;
-        case LOG_WARN: format_to_file(out, "{$wrn}warning{$}", NULL, fmt_flags); break;
-        case LOG_NOTE: format_to_file(out, "{$not}note{$}",    NULL, fmt_flags); break;
+        case LOG_ERR:  print(printer, "{$err}error{$}");   break;
+        case LOG_WARN: print(printer, "{$wrn}warning{$}"); break;
+        case LOG_NOTE: print(printer, "{$not}note{$}");    break;
         default:
             assert(false);
             break;
     }
+
+    const char* file = ((default_log_t*)log)->file;
     if (loc && file) {
-        fmt_arg_t args[] = {
-            { .str = file },
+        bool range_loc = loc->brow != loc->erow || loc->bcol != loc->ecol;
+        print(printer,
+            range_loc ? " in {$loc}{0:s}({1:u32},{2:u32} - {3:u32},{4:u32}){$}: " : " in {$loc}{0:s}({1:u32},{2:u32}){$}: ",
+            { .s = file },
             { .u32 = loc->brow },
             { .u32 = loc->bcol },
             { .u32 = loc->erow },
-            { .u32 = loc->ecol },
-            { .str = msg }
-        };
-        bool range_loc = loc->brow != loc->erow || loc->bcol != loc->ecol;
-        format_to_file(out,
-            range_loc ? " in {$loc}{0:s}({1:u32},{2:u32} - {3:u32},{4:u32}){$}: {5:s}\n" : " in {$loc}{0:s}({1:u32},{2:u32}){$}: {5:s}\n",
-            args, fmt_flags);
+            { .u32 = loc->ecol }
+        );
     } else {
-        fmt_arg_t args = { .str = msg };
-        format_to_file(out, ": {0:s}\n", &args, fmt_flags);
+        print(printer, ": ");
     }
+    printer->format(printer, fmt, args);
+    print(printer, "\n");
 }
 
 default_log_t log_create_default(const char* file, bool colorize) {
@@ -49,9 +51,9 @@ default_log_t log_create_default(const char* file, bool colorize) {
     };
 }
 
-static void log_silent(uint32_t type, log_t* data, const loc_t* loc, const char* msg) {
+static void log_silent(log_t* data, uint32_t type, const loc_t* loc, const char* fmt, const fmt_arg_t* args) {
     // Do nothing (avoid "unused variable" warnings)
-    (void)type,(void)data,(void)loc,(void)msg;
+    (void)type,(void)data,(void)loc,(void)fmt,(void)args;
 }
 
 log_t log_create_silent(void) {
@@ -61,13 +63,4 @@ log_t log_create_silent(void) {
         .errs     = 0,
         .warns    = 0
     };
-}
-
-void log_format(log_t* log, uint32_t type, const loc_t* loc, const char* fmt, const fmt_arg_t* args) {
-    char tmp[LOG_BUF_SIZE];
-    char* buf = tmp;
-    format(&buf, LOG_BUF_SIZE, fmt, args, log->colorize);
-    log->log_fn(type, log, loc, buf);
-    if (buf != tmp)
-        free(buf);
 }

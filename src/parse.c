@@ -2,6 +2,8 @@
 
 #include "parse.h"
 
+#define TOK2STR_BUF_SIZE 32
+
 static inline void next(parser_t* parser) {
     parser->prev_loc = parser->ahead.loc;
     parser->ahead    = lex(parser->lexer);
@@ -63,7 +65,7 @@ static inline bool expect(parser_t* parser, const char* msg, uint32_t tag) {
         char buf2[TOK2STR_BUF_SIZE + 2];
         const char* str1 = tok2str_with_quotes(tag, buf1);
         const char* str2 = tok2str_with_quotes(parser->ahead.tag, buf2);
-        log_error(parser->log, &parser->ahead.loc, "expected {0:s} in {1:s}, but got {2:s}", { .str = str1 }, { .str = msg }, { .str = str2 });
+        log_error(parser->log, &parser->ahead.loc, "expected {0:s} in {1:s}, but got {2:s}", { .s = str1 }, { .s = msg }, { .s = str2 });
         status = false;
     }
     next(parser);
@@ -223,7 +225,7 @@ static ast_t* parse_type(parser_t* parser) {
 static ast_t* parse_err(parser_t* parser, const char* msg) {
     ast_t* ast = ast_create(parser, AST_ERR);
     char buf[TOK2STR_BUF_SIZE + 2];
-    log_error(parser->log, &parser->ahead.loc, "expected {0:s}, got {1:s}", { .str = msg }, { .str = tok2str_with_quotes(parser->ahead.tag, buf) });
+    log_error(parser->log, &parser->ahead.loc, "expected {0:s}, got {1:s}", { .s = msg }, { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
     next(parser);
     return ast_finalize(ast, parser);
 }
@@ -233,7 +235,7 @@ static ast_t* parse_id(parser_t* parser) {
     char* str = "";
     if (parser->ahead.tag != TOK_ID) {
         char buf[TOK2STR_BUF_SIZE + 2];
-        log_error(parser->log, &parser->ahead.loc, "identifier expected, got {0:s}", { .str = tok2str_with_quotes(parser->ahead.tag, buf) });
+        log_error(parser->log, &parser->ahead.loc, "identifier expected, got {0:s}", { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
     } else {
         str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
         strcpy(str, parser->ahead.str);

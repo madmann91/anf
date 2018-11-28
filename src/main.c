@@ -60,7 +60,7 @@ static bool process_file(const char* file) {
     size_t file_size = 0;
     char* file_data = read_file(file, &file_size);
     if (!file_data) {
-        log_error(&global_log.log, NULL, "cannot read file '{0:s}'", { .str = file });
+        log_error(&global_log.log, NULL, "cannot read file '{0:s}'", { .s = file });
         return false;
     }
 
@@ -97,9 +97,9 @@ static bool process_file(const char* file) {
 
     // Display program on success
     if (ok) {
-        file_printer_t file_printer = printer_from_file(stdout, global_log.log.colorize, "    ", 0);
-        ast_print(ast, &file_printer.printer);
-        print(&file_printer.printer, "\n");
+        file_printer_t file_printer = printer_from_file(stdout);
+        file_printer.printer.colorize = global_log.log.colorize;
+        print(&file_printer.printer, "{0:a}\n", { .a = ast });
     }
 
     free(file_data);
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
             } else if (!strcmp(argv[i], "--must-fail")) {
                 must_fail = true;
             } else {
-                log_error(&global_log.log, NULL, "unknown option '{0:s}'", { .str = argv[i] });
+                log_error(&global_log.log, NULL, "unknown option '{0:s}'", { .s = argv[i] });
                 return 1;
             }
         }

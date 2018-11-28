@@ -6,8 +6,6 @@
 #include "anf.h"
 #include "log.h"
 
-#define TOK2STR_BUF_SIZE 32
-
 #define TOK_LIST(f) \
     f(TOK_INT,      "integer literal") \
     f(TOK_FLT,      "floating point literal") \

@@ -121,9 +121,9 @@ static inline void write_dbg(io_t* io, const dbg_t* dbg) {
     uint32_t name_len = strlen(dbg->name);
     uint32_t file_len = strlen(dbg->file);
     io->write(io, &name_len, sizeof(uint32_t));
-    io->write(io, dbg->name, sizeof(char) * name_len);
+    io->write(io, dbg->name, name_len);
     io->write(io, &file_len, sizeof(uint32_t));
-    io->write(io, dbg->file, sizeof(char) * file_len);
+    io->write(io, dbg->file, file_len);
     io->write(io, &dbg->loc.brow, sizeof(uint32_t));
     io->write(io, &dbg->loc.bcol, sizeof(uint32_t));
     io->write(io, &dbg->loc.erow, sizeof(uint32_t));
@@ -203,14 +203,14 @@ static inline const dbg_t* read_dbg(io_t* io, mpool_t** dbg_pool) {
 
     uint32_t name_len;
     io->read(io, &name_len, sizeof(uint32_t));
-    char* name = mpool_alloc(dbg_pool, sizeof(char) * (name_len + 1));
-    io->read(io, name, sizeof(char) * name_len);
+    char* name = mpool_alloc(dbg_pool, name_len + 1);
+    io->read(io, name, name_len);
     name[name_len] = 0;
 
     uint32_t file_len;
     io->read(io, &file_len, sizeof(uint32_t));
-    char* file = mpool_alloc(dbg_pool, sizeof(char) * (file_len + 1));
-    io->read(io, file, sizeof(char) * file_len);
+    char* file = mpool_alloc(dbg_pool, file_len + 1);
+    io->read(io, file, file_len);
     file[file_len] = 0;
 
     dbg->name = name;

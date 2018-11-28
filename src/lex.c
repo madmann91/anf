@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "lex.h"
-#include "util.h"
 
 // Generated file
 #include "lex.inc"
