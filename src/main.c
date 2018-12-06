@@ -6,6 +6,7 @@
 #include "lex.h"
 #include "parse.h"
 #include "bind.h"
+#include "check.h"
 #include "util.h"
 #include "mpool.h"
 #include "print.h"
@@ -92,6 +93,14 @@ static bool process_file(const char* file) {
         };
         id2ast_destroy(&id2ast);
         bind(&binder, ast);
+        ok &= !file_log.log.errs;
+    }
+
+    if (ok) {
+        // Perform type checking
+        checker_t checker;
+        checker.log = &file_log.log;
+        infer(&checker, ast);
         ok &= !file_log.log.errs;
     }
 
