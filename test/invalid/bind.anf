@@ -7,4 +7,5 @@ mod bind {
     var x = return
     var y = z
     var y = z
+    var z = x
 }

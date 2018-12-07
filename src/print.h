@@ -28,7 +28,6 @@ union fmt_arg_u {
     const void* p;
     const char* s;
     const struct ast_s* a;
-    const struct ast_type_s* at;
     const struct node_s* n;
     const struct type_s* t;
 };

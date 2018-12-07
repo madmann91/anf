@@ -308,11 +308,6 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
     }
 }
 
-static void print_ast_type(printer_t* printer, const ast_type_t* ast_type) {
-    // TODO
-    (void)printer, (void)ast_type;
-}
-
 static size_t format(char* buf, size_t buf_len, const char* fmt, const fmt_arg_t* args, bool colorize) {
     // Reserve space for null terminator
     if (buf_len == 0)
@@ -457,12 +452,7 @@ static size_t format(char* buf, size_t buf_len, const char* fmt, const fmt_arg_t
                     case 'a':
                         ptr++;
                         mem_printer.off = len;
-                        if (*ptr == 't') {
-                            ptr++;
-                            print_ast_type(&mem_printer.printer, args[id].at);
-                        } else {
-                            print_ast(&mem_printer.printer, args[id].a);
-                        }
+                        print_ast(&mem_printer.printer, args[id].a);
                         len = mem_printer.off;
                         break;
                     case 't':

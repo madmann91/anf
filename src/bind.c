@@ -93,8 +93,6 @@ static void bind_head(binder_t* binder, ast_t* ast) {
                     insert_env(binder, decl->data.def.id, decl);
                 if (decl->tag == AST_STRUCT)
                     insert_env(binder, decl->data.struct_.id, decl);
-                if (decl->tag == AST_VAR || decl->tag == AST_VAL)
-                    bind_ptrn(binder, decl->data.varl.ptrn);
             })
             break;
         case AST_PROGRAM:
@@ -148,6 +146,7 @@ void bind(binder_t* binder, ast_t* ast) {
             break;
         case AST_VAR:
         case AST_VAL:
+            bind_ptrn(binder, ast->data.varl.ptrn);
             bind(binder, ast->data.varl.value);
             break;
         case AST_DEF:

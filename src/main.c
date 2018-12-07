@@ -96,10 +96,13 @@ static bool process_file(const char* file) {
         ok &= !file_log.log.errs;
     }
 
+    mod_t* mod = mod_create();
     if (ok) {
         // Perform type checking
-        checker_t checker;
-        checker.log = &file_log.log;
+        checker_t checker = {
+            .log = &file_log.log,
+            .mod = mod
+        };
         infer(&checker, ast);
         ok &= !file_log.log.errs;
     }
@@ -113,6 +116,7 @@ static bool process_file(const char* file) {
 
     free(file_data);
     mpool_destroy(pool);
+    mod_destroy(mod);
     return ok;
 }
 

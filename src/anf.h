@@ -133,12 +133,21 @@ struct fn_s {
     bool intrinsic : 1;
 };
 
+struct fp_flags_s : uint8_t {
+    bool commutative_math : 1;   // Assume that addition and multiplication are commutative
+    bool associative_math : 1;   // Assume associativity of floating point operations
+    bool reciprocal_math  : 1;   // Allow the use of reciprocal for 1/x
+};
+
 struct type_s {
     uint32_t tag;
     size_t   nops;
     const type_t** ops;
-    bool fast : 1;
-    uint32_t var : 31;
+    union {
+        uint32_t var;
+        struct ast_s* ast;
+        fp_flags_t flags;
+    } data;
 };
 
 enum node_tag_e {
@@ -197,23 +206,13 @@ bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
-const type_t* type_i1(mod_t*);
-const type_t* type_i8(mod_t*);
-const type_t* type_i16(mod_t*);
-const type_t* type_i32(mod_t*);
-const type_t* type_i64(mod_t*);
-const type_t* type_u8(mod_t*);
-const type_t* type_u16(mod_t*);
-const type_t* type_u32(mod_t*);
-const type_t* type_u64(mod_t*);
-const type_t* type_f32(mod_t*);
-const type_t* type_f64(mod_t*);
+const type_t* type_prim(mod_t*, uint32_t, type_flags_t);
 const type_t* type_mem(mod_t*);
 const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_tuple_args(mod_t*, size_t, ...);
 const type_t* type_array(mod_t*, const type_t*);
-type_t* type_struct(mod_t*, size_t);
+type_t* type_struct(mod_t*, struct ast_s*);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 const type_t* type_noret(mod_t*);
 const type_t* type_var(mod_t*, uint32_t);
@@ -230,17 +229,7 @@ const node_t* node_undef(mod_t*, const type_t*);
 const node_t* node_zero(mod_t*, const type_t*);
 const node_t* node_one(mod_t*, const type_t*);
 const node_t* node_all_ones(mod_t*, const type_t*);
-const node_t* node_i1(mod_t*, bool);
-const node_t* node_i8(mod_t*, int8_t);
-const node_t* node_i16(mod_t*, int16_t);
-const node_t* node_i32(mod_t*, int32_t);
-const node_t* node_i64(mod_t*, int64_t);
-const node_t* node_u8(mod_t*, uint8_t);
-const node_t* node_u16(mod_t*, uint16_t);
-const node_t* node_u32(mod_t*, uint32_t);
-const node_t* node_u64(mod_t*, uint64_t);
-const node_t* node_f32(mod_t*, float);
-const node_t* node_f64(mod_t*, double);
+const node_t* node_literal(mod_t*, const type_t*, box_t);
 
 // Operations
 bool node_is_not(const node_t*);

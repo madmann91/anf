@@ -5,7 +5,6 @@
 #include "lex.h"
 
 typedef struct ast_s      ast_t;
-typedef struct ast_type_s ast_type_t;
 typedef struct ast_list_s ast_list_t;
 
 #define MAX_BINOP_PRECEDENCE 10
@@ -108,10 +107,6 @@ enum prim_tag_e {
 #undef PRIM
 };
 
-struct ast_type_s {
-    int empty;
-};
-
 struct ast_s {
     uint32_t tag;
     union {
@@ -210,7 +205,7 @@ struct ast_s {
             ast_list_t* mods;
         } program;
     } data;
-    const ast_type_t* type;
+    const type_t* type;
     loc_t loc;
 };
 
