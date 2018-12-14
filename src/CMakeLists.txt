@@ -9,7 +9,6 @@ add_custom_target(lex_inc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/lex.inc)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(LIBANF_SRCS
-    anf.c
     ast.c
     lex.c
     log.c
@@ -17,18 +16,16 @@ set(LIBANF_SRCS
     bind.c
     check.c
     htable.c
+    mod.c
     mpool.c
     scope.c
     io.c
-    opt.c
-    mem2reg.c
-    flatten.c
-    eval.c
+    node.c
     print.c
+    type.c
     util.c)
 
 set(LIBANF_HDRS
-    anf.h
     adt.h
     ast.h
     lex.h
@@ -39,11 +36,14 @@ set(LIBANF_HDRS
     hash.h
     htable.h
     lex.h
+    mod.h
     mpool.h
     parse.h
     scope.h
     io.h
+    node.h
     print.h
+    type.h
     util.h)
 
 add_library(libanf ${LIBANF_SRCS} ${LIBANF_HDRS} lex.inc)

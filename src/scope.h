@@ -1,12 +1,12 @@
 #ifndef SCOPE_H
 #define SCOPE_H
 
-#include "anf.h"
+#include "mod.h"
 
 typedef struct scope_s scope_t;
 
 struct scope_s {
-    const fn_t* entry;
+    const node_t* entry;
     node_set_t nodes;
 };
 

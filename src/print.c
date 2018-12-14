@@ -4,9 +4,10 @@
 #include <assert.h>
 #include <ctype.h>
 
-#include "anf.h"
-#include "ast.h"
 #include "print.h"
+#include "type.h"
+#include "node.h"
+#include "ast.h"
 
 static void print_type(printer_t* printer, const type_t* type) {
     switch (type->tag) {
@@ -63,17 +64,17 @@ static inline void print_node_name(printer_t* printer, const node_t* node) {
 static void print_node(printer_t* printer, const node_t* node) {
     if (node->tag == NODE_LITERAL) {
         switch (node->type->tag) {
-            case TYPE_I1:  print(printer, "{$key}i1{$} {$lit}{0:i1}{$}",   { .b   = node->box.i1  }); break;
-            case TYPE_I8:  print(printer, "{$key}i8{$} {$lit}{0:i8}{$}",   { .i8  = node->box.i8  }); break;
-            case TYPE_I16: print(printer, "{$key}i16{$} {$lit}{0:i16}{$}", { .i16 = node->box.i16 }); break;
-            case TYPE_I32: print(printer, "{$key}i32{$} {$lit}{0:i32}{$}", { .i32 = node->box.i32 }); break;
-            case TYPE_I64: print(printer, "{$key}i64{$} {$lit}{0:i64}{$}", { .i64 = node->box.i64 }); break;
-            case TYPE_U8:  print(printer, "{$key}u8{$} {$lit}{0:u8}{$}",   { .u8  = node->box.u8  }); break;
-            case TYPE_U16: print(printer, "{$key}u16{$} {$lit}{0:u16}{$}", { .i16 = node->box.u16 }); break;
-            case TYPE_U32: print(printer, "{$key}u32{$} {$lit}{0:u32}{$}", { .i32 = node->box.u32 }); break;
-            case TYPE_U64: print(printer, "{$key}u64{$} {$lit}{0:u64}{$}", { .i64 = node->box.u64 }); break;
-            case TYPE_F32: print(printer, "{$key}f32{$} {$lit}{0:f32}{$}", { .f32 = node->box.f32 }); break;
-            case TYPE_F64: print(printer, "{$key}f64{$} {$lit}{0:f64}{$}", { .f64 = node->box.f64 }); break;
+            case TYPE_I1:  print(printer, "{$key}i1{$} {$lit}{0:i1}{$}",   { .b   = node->data.box.i1  }); break;
+            case TYPE_I8:  print(printer, "{$key}i8{$} {$lit}{0:i8}{$}",   { .i8  = node->data.box.i8  }); break;
+            case TYPE_I16: print(printer, "{$key}i16{$} {$lit}{0:i16}{$}", { .i16 = node->data.box.i16 }); break;
+            case TYPE_I32: print(printer, "{$key}i32{$} {$lit}{0:i32}{$}", { .i32 = node->data.box.i32 }); break;
+            case TYPE_I64: print(printer, "{$key}i64{$} {$lit}{0:i64}{$}", { .i64 = node->data.box.i64 }); break;
+            case TYPE_U8:  print(printer, "{$key}u8{$} {$lit}{0:u8}{$}",   { .u8  = node->data.box.u8  }); break;
+            case TYPE_U16: print(printer, "{$key}u16{$} {$lit}{0:u16}{$}", { .i16 = node->data.box.u16 }); break;
+            case TYPE_U32: print(printer, "{$key}u32{$} {$lit}{0:u32}{$}", { .i32 = node->data.box.u32 }); break;
+            case TYPE_U64: print(printer, "{$key}u64{$} {$lit}{0:u64}{$}", { .i64 = node->data.box.u64 }); break;
+            case TYPE_F32: print(printer, "{$key}f32{$} {$lit}{0:f32}{$}", { .f32 = node->data.box.f32 }); break;
+            case TYPE_F64: print(printer, "{$key}f64{$} {$lit}{0:f64}{$}", { .f64 = node->data.box.f64 }); break;
             default:
                 assert(false);
                 break;

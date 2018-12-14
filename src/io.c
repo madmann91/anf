@@ -1,4 +1,6 @@
 #include "io.h"
+#include "node.h"
+#include "type.h"
 #include "adt.h"
 
 typedef struct hdr_s hdr_t;
@@ -19,13 +21,6 @@ enum blk_tag_e {
     BLK_NODES,
     BLK_TYPES,
     BLK_DBG
-};
-
-enum flags_e {
-    FLAG_EXPORTED  = 0x1,
-    FLAG_IMPORTED  = 0x2,
-    FLAG_INTRINSIC = 0x4,
-    FLAG_FAST      = 0x1
 };
 
 VEC(dbg_vec, const dbg_t*)
@@ -61,16 +56,12 @@ static inline void finalize_block(io_t* io, long off, uint32_t tag) {
     io->seek(io, cur, SEEK_SET);
 }
 
-static inline void write_fn(io_t* io, const fn_t* fn, const node2idx_t* node2idx, const type2idx_t* type2idx, const dbg2idx_t* dbg2idx) {
-    io->write(io, node2idx_lookup(node2idx, fn->node.ops[0]), sizeof(uint32_t));
-    io->write(io, node2idx_lookup(node2idx, fn->node.ops[1]), sizeof(uint32_t));
-    io->write(io, type2idx_lookup(type2idx, fn->node.type), sizeof(uint32_t));
-    uint32_t flags =
-        (fn->exported  ? FLAG_EXPORTED  : 0) |
-        (fn->imported  ? FLAG_IMPORTED  : 0) |
-        (fn->intrinsic ? FLAG_INTRINSIC : 0);
-    io->write(io, &flags, sizeof(uint32_t));
-    uint32_t dbg_idx = fn->node.dbg ? *dbg2idx_lookup(dbg2idx, fn->node.dbg) : (uint32_t)-1;
+static inline void write_fn(io_t* io, const node_t* fn, const node2idx_t* node2idx, const type2idx_t* type2idx, const dbg2idx_t* dbg2idx) {
+    io->write(io, node2idx_lookup(node2idx, fn->ops[0]), sizeof(uint32_t));
+    io->write(io, node2idx_lookup(node2idx, fn->ops[1]), sizeof(uint32_t));
+    io->write(io, type2idx_lookup(type2idx, fn->type), sizeof(uint32_t));
+    io->write(io, &fn->data.fn_flags, sizeof(fn_flags_t));
+    uint32_t dbg_idx = fn->dbg ? *dbg2idx_lookup(dbg2idx, fn->dbg) : (uint32_t)-1;
     io->write(io, &dbg_idx, sizeof(uint32_t));
 }
 
@@ -89,7 +80,7 @@ static inline bool write_node(io_t* io, const node_t* node, node2idx_t* node2idx
 
     io->write(io, &node->tag,  sizeof(uint32_t));
     io->write(io, &node->nops, sizeof(uint32_t));
-    io->write(io, &node->box,  sizeof(box_t));
+    io->write(io, &node->data, sizeof(node->data));
     io->write(io, ops, sizeof(uint32_t) * node->nops);
     io->write(io, type2idx_lookup(type2idx, node->type), sizeof(uint32_t));
     uint32_t dbg_idx = node->dbg ? *dbg2idx_lookup(dbg2idx, node->dbg) : (uint32_t)-1;
@@ -112,8 +103,7 @@ static inline bool write_type(io_t* io, const type_t* type, type2idx_t* type2idx
     io->write(io, &type->tag,  sizeof(uint32_t));
     io->write(io, &type->nops, sizeof(uint32_t));
     io->write(io, ops, sizeof(uint32_t) * type->nops);
-    uint32_t flags = type->fast ? FLAG_FAST : 0;
-    io->write(io, &flags, sizeof(uint32_t));
+    io->write(io, &type->data, sizeof(type->data));
     return true;
 }
 
@@ -135,7 +125,7 @@ static inline const node_t* read_node(io_t* io, mod_t* mod, const idx2node_t* id
     memset(&node, 0, sizeof(node_t));
     io->read(io, &node.tag, sizeof(uint32_t));
     io->read(io, &node.nops, sizeof(uint32_t));
-    io->read(io, &node.box, sizeof(box_t));
+    io->read(io, &node.data, sizeof(node.data));
     const node_t* ops[node.nops];
     node.ops = ops;
     for (uint32_t i = 0; i < node.nops; ++i) {
@@ -157,27 +147,23 @@ static inline void read_fn_ops(io_t* io, mod_t* mod, uint32_t i, idx2node_t* idx
     io->read(io, &body_idx, sizeof(uint32_t));
     uint32_t run_if_idx;
     io->read(io, &run_if_idx, sizeof(uint32_t));
-    fn_t* fn = fn_cast(*idx2node_lookup(idx2node,i));
-    fn_bind(mod, fn, 0, *idx2node_lookup(idx2node, body_idx));
-    fn_bind(mod, fn, 1, *idx2node_lookup(idx2node, run_if_idx));
+    const node_t* fn = *idx2node_lookup(idx2node, i);
+    node_bind(mod, fn, 0, *idx2node_lookup(idx2node, body_idx));
+    node_bind(mod, fn, 1, *idx2node_lookup(idx2node, run_if_idx));
     io->seek(io, sizeof(uint32_t) * 3, SEEK_CUR);
 }
 
-static inline const fn_t* read_fn(io_t* io, mod_t* mod, const idx2type_t* idx2type, const idx2dbg_t* idx2dbg) {
+static inline const node_t* read_fn(io_t* io, mod_t* mod, const idx2type_t* idx2type, const idx2dbg_t* idx2dbg) {
     io->seek(io, 2 * sizeof(uint32_t), SEEK_CUR);
     uint32_t type_idx;
+    fn_flags_t flags;
     io->read(io, &type_idx, sizeof(uint32_t));
-    uint32_t flags;
-    io->read(io, &flags, sizeof(uint32_t));
+    io->read(io, &flags,    sizeof(fn_flags_t));
     uint32_t dbg_idx;
-    io->read(io, &dbg_idx, sizeof(uint32_t));
+    io->read(io, &dbg_idx,  sizeof(uint32_t));
     const dbg_t* dbg = idx2dbg && dbg_idx != (uint32_t)-1 ? *idx2dbg_lookup(idx2dbg, dbg_idx) : NULL;
     const type_t* type = *idx2type_lookup(idx2type, type_idx);
-    fn_t* fn = node_fn(mod, type, dbg);
-    fn->exported  = flags & FLAG_EXPORTED;
-    fn->imported  = flags & FLAG_IMPORTED;
-    fn->intrinsic = flags & FLAG_INTRINSIC;
-    return fn;
+    return node_fn(mod, type, flags, dbg);
 }
 
 static inline const type_t* read_type(io_t* io, mod_t* mod, idx2type_t* idx2type) {
@@ -192,9 +178,7 @@ static inline const type_t* read_type(io_t* io, mod_t* mod, idx2type_t* idx2type
         io->read(io, &id, sizeof(uint32_t));
         ops[i] = *idx2type_lookup(idx2type, id);
     }
-    uint32_t flags;
-    io->read(io, &flags, sizeof(uint32_t));
-    type.fast = flags & FLAG_FAST;
+    io->read(io, &type.data, sizeof(type.data));
     return type_rebuild(mod, &type, ops);
 }
 
@@ -243,13 +227,13 @@ bool mod_save(const mod_t* mod, io_t* io) {
     bool todo;
     bool ret = true;
 
-    FORALL_HSET(mod->nodes, const node_t*, node, {
+    FORALL_NODES(mod, node, {
         if (node->dbg && dbg2idx_insert(&dbg2idx, node->dbg, dbg2idx.table->nelems))
             dbg_vec_push(&dbg_vec, node->dbg);
     })
-    FORALL_VEC(mod->fns, const fn_t*, fn, {
-        if (fn->node.dbg && dbg2idx_insert(&dbg2idx, fn->node.dbg, dbg2idx.table->nelems))
-            dbg_vec_push(&dbg_vec, fn->node.dbg);
+    FORALL_FNS(mod, fn, {
+        if (fn->dbg && dbg2idx_insert(&dbg2idx, fn->dbg, dbg2idx.table->nelems))
+            dbg_vec_push(&dbg_vec, fn->dbg);
     })
 
     // First, write debug info
@@ -264,13 +248,13 @@ bool mod_save(const mod_t* mod, io_t* io) {
 
     // Then types
     off = write_dummy_block(io);
-    count = mod->types.table->nelems;
+    count = mod_types(mod)->nelems;
     if (io->write(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     todo = true;
     while (todo) {
         todo = false;
-        FORALL_HSET(mod->types, const type_t*, type, {
+        FORALL_TYPES(mod, type, {
             todo |= !write_type(io, type, &type2idx);
         })
     }
@@ -278,17 +262,17 @@ bool mod_save(const mod_t* mod, io_t* io) {
 
     // Then nodes
     off = write_dummy_block(io);
-    count = mod->nodes.table->nelems;
+    count = mod_nodes(mod)->nelems;
     if (io->write(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     // Insert all functions in the map
-    FORALL_VEC(mod->fns, const fn_t*, fn, {
-        node2idx_insert(&node2idx, &fn->node, node2idx.table->nelems);
+    FORALL_FNS(mod, fn, {
+        node2idx_insert(&node2idx, fn, node2idx.table->nelems);
     })
     todo = true;
     while (todo) {
         todo = false;
-        FORALL_HSET(mod->nodes, const node_t*, node, {
+        FORALL_NODES(mod, node, {
             todo |= !write_node(io, node, &node2idx, &type2idx, &dbg2idx);
         })
     }
@@ -296,10 +280,10 @@ bool mod_save(const mod_t* mod, io_t* io) {
 
     // Then functions
     off = write_dummy_block(io);
-    count = mod->fns.nelems;
+    count = mod_fns(mod)->nelems;
     if (io->write(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
-    FORALL_VEC(mod->fns, const fn_t*, fn, {
+    FORALL_FNS(mod, fn, {
         write_fn(io, fn, &node2idx, &type2idx, &dbg2idx);
     })
     finalize_block(io, off, BLK_FNS);
@@ -352,13 +336,13 @@ mod_t* mod_load(io_t* io, mpool_t** dbg_pool) {
     if (!locate_block(io, BLK_FNS) || io->read(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     for (uint32_t i = 0; i < count; ++i)
-        idx2node_insert(&idx2node, i, &read_fn(io, mod, &idx2type, dbg_pool ? &idx2dbg : NULL)->node);
+        idx2node_insert(&idx2node, i, read_fn(io, mod, &idx2type, dbg_pool ? &idx2dbg : NULL));
 
     // Then nodes
     if (!locate_block(io, BLK_NODES) || io->read(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     for (uint32_t i = 0; i < count; ++i)
-        idx2node_insert(&idx2node, mod->fns.nelems + i, read_node(io, mod, &idx2node, &idx2type, dbg_pool ? &idx2dbg : NULL));
+        idx2node_insert(&idx2node, mod_fns(mod)->nelems + i, read_node(io, mod, &idx2node, &idx2type, dbg_pool ? &idx2dbg : NULL));
 
     // Then function bodies
     if (!locate_block(io, BLK_FNS) || io->read(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))

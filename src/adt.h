@@ -14,15 +14,13 @@
 #define HSET_DEFAULT_CAP 64
 
 #define FORALL_HMAP(hmap, key_t, key, value_t, value, ...) \
-    for (size_t i = 0; i < (hmap).table->cap; ++i) { \
-        if ((hmap).table->hashes[i] & OCCUPIED_HASH_MASK) { \
-            struct pair_s { key_t key; value_t value; }; \
-            struct pair_s* pair = ((struct pair_s*)(hmap).table->elems) + i; \
-            key_t key     = pair->key; \
-            value_t value = pair->value; \
-            __VA_ARGS__ \
-        } \
-    }
+    FORALL_OCCUPIED_HASHES((hmap).table, i, { \
+        struct pair_s { key_t key; value_t value; }; \
+        struct pair_s* pair = ((struct pair_s*)(hmap).table->elems) + i; \
+        key_t key     = pair->key; \
+        value_t value = pair->value; \
+        __VA_ARGS__ \
+    })
 
 #define HMAP(hmap, key_t, value_t, cmp, hash) \
     typedef struct { htable_t* table; } hmap##_t; \
@@ -74,12 +72,10 @@
     HMAP(hmap, key_t, value_t, hmap##_cmp, hmap##_hash)
 
 #define FORALL_HSET(hset, value_t, value, ...) \
-    for (size_t i = 0; i < (hset).table->cap; ++i) { \
-        if ((hset).table->hashes[i] & OCCUPIED_HASH_MASK) { \
-            value_t value = ((value_t*)(hset).table->elems)[i]; \
-            __VA_ARGS__ \
-        } \
-    }
+    FORALL_OCCUPIED_HASHES((hset).table, i, { \
+        value_t value = ((value_t*)(hset).table->elems)[i]; \
+        __VA_ARGS__ \
+    })
 
 #define HSET(hset, value_t, cmp, hash) \
     typedef struct { htable_t* table; } hset##_t; \

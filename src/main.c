@@ -2,7 +2,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "anf.h"
+#include "mod.h"
+#include "node.h"
+#include "type.h"
 #include "lex.h"
 #include "parse.h"
 #include "bind.h"

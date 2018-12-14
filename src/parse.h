@@ -1,10 +1,10 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include "anf.h"
 #include "ast.h"
 #include "lex.h"
 #include "log.h"
+#include "mpool.h"
 
 typedef struct parser_s parser_t;
 

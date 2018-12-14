@@ -1,19 +1,15 @@
-#ifndef ANF_H
-#define ANF_H
+#ifndef NODE_H
+#define NODE_H
 
-#include <stdint.h>
-#include <stdbool.h>
-
-#include "mpool.h"
-#include "adt.h"
+#include "mod.h"
 
 #define NODE_LIST(f) \
-    f(NODE_UNDEF,   "undef") \
+    f(NODE_TOP,     "top") \
+    f(NODE_BOTTOM,  "bottom") \
     f(NODE_ALLOC,   "alloc") \
     f(NODE_DEALLOC, "dealloc") \
     f(NODE_LOAD,    "load") \
     f(NODE_STORE,   "store") \
-    f(NODE_OFFSET,  "offset") \
     f(NODE_LITERAL, "literal") \
     f(NODE_TUPLE,   "tuple") \
     f(NODE_ARRAY,   "array") \
@@ -27,7 +23,7 @@
     f(NODE_CMPLE,   "cmple") \
     f(NODE_CMPNE,   "cmpne") \
     f(NODE_CMPEQ,   "cmpeq") \
-    f(NODE_WIDEN,   "widen") \
+    f(NODE_EXTEND,  "extend") \
     f(NODE_TRUNC,   "trunc") \
     f(NODE_ITOF,    "itof") \
     f(NODE_FTOI,    "ftoi") \
@@ -45,41 +41,20 @@
     f(NODE_FN,      "fn") \
     f(NODE_PARAM,   "param") \
     f(NODE_APP,     "app") \
-    f(NODE_KNOWN,   "known") \
-    f(NODE_TRAP,    "trap")
+    f(NODE_KNOWN,   "known")
 
-#define PRIM_LIST(prefix, f) \
-    f(prefix##I8,     "i8") \
-    f(prefix##I16,    "i16") \
-    f(prefix##I32,    "i32") \
-    f(prefix##I64,    "i64") \
-    f(prefix##U8,     "u8") \
-    f(prefix##U16,    "u16") \
-    f(prefix##U32,    "u32") \
-    f(prefix##U64,    "u64") \
-    f(prefix##F32,    "f32") \
-    f(prefix##F64,    "f64")
+typedef union  box_u box_t;
+typedef struct loc_s loc_t;
+typedef struct dbg_s dbg_t;
+typedef struct use_s use_t;
 
-#define TYPE_LIST(f) \
-    f(TYPE_I1, "i1") \
-    PRIM_LIST(TYPE_, f) \
-    f(TYPE_MEM,    "mem") \
-    f(TYPE_PTR,    "ptr") \
-    f(TYPE_TUPLE,  "tuple") \
-    f(TYPE_ARRAY,  "array") \
-    f(TYPE_STRUCT, "struct") \
-    f(TYPE_FN,     "fn") \
-    f(TYPE_NORET,  "noret") \
-    f(TYPE_VAR,    "var")
+typedef struct fn_flags_s fn_flags_t;
 
-typedef union  box_u  box_t;
-typedef struct loc_s  loc_t;
-typedef struct dbg_s  dbg_t;
-typedef struct use_s  use_t;
-typedef struct node_s node_t;
-typedef struct fn_s   fn_t;
-typedef struct type_s type_t;
-typedef struct mod_s  mod_t;
+enum node_tag_e {
+#define NODE(name, str) name,
+    NODE_LIST(NODE)
+#undef NODE
+};
 
 union box_u {
     bool     i1;
@@ -114,11 +89,20 @@ struct use_s {
     use_t* next;
 };
 
+struct fn_flags_s {
+    bool exported  : 1;
+    bool imported  : 1;
+    bool intrinsic : 1;
+};
+
 struct node_s {
     uint32_t tag;
     size_t   nops;
     use_t*   uses;
-    box_t    box;
+    union {
+        box_t      box;
+        fn_flags_t fn_flags;
+    } data;
 
     const node_t*  rep;
     const node_t** ops;
@@ -126,112 +110,30 @@ struct node_s {
     const dbg_t*   dbg;
 };
 
-struct fn_s {
-    const node_t node;
-    bool exported  : 1;
-    bool imported  : 1;
-    bool intrinsic : 1;
-};
-
-struct fp_flags_s : uint8_t {
-    bool commutative_math : 1;   // Assume that addition and multiplication are commutative
-    bool associative_math : 1;   // Assume associativity of floating point operations
-    bool reciprocal_math  : 1;   // Allow the use of reciprocal for 1/x
-};
-
-struct type_s {
-    uint32_t tag;
-    size_t   nops;
-    const type_t** ops;
-    union {
-        uint32_t var;
-        struct ast_s* ast;
-        fp_flags_t flags;
-    } data;
-};
-
-enum node_tag_e {
-#define NODE(name, str) name,
-    NODE_LIST(NODE)
-#undef NODE
-};
-
-enum type_tag_e {
-#define TYPE(name, str) name,
-    TYPE_LIST(TYPE)
-#undef TYPE
-};
-
-enum rewrite_flag_e {
-    REWRITE_FNS     = 0x01,
-    REWRITE_STRUCTS = 0x02
-};
-
-bool type_cmp(const void*, const void*);
-bool node_cmp(const void*, const void*);
-uint32_t type_hash(const void*);
-uint32_t node_hash(const void*);
-
-VEC(type_vec, const type_t*)
-VEC(node_vec, const node_t*)
-VEC(fn_vec, fn_t*)
-HSET(internal_type_set, const type_t*, type_cmp, type_hash)
-HSET(internal_node_set, const node_t*, node_cmp, node_hash)
-HSET_DEFAULT(type_set, const type_t*)
-HSET_DEFAULT(node_set, const node_t*)
-HMAP_DEFAULT(type2type, const type_t*, const type_t*)
-HMAP_DEFAULT(node2node, const node_t*, const node_t*)
-
-struct mod_s {
-    mpool_t*  pool;
-    internal_node_set_t nodes;
-    internal_type_set_t types;
-    fn_vec_t fns;
-};
-
-// Module
-mod_t* mod_create(void);
-void mod_destroy(mod_t*);
-
-// Optimization
-void mod_import(mod_t*, mod_t*);
-void mod_opt(mod_t**);
-void mod_cleanup(mod_t**);
-
-// Types
-size_t type_bitwidth(const type_t*);
-bool type_is_prim(const type_t*);
-bool type_is_i(const type_t*);
-bool type_is_u(const type_t*);
-bool type_is_f(const type_t*);
-bool type_contains(const type_t*, const type_t*);
-size_t type_order(const type_t*);
-const type_t* type_prim(mod_t*, uint32_t, type_flags_t);
-const type_t* type_mem(mod_t*);
-const type_t* type_ptr(mod_t*, const type_t*);
-const type_t* type_tuple(mod_t*, size_t, const type_t**);
-const type_t* type_tuple_args(mod_t*, size_t, ...);
-const type_t* type_array(mod_t*, const type_t*);
-type_t* type_struct(mod_t*, struct ast_s*);
-const type_t* type_fn(mod_t*, const type_t*, const type_t*);
-const type_t* type_noret(mod_t*);
-const type_t* type_var(mod_t*, uint32_t);
-
-// Values
 uint64_t node_value_u(const node_t*);
 int64_t  node_value_i(const node_t*);
 double   node_value_f(const node_t*);
+bool     node_value_i1(const node_t*);
 bool node_is_const(const node_t*);
 bool node_is_zero(const node_t*);
 bool node_is_one(const node_t*);
 bool node_is_all_ones(const node_t*);
-const node_t* node_undef(mod_t*, const type_t*);
+const node_t* node_top(mod_t*, const type_t*);
+const node_t* node_bottom(mod_t*, const type_t*);
 const node_t* node_zero(mod_t*, const type_t*);
 const node_t* node_one(mod_t*, const type_t*);
 const node_t* node_all_ones(mod_t*, const type_t*);
+const node_t* node_i1(mod_t*, bool);
+const node_t* node_i8(mod_t*, int8_t);
+const node_t* node_i16(mod_t*, int16_t);
+const node_t* node_i32(mod_t*, int32_t);
+const node_t* node_i64(mod_t*, int64_t);
+const node_t* node_u8(mod_t*, uint8_t);
+const node_t* node_u16(mod_t*, uint16_t);
+const node_t* node_u32(mod_t*, uint32_t);
+const node_t* node_u64(mod_t*, uint64_t);
 const node_t* node_literal(mod_t*, const type_t*, box_t);
 
-// Operations
 bool node_is_not(const node_t*);
 bool node_is_cmp(const node_t*);
 bool node_implies(mod_t*, const node_t*, const node_t*, bool, bool);
@@ -244,7 +146,7 @@ const node_t* node_string(mod_t*, const char*, const dbg_t*);
 const node_t* node_extract(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_insert(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_bitcast(mod_t*, const node_t*, const type_t*, const dbg_t*);
-const node_t* node_widen(mod_t*, const node_t*, const type_t*, const dbg_t*);
+const node_t* node_extend(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_trunc(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_itof(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_ftoi(mod_t*, const node_t*, const type_t*, const dbg_t*);
@@ -266,7 +168,6 @@ const node_t* node_not(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_lshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_rshft(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
-// Memory operations
 bool node_has_mem(const node_t*);
 const node_t* node_in_mem(const node_t*);
 const node_t* node_out_mem(mod_t*, const node_t*);
@@ -275,35 +176,21 @@ const node_t* node_alloc(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_dealloc(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_load(mod_t*, const node_t*, const node_t*, const dbg_t*);
 const node_t* node_store(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_offset(mod_t*, const node_t*, const node_t*, const dbg_t*);
 
-// Misc.
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
-const node_t* node_trap(mod_t*, const node_t*, const type_t*, const dbg_t*);
 
-// Functions
-void fn_bind(mod_t*, fn_t*, size_t, const node_t*);
-fn_t* fn_cast(const node_t*);
-size_t fn_order(const fn_t*);
-const node_t* fn_inline(mod_t*, const fn_t*, const node_t*);
-fn_t* node_fn(mod_t*, const type_t*, const dbg_t*);
-const node_t* node_param(mod_t*, const fn_t*, const dbg_t*);
+const node_t* node_fn(mod_t*, const type_t*, fn_flags_t, const dbg_t*);
+const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
-// Rebuild/Rewrite/Replace
-const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
-const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*, uint32_t);
 const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*, uint32_t);
 void node_replace(const node_t*, const node_t*);
 
-// Uses
 const use_t* use_find(const use_t*, size_t, const node_t*);
 size_t node_count_uses(const node_t*);
 
-// Debugging
 void node_dump(const node_t*);
-void type_dump(const type_t*);
 
-#endif // ANF_H
+#endif // NODE_H

@@ -1,7 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
-#include "anf.h"
+#include "type.h"
 #include "lex.h"
 
 typedef struct ast_s      ast_t;

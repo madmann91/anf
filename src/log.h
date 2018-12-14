@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "anf.h"
+#include "node.h"
 #include "print.h"
 
 typedef struct log_s log_t;

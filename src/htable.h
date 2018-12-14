@@ -8,6 +8,13 @@
 #define OCCUPIED_HASH_MASK 0x80000000
 #define INVALID_INDEX ((size_t)-1)
 
+#define FORALL_OCCUPIED_HASHES(htable, i, ...) \
+    for (size_t i = 0, n = (htable)->cap; i < n; ++i) { \
+        if (htable->hashes[i] & OCCUPIED_HASH_MASK) { \
+            __VA_ARGS__ \
+        } \
+    }
+
 typedef struct htable_s htable_t;
 
 typedef bool (*cmpfn_t)(const void*, const void*);

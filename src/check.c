@@ -38,7 +38,7 @@ const type_t* infer_head(checker_t* checker, ast_t* ast) {
         case AST_MOD:
             FORALL_AST(ast->data.mod.decls, decl, {
                 if (decl->tag == AST_STRUCT)
-                    decl->type = type_struct(checker->mod, decl);
+                    decl->type = type_struct(checker->mod, 0, 0, NULL); // TODO
             })
             break;
     }
@@ -54,7 +54,18 @@ const type_t* infer(checker_t* checker, ast_t* ast) {
             }
             return ast->type;
         case AST_PRIM:
-            return type_prim(checker->mod, ast->data.prim.tag);
+            switch (ast->data.prim.tag) {
+                case TYPE_F32:
+                case TYPE_F64:
+                    return type_prim_fp(checker->mod, ast->data.prim.tag, (fp_flags_t) {
+                        .associative_math = true,
+                        .reciprocal_math = true,
+                        .finite_math = true,
+                        .no_nan_math = true
+                    });
+                default:
+                    return type_prim(checker->mod, ast->data.prim.tag);
+            }
         case AST_ANNOT:
             return check(checker, ast->data.annot.ast, infer(checker, ast->data.annot.type));
         case AST_VAR:

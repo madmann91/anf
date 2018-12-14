@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-#include "anf.h"
+#include "type.h"
+#include "node.h"
 #include "log.h"
 
 #define TOK_LIST(f) \
