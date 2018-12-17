@@ -225,6 +225,9 @@ const node_t* node_u16(mod_t* mod, uint16_t u16) { return node_literal(mod, type
 const node_t* node_u32(mod_t* mod, uint32_t u32) { return node_literal(mod, type_u32(mod), (box_t) { .u32 = u32 }); }
 const node_t* node_u64(mod_t* mod, uint64_t u64) { return node_literal(mod, type_u64(mod), (box_t) { .u64 = u64 }); }
 
+const node_t* node_f32(mod_t* mod, float  f32, fp_flags_t flags) { return node_literal(mod, type_f32(mod, flags), (box_t) { .f32 = f32 }); }
+const node_t* node_f64(mod_t* mod, double f64, fp_flags_t flags) { return node_literal(mod, type_f64(mod, flags), (box_t) { .f64 = f64 }); }
+
 const node_t* node_literal(mod_t* mod, const type_t* type, box_t box) {
     return make_node(mod, (node_t) {
         .tag  = NODE_LITERAL,

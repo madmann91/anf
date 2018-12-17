@@ -30,17 +30,17 @@
 
 typedef struct fp_flags_s fp_flags_t;
 
-enum type_tag_e {
-#define TYPE(name, str) name,
-    TYPE_LIST(TYPE)
-#undef TYPE
-};
-
 struct fp_flags_s {
     bool associative_math : 1;   // Assume associativity of floating point operations
     bool reciprocal_math  : 1;   // Allow the use of reciprocal for 1/x
     bool finite_math      : 1;   // Assume no infs
     bool no_nan_math      : 1;   // Assume no NaNs
+};
+
+enum type_tag_e {
+#define TYPE(name, str) name,
+    TYPE_LIST(TYPE)
+#undef TYPE
 };
 
 struct type_s {
@@ -52,6 +52,9 @@ struct type_s {
         fp_flags_t fp_flags;
     } data;
 };
+
+fp_flags_t fp_flags_strict();
+fp_flags_t fp_flags_relaxed();
 
 size_t type_bitwidth(const type_t*);
 bool type_is_prim(const type_t*);
@@ -71,6 +74,8 @@ const type_t* type_u8(mod_t*);
 const type_t* type_u16(mod_t*);
 const type_t* type_u32(mod_t*);
 const type_t* type_u64(mod_t*);
+const type_t* type_f32(mod_t*, fp_flags_t);
+const type_t* type_f64(mod_t*, fp_flags_t);
 
 const type_t* type_prim(mod_t*, uint32_t);
 const type_t* type_prim_fp(mod_t*, uint32_t, fp_flags_t);

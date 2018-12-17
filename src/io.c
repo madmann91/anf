@@ -148,9 +148,10 @@ static inline void read_fn_ops(io_t* io, mod_t* mod, uint32_t i, idx2node_t* idx
     uint32_t run_if_idx;
     io->read(io, &run_if_idx, sizeof(uint32_t));
     const node_t* fn = *idx2node_lookup(idx2node, i);
+    assert(fn->tag == NODE_FN);
     node_bind(mod, fn, 0, *idx2node_lookup(idx2node, body_idx));
     node_bind(mod, fn, 1, *idx2node_lookup(idx2node, run_if_idx));
-    io->seek(io, sizeof(uint32_t) * 3, SEEK_CUR);
+    io->seek(io, sizeof(uint32_t) * 2 + sizeof(fn_flags_t), SEEK_CUR);
 }
 
 static inline const node_t* read_fn(io_t* io, mod_t* mod, const idx2type_t* idx2type, const idx2dbg_t* idx2dbg) {
@@ -228,12 +229,16 @@ bool mod_save(const mod_t* mod, io_t* io) {
     bool ret = true;
 
     FORALL_NODES(mod, node, {
-        if (node->dbg && dbg2idx_insert(&dbg2idx, node->dbg, dbg2idx.table->nelems))
+        if (node->dbg && dbg2idx_insert(&dbg2idx, node->dbg, dbg2idx.table->nelems)) {
+            node_dump(node);
             dbg_vec_push(&dbg_vec, node->dbg);
+        }
     })
     FORALL_FNS(mod, fn, {
-        if (fn->dbg && dbg2idx_insert(&dbg2idx, fn->dbg, dbg2idx.table->nelems))
+        if (fn->dbg && dbg2idx_insert(&dbg2idx, fn->dbg, dbg2idx.table->nelems)) {
+            node_dump(fn);
             dbg_vec_push(&dbg_vec, fn->dbg);
+        }
     })
 
     // First, write debug info

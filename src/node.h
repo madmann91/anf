@@ -2,6 +2,7 @@
 #define NODE_H
 
 #include "mod.h"
+#include "type.h"
 
 #define NODE_LIST(f) \
     f(NODE_TOP,     "top") \
@@ -132,6 +133,8 @@ const node_t* node_u8(mod_t*, uint8_t);
 const node_t* node_u16(mod_t*, uint16_t);
 const node_t* node_u32(mod_t*, uint32_t);
 const node_t* node_u64(mod_t*, uint64_t);
+const node_t* node_f32(mod_t*, float, fp_flags_t);
+const node_t* node_f64(mod_t*, double, fp_flags_t);
 const node_t* node_literal(mod_t*, const type_t*, box_t);
 
 bool node_is_not(const node_t*);

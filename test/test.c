@@ -5,7 +5,8 @@
 
 #include "htable.h"
 #include "mpool.h"
-#include "anf.h"
+#include "node.h"
+#include "type.h"
 #include "scope.h"
 #include "io.h"
 #include "lex.h"
@@ -103,10 +104,10 @@ bool test_types(void) {
     CHECK(type_u16(mod) == type_u16(mod));
     CHECK(type_u32(mod) == type_u32(mod));
     CHECK(type_u64(mod) == type_u64(mod));
-    CHECK(type_f32(mod) == type_f32(mod));
-    CHECK(type_f64(mod) == type_f64(mod));
-    CHECK(type_fn(mod, type_i32(mod), type_f32(mod)) ==
-          type_fn(mod, type_i32(mod), type_f32(mod)));
+    CHECK(type_f32(mod, fp_flags_relaxed()) == type_f32(mod, fp_flags_relaxed()));
+    CHECK(type_f64(mod, fp_flags_relaxed()) == type_f64(mod, fp_flags_relaxed()));
+    CHECK(type_fn(mod, type_i32(mod), type_f32(mod, fp_flags_relaxed())) ==
+          type_fn(mod, type_i32(mod), type_f32(mod, fp_flags_relaxed())));
     ops[0] = type_i64(mod);
     ops[1] = type_i32(mod);
     ops[2] = type_i16(mod);
@@ -125,8 +126,8 @@ bool test_types(void) {
     CHECK(type_bitwidth(type_u16(mod)) == 16);
     CHECK(type_bitwidth(type_u32(mod)) == 32);
     CHECK(type_bitwidth(type_u64(mod)) == 64);
-    CHECK(type_bitwidth(type_f32(mod)) == 32);
-    CHECK(type_bitwidth(type_f64(mod)) == 64);
+    CHECK(type_bitwidth(type_f32(mod, fp_flags_strict())) == 32);
+    CHECK(type_bitwidth(type_f64(mod, fp_flags_strict())) == 64);
 
     CHECK(type_is_prim(type_i1(mod)));
     CHECK(type_is_prim(type_i8(mod)));
@@ -137,8 +138,8 @@ bool test_types(void) {
     CHECK(type_is_prim(type_u16(mod)));
     CHECK(type_is_prim(type_u32(mod)));
     CHECK(type_is_prim(type_u64(mod)));
-    CHECK(type_is_prim(type_f32(mod)));
-    CHECK(type_is_prim(type_f64(mod)));
+    CHECK(type_is_prim(type_f32(mod, fp_flags_strict())));
+    CHECK(type_is_prim(type_f64(mod, fp_flags_strict())));
 
 cleanup:
     mod_destroy(mod);
@@ -181,13 +182,13 @@ bool test_literals(void) {
     CHECK(node_i32(mod, 0) != node_u32(mod, 0));
     CHECK(node_i64(mod, 0) != node_u64(mod, 0));
 
-    CHECK(node_f32(mod, 1.0f) == node_f32(mod,  1.0f));
-    CHECK(node_f32(mod, 0.0f) == node_f32(mod,  0.0f));
-    CHECK(node_f32(mod, 0.0f) != node_f32(mod, -0.0f));
+    CHECK(node_f32(mod, 1.0f, fp_flags_strict()) == node_f32(mod,  1.0f, fp_flags_strict()));
+    CHECK(node_f32(mod, 0.0f, fp_flags_strict()) == node_f32(mod,  0.0f, fp_flags_strict()));
+    CHECK(node_f32(mod, 0.0f, fp_flags_strict()) != node_f32(mod, -0.0f, fp_flags_strict()));
 
-    CHECK(node_f64(mod, 1.0) == node_f64(mod,  1.0));
-    CHECK(node_f64(mod, 0.0) == node_f64(mod,  0.0));
-    CHECK(node_f64(mod, 0.0) != node_f64(mod, -0.0));
+    CHECK(node_f64(mod, 1.0, fp_flags_strict()) == node_f64(mod,  1.0, fp_flags_strict()));
+    CHECK(node_f64(mod, 0.0, fp_flags_strict()) == node_f64(mod,  0.0, fp_flags_strict()));
+    CHECK(node_f64(mod, 0.0, fp_flags_strict()) != node_f64(mod, -0.0, fp_flags_strict()));
 
 cleanup:
     mod_destroy(mod);
@@ -200,7 +201,7 @@ bool test_tuples(void) {
     const node_t* ops2[3];
     const node_t* tuple1;
     const node_t* tuple2;
-    fn_t* fn;
+    const node_t* fn;
     const node_t* param;
 
     jmp_buf env;
@@ -210,11 +211,11 @@ bool test_tuples(void) {
 
     ops1[0] = node_i32(mod, 1);
     ops1[1] = node_i8(mod, 2);
-    ops1[2] = node_f32(mod, 3.0f);
+    ops1[2] = node_f32(mod, 3.0f, fp_flags_relaxed());
     tuple1 = node_tuple(mod, 3, ops1, NULL);
     ops2[0] = node_i32(mod, 4);
     ops2[1] = node_i8(mod, 5);
-    ops2[2] = node_f32(mod, 6.0f);
+    ops2[2] = node_f32(mod, 6.0f, fp_flags_relaxed());
     tuple2 = node_tuple(mod, 3, ops2, NULL);
 
     CHECK(node_tuple(mod, 1, ops1, NULL) == ops1[0]);
@@ -242,7 +243,7 @@ bool test_tuples(void) {
             node_u32(mod, 2), ops2[2], NULL)
         == tuple2);
 
-    fn = node_fn(mod, type_fn(mod, tuple1->type, type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, tuple1->type, type_i32(mod)), (fn_flags_t) { .exported = true }, NULL);
     param = node_param(mod, fn, NULL);
 
     ops1[0] = node_extract(mod, param, node_i32(mod, 0), NULL);
@@ -294,8 +295,8 @@ bool test_arrays(void) {
             node_u32(mod, 2), elems2[2], NULL)
         == array2);
 
-    CHECK(node_extract(mod, node_undef(mod, array1->type), node_i32(mod, 0), NULL) == node_undef(mod, array1->type->ops[0]));
-    CHECK(node_insert(mod, node_undef(mod, array1->type), node_i32(mod, 0), node_i32(mod, 0), NULL) == node_undef(mod, array1->type));
+    CHECK(node_extract(mod, node_bottom(mod, array1->type), node_i32(mod, 0), NULL) == node_bottom(mod, array1->type->ops[0]));
+    CHECK(node_insert(mod, node_bottom(mod, array1->type), node_i32(mod, 0), node_i32(mod, 0), NULL) == node_bottom(mod, array1->type));
 
 cleanup:
     mod_destroy(mod);
@@ -312,7 +313,7 @@ bool test_select(void) {
 
     CHECK(node_select(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
     CHECK(node_select(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
-    CHECK(node_select(mod, node_undef(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
+    CHECK(node_select(mod, node_bottom(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
 
 cleanup:
     mod_destroy(mod);
@@ -321,7 +322,7 @@ cleanup:
 
 bool test_bitcast(void) {
     mod_t* mod = mod_create();
-    fn_t* fn;
+    const node_t* fn;
     const node_t* param;
 
     jmp_buf env;
@@ -329,13 +330,13 @@ bool test_bitcast(void) {
     if (status)
         goto cleanup;
 
-    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), (fn_flags_t) { .exported = true }, NULL);
     param = node_param(mod, fn, NULL);
 
     CHECK(
         node_bitcast(mod,
             node_bitcast(mod,
-                node_bitcast(mod, param, type_f32(mod), NULL),
+                node_bitcast(mod, param, type_f32(mod, fp_flags_strict()), NULL),
                 type_u32(mod), NULL),
             type_i32(mod), NULL)
         == param);
@@ -344,10 +345,10 @@ bool test_bitcast(void) {
     CHECK(node_bitcast(mod, node_u32(mod, 32), type_i32(mod), NULL) == node_i32(mod, 32));
     CHECK(node_bitcast(mod, node_u64(mod, 32), type_i64(mod), NULL) == node_i64(mod, 32));
 
-    CHECK(node_bitcast(mod, node_f32(mod,  0.0f), type_i32(mod), NULL) == node_i32(mod, 0));
-    CHECK(node_bitcast(mod, node_f32(mod, -0.0f), type_u32(mod), NULL) == node_u32(mod, 0x80000000u));
+    CHECK(node_bitcast(mod, node_f32(mod,  0.0f, fp_flags_strict()), type_i32(mod), NULL) == node_i32(mod, 0));
+    CHECK(node_bitcast(mod, node_f32(mod, -0.0f, fp_flags_strict()), type_u32(mod), NULL) == node_u32(mod, 0x80000000u));
 
-    CHECK(node_bitcast(mod, node_undef(mod, type_i32(mod)), type_f32(mod), NULL) == node_undef(mod, type_f32(mod)));
+    CHECK(node_bitcast(mod, node_bottom(mod, type_i32(mod)), type_f32(mod, fp_flags_strict()), NULL) == node_bottom(mod, type_f32(mod, fp_flags_strict())));
 
 cleanup:
     mod_destroy(mod);
@@ -356,7 +357,7 @@ cleanup:
 
 bool test_binops(void) {
     mod_t* mod = mod_create();
-    fn_t* fn;
+    const node_t* fn;
     const node_t* param;
     const node_t* x, *y;
     const node_t* a, *b;
@@ -366,7 +367,7 @@ bool test_binops(void) {
     if (status)
         goto cleanup;
 
-    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), (fn_flags_t) { .exported = true }, NULL);
     param = node_param(mod, fn, NULL);
 
     CHECK(node_add(mod, param, node_mul(mod, node_i32(mod, 5), param, NULL), NULL) == node_mul(mod, node_i32(mod, 6), param, NULL));
@@ -415,20 +416,20 @@ bool test_binops(void) {
     CHECK(node_add(mod, node_u32(mod, 1), node_u32(mod, 1), NULL) == node_u32(mod, 2));
     CHECK(node_add(mod, node_u64(mod, 1), node_u64(mod, 1), NULL) == node_u64(mod, 2));
 
-    CHECK(node_add(mod, node_f32(mod, 1.0f), node_f32(mod, 1.0f), NULL) == node_f32(mod, 2.0f));
-    CHECK(node_add(mod, node_f64(mod, 1.0), node_f64(mod, 1.0), NULL) == node_f64(mod, 2.0));
+    CHECK(node_add(mod, node_f32(mod, 1.0f, fp_flags_strict()), node_f32(mod, 1.0f, fp_flags_strict()), NULL) == node_f32(mod, 2.0f, fp_flags_strict()));
+    CHECK(node_add(mod, node_f64(mod, 1.0, fp_flags_strict()), node_f64(mod, 1.0, fp_flags_strict()), NULL) == node_f64(mod, 2.0, fp_flags_strict()));
 
     CHECK(
         node_bitcast(mod,
             node_mul(mod,
-                node_bitcast(mod, node_f32(mod, 1.0f), type_i32(mod), NULL),
+                node_bitcast(mod, node_f32(mod, 1.0f, fp_flags_strict()), type_i32(mod), NULL),
                 node_i32(mod, 1),
                 NULL),
-            type_f32(mod),
+            type_f32(mod, fp_flags_strict()),
             NULL)
-        == node_f32(mod, 1.0f));
+        == node_f32(mod, 1.0f, fp_flags_strict()));
 
-    fn = node_fn(mod, type_fn(mod, type_tuple_args(mod, 2, type_i32(mod), type_i32(mod)), type_i32(mod)), NULL);
+    fn = node_fn(mod, type_fn(mod, type_tuple_args(mod, 2, type_i32(mod), type_i32(mod)), type_i32(mod)), (fn_flags_t) { .exported = true }, NULL);
     param = node_param(mod, fn, NULL);
     x = node_extract(mod, param, node_i32(mod, 0), NULL);
     y = node_extract(mod, param, node_i32(mod, 1), NULL);
@@ -478,13 +479,13 @@ cleanup:
     return status == 0;
 }
 
-static inline fn_t* make_const_fn(mod_t* mod, const type_t* type) {
+static inline const node_t* make_const_fn(mod_t* mod, const type_t* type) {
     const type_t* inner_type = type_fn(mod, type, type);
-    fn_t* inner = node_fn(mod, inner_type, NULL);
-    fn_t* outer = node_fn(mod, type_fn(mod, type, inner_type), NULL);
+    const node_t* inner = node_fn(mod, inner_type, (fn_flags_t) { .exported = false }, NULL);
+    const node_t* outer = node_fn(mod, type_fn(mod, type, inner_type), (fn_flags_t) { .exported = true }, NULL);
     const node_t* x = node_param(mod, outer, NULL);
-    fn_bind(mod, inner, 0, x);
-    fn_bind(mod, outer, 0, &inner->node);
+    node_bind(mod, inner, 0, x);
+    node_bind(mod, outer, 0, inner);
     return outer;
 }
 
@@ -493,7 +494,7 @@ bool test_scope(void) {
     scope_t scope = { .entry = NULL, .nodes = node_set_create() };
     node_set_t fvs = node_set_create();
 
-    fn_t* inner, *outer;
+    const node_t* inner, *outer;
     const node_t* x, *y;
 
     jmp_buf env;
@@ -502,14 +503,14 @@ bool test_scope(void) {
         goto cleanup;
 
     outer = make_const_fn(mod, type_i32(mod));
-    inner = (fn_t*)outer->node.ops[0];
+    inner = outer->ops[0];
     x = node_param(mod, outer, NULL);
     y = node_param(mod, inner, NULL);
 
     scope.entry = outer;
     scope_compute(mod, &scope);
-    CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
-    CHECK(node_set_lookup(&scope.nodes, &outer->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, inner) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, outer) != NULL);
     CHECK(node_set_lookup(&scope.nodes, x) != NULL);
     CHECK(node_set_lookup(&scope.nodes, y) != NULL);
     CHECK(scope.nodes.table->nelems == 4);
@@ -517,7 +518,7 @@ bool test_scope(void) {
     scope.entry = inner;
     node_set_clear(&scope.nodes);
     scope_compute(mod, &scope);
-    CHECK(node_set_lookup(&scope.nodes, &inner->node) != NULL);
+    CHECK(node_set_lookup(&scope.nodes, inner) != NULL);
     CHECK(node_set_lookup(&scope.nodes, y) != NULL);
     CHECK(scope.nodes.table->nelems == 2);
 
@@ -540,7 +541,7 @@ bool test_io() {
     FILE* in  = NULL;
     file_io_t file_io;
 
-    fn_t* fn1, *fn2;
+    const node_t* fn1, *fn2;
     const node_t* param1, *param2;
 
     jmp_buf env;
@@ -563,21 +564,21 @@ bool test_io() {
     in = NULL;
 
     CHECK(loaded_mod);
-    CHECK(loaded_mod->fns.nelems == 2);
-    fn1 = loaded_mod->fns.elems[0];
-    fn2 = loaded_mod->fns.elems[1];
+    CHECK(mod_fns(loaded_mod)->nelems == 2);
+    fn1 = mod_fns(loaded_mod)->elems[0];
+    fn2 = mod_fns(loaded_mod)->elems[1];
     param1 = node_param(loaded_mod, fn1, NULL);
     param2 = node_param(loaded_mod, fn2, NULL);
     if (node_count_uses(param2) != 0) {
         const node_t* param = param2;
-        fn_t* fn = fn2;
+        const node_t* fn = fn2;
         param2 = param1;
         param1 = param;
         fn2 = fn1;
         fn1 = fn;
     }
-    CHECK(fn1->node.ops[0] == &fn2->node);
-    CHECK(fn2->node.ops[0] == param1);
+    CHECK(fn1->ops[0] == fn2);
+    CHECK(fn2->ops[0] == param1);
 
 cleanup:
     mod_destroy(mod);
@@ -591,11 +592,11 @@ cleanup:
 bool test_opt(void) {
     mod_t* mod = mod_create();
 
-    const fn_t* opt_outer;
+    const node_t* opt_outer;
     const node_t* opt_y;
     const node_t* pow0, *pow1, *pow2, *pow4, *pow5;
 
-    fn_t* pow, *when_zero, *when_nzero, *when_even, *when_odd, *outer;
+    const node_t* pow, *when_zero, *when_nzero, *when_even, *when_odd, *outer;
     const node_t* node_ops[3];
     const node_t* node_false;
     const node_t* x, *n;
@@ -621,11 +622,11 @@ bool test_opt(void) {
 
     pow_type = type_fn(mod, type_tuple_args(mod, 3, type_i32(mod), type_i32(mod), type_tuple(mod, 0, NULL)), type_i32(mod));
     bb_type  = type_fn(mod, type_tuple(mod, 0, NULL), type_i32(mod));
-    pow = node_fn(mod, pow_type, NULL);
-    when_zero  = node_fn(mod, bb_type, NULL);
-    when_nzero = node_fn(mod, bb_type, NULL);
-    when_odd   = node_fn(mod, bb_type, NULL);
-    when_even  = node_fn(mod, bb_type, NULL);
+    pow = node_fn(mod, pow_type, (fn_flags_t) { .exported = false }, NULL);
+    when_zero  = node_fn(mod, bb_type, (fn_flags_t) { .exported = false }, NULL);
+    when_nzero = node_fn(mod, bb_type, (fn_flags_t) { .exported = false }, NULL);
+    when_odd   = node_fn(mod, bb_type, (fn_flags_t) { .exported = false }, NULL);
+    when_even  = node_fn(mod, bb_type, (fn_flags_t) { .exported = false }, NULL);
     param = node_param(mod, pow, NULL);
     x = node_extract(mod, param, node_i32(mod, 0), &dbg_x);
     n = node_extract(mod, param, node_i32(mod, 1), &dbg_n);
@@ -634,49 +635,48 @@ bool test_opt(void) {
     cmp_even = node_cmpeq(mod, modulo, node_i32(mod, 0), NULL);
     unit = node_tuple(mod, 0, NULL, NULL);
 
-    fn_bind(mod, pow, 0, node_app(mod, node_select(mod, cmp_zero, &when_zero->node, &when_nzero->node, NULL), unit, node_false, NULL));
-    fn_bind(mod, when_zero, 0, node_i32(mod, 1));
-    fn_bind(mod, when_nzero, 0, node_app(mod, node_select(mod, cmp_even, &when_even->node, &when_odd->node, NULL), unit, node_false, NULL));
+    node_bind(mod, pow, 0, node_app(mod, node_select(mod, cmp_zero, when_zero, when_nzero, NULL), unit, node_false, NULL));
+    node_bind(mod, when_zero, 0, node_i32(mod, 1));
+    node_bind(mod, when_nzero, 0, node_app(mod, node_select(mod, cmp_even, when_even, when_odd, NULL), unit, node_false, NULL));
     node_ops[0] = x;
     node_ops[1] = node_sub(mod, n, node_i32(mod, 1), NULL);
     node_ops[2] = node_tuple(mod, 0, NULL, NULL);
-    pow_odd = node_mul(mod, x, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), node_false, NULL), NULL);
+    pow_odd = node_mul(mod, x, node_app(mod, pow, node_tuple(mod, 3, node_ops, NULL), node_false, NULL), NULL);
     node_ops[1] = node_div(mod, n, node_i32(mod, 2), NULL);
-    pow_half = node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), node_false, NULL);
+    pow_half = node_app(mod, pow, node_tuple(mod, 3, node_ops, NULL), node_false, NULL);
     pow_even = node_mul(mod, pow_half, pow_half, NULL);
-    fn_bind(mod, when_even, 0, pow_even);
-    fn_bind(mod, when_odd,  0, pow_odd);
+    node_bind(mod, when_even, 0, pow_even);
+    node_bind(mod, when_odd,  0, pow_odd);
 
-    outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), NULL);
-    outer->exported = true;
+    outer = node_fn(mod, type_fn(mod, type_i32(mod), type_i32(mod)), (fn_flags_t) { .exported = true }, NULL);
     node_ops[0] = node_param(mod, outer, &dbg_y);
     node_ops[1] = node_i32(mod, 5);
-    fn_bind(mod, outer, 0, node_app(mod, &pow->node, node_tuple(mod, 3, node_ops, NULL), node_false, NULL));
+    node_bind(mod, outer, 0, node_app(mod, pow, node_tuple(mod, 3, node_ops, NULL), node_false, NULL));
 
-    fn_bind(mod, pow, 1, node_known(mod, n, NULL));
+    node_bind(mod, pow, 1, node_known(mod, n, NULL));
     mod_opt(&mod);
 
-    CHECK(mod->fns.nelems == 1);
-    CHECK(mod->fns.elems[0]->exported);
+    CHECK(mod_fns(mod)->nelems == 1);
+    CHECK(mod_fns(mod)->elems[0]->data.fn_flags.exported);
 
-    opt_outer = mod->fns.elems[0];
+    opt_outer = mod_fns(mod)->elems[0];
     opt_y = node_param(mod, opt_outer, NULL);
     pow0 = node_i32(mod, 1);
     pow1 = node_mul(mod, opt_y, pow0, NULL);
     pow2 = node_mul(mod, pow1, pow1, NULL);
     pow4 = node_mul(mod, pow2, pow2, NULL);
     pow5 = node_mul(mod, opt_y, pow4, NULL);
-    CHECK(opt_outer->node.ops[0] == pow5);
+    CHECK(opt_outer->ops[0] == pow5);
 
 cleanup:
     if (status) {
-        FORALL_HSET(mod->nodes, const node_t*, node, {
+        FORALL_NODES(mod, node, {
             node_dump(node);
         })
-        FORALL_VEC(mod->fns, const fn_t*, fn, {
-            node_dump(&fn->node);
+        FORALL_FNS(mod, fn, {
+            node_dump(fn);
             printf("\t");
-            if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+            if (fn->ops[0]) node_dump(fn->ops[0]);
         })
     }
 
@@ -688,12 +688,11 @@ bool test_mem(void) {
     mod_t* mod = mod_create();
 
     const type_t* fn_type;
-    fn_t* fn;
+    const node_t* fn;
     const node_t* param;
     const node_t* res;
     const node_t* alloc;
     const node_t* mem;
-    const node_t* ptr;
     const node_t* val;
 
     jmp_buf env;
@@ -702,41 +701,35 @@ bool test_mem(void) {
         goto cleanup;
 
     fn_type = type_fn(mod, type_mem(mod), type_tuple_args(mod, 2, type_mem(mod), type_tuple_args(mod, 2, type_i16(mod), type_u32(mod))));
-    fn = node_fn(mod, fn_type, NULL);
+    fn = node_fn(mod, fn_type, (fn_flags_t) { .exported = true }, NULL);
     param = node_param(mod, fn, NULL);
     val = node_tuple_args(mod, 2, NULL, node_i32(mod, 5), node_tuple_args(mod, 2, NULL, node_i16(mod, 42), node_u32(mod, 33)));
     res = node_alloc(mod, param, val->type, NULL);
     alloc = node_extract(mod, res, node_i32(mod, 1), NULL);
     mem = node_extract(mod, res, node_i32(mod, 0), NULL);
     mem = node_store(mod, mem, alloc, val, NULL);
-    ptr = node_offset(mod, alloc, node_i32(mod, 1), NULL);
-    res = node_load(mod, mem, ptr, NULL);
-    mem = node_extract(mod, res, node_i32(mod, 0), NULL);
-    mem = node_store(mod, mem, node_offset(mod, ptr, node_i32(mod, 1), NULL), node_u32(mod, 34), NULL);
-    mem = node_store(mod, mem, node_offset(mod, alloc, node_i32(mod, 0), NULL), node_i32(mod, 6), NULL);
-    res = node_load(mod, mem, ptr, NULL);
+    res = node_load(mod, mem, alloc, NULL);
     mem = node_extract(mod, res, node_i32(mod, 0), NULL);
     res = node_extract(mod, res, node_i32(mod, 1), NULL);
     mem = node_dealloc(mod, mem, alloc, NULL);
-    fn_bind(mod, fn, 0, node_tuple_args(mod, 2, NULL, mem, res));
-
-    fn->exported = true;
+    node_bind(mod, fn, 0, node_tuple_args(mod, 2, NULL, mem, res));
 
     mod_opt(&mod);
 
-    CHECK(mod->fns.nelems == 1);
-    CHECK(mod->fns.elems[0]->exported);
-    CHECK(node_extract(mod, mod->fns.elems[0]->node.ops[0], node_i32(mod, 1), NULL) == node_tuple_args(mod, 2, NULL, node_i16(mod, 42), node_u32(mod, 34)));
+    CHECK(mod_fns(mod)->nelems == 1);
+    CHECK(mod_fns(mod)->elems[0]->data.fn_flags.exported);
+    CHECK(node_extract(mod, mod_fns(mod)->elems[0]->ops[0], node_i32(mod, 1), NULL) ==
+          node_tuple_args(mod, 2, NULL, node_i32(mod, 5), node_tuple_args(mod, 2, NULL, node_i16(mod, 42), node_u32(mod, 33))));
 
 cleanup:
     if (status) {
-        FORALL_HSET(mod->nodes, const node_t*, node, {
+        FORALL_NODES(mod, node, {
             node_dump(node);
         })
-        FORALL_VEC(mod->fns, const fn_t*, fn, {
-            node_dump(&fn->node);
+        FORALL_FNS(mod, fn, {
+            node_dump(fn);
             printf("\t");
-            if (fn->node.ops[0]) node_dump(fn->node.ops[0]);
+            if (fn->ops[0]) node_dump(fn->ops[0]);
         })
     }
 

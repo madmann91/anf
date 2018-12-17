@@ -45,6 +45,8 @@ HMAP_DEFAULT(node2node, const node_t*, const node_t*)
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
 
+void mod_opt(mod_t**);
+
 const htable_t* mod_types(const mod_t*);
 const htable_t* mod_nodes(const mod_t*);
 const node_vec_t* mod_fns(const mod_t*);

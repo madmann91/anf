@@ -88,6 +88,11 @@ void mod_destroy(mod_t* mod) {
     free(mod);
 }
 
+void mod_opt(mod_t** mod) {
+    // TODO
+    (void)mod;
+}
+
 const htable_t* mod_types(const mod_t* mod) {
     return mod->types.table;
 }
@@ -169,7 +174,7 @@ const node_t* mod_insert_node(mod_t* mod, const node_t* node) {
         bool success = internal_node_set_insert(&mod->nodes, node_ptr);
         assert(success), (void)success;
     } else {
-        node_vec_push(&mod->fns, node);
+        node_vec_push(&mod->fns, node_ptr);
     }
     return node_ptr;
 }

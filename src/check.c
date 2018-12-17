@@ -1,10 +1,15 @@
 #include "check.h"
 
 static inline bool subtype(const type_t* src, const type_t* dst) {
+    // TODO
+    (void)src,(void)dst;
     return false;
 }
 
 static const type_t* unify(checker_t* checker, const type_t* src, const type_t* dst) {
+    // TODO
+    (void)checker;
+
     if (!src) return dst;
     if (subtype(src, dst)) return dst;
     return NULL;
@@ -42,6 +47,7 @@ const type_t* infer_head(checker_t* checker, ast_t* ast) {
             })
             break;
     }
+    return NULL;
 } 
 
 const type_t* infer(checker_t* checker, ast_t* ast) {
@@ -57,12 +63,7 @@ const type_t* infer(checker_t* checker, ast_t* ast) {
             switch (ast->data.prim.tag) {
                 case TYPE_F32:
                 case TYPE_F64:
-                    return type_prim_fp(checker->mod, ast->data.prim.tag, (fp_flags_t) {
-                        .associative_math = true,
-                        .reciprocal_math = true,
-                        .finite_math = true,
-                        .no_nan_math = true
-                    });
+                    return type_prim_fp(checker->mod, ast->data.prim.tag, fp_flags_relaxed());
                 default:
                     return type_prim(checker->mod, ast->data.prim.tag);
             }

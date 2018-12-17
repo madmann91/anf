@@ -64,7 +64,7 @@ static inline void print_node_name(printer_t* printer, const node_t* node) {
 static void print_node(printer_t* printer, const node_t* node) {
     if (node->tag == NODE_LITERAL) {
         switch (node->type->tag) {
-            case TYPE_I1:  print(printer, "{$key}i1{$} {$lit}{0:i1}{$}",   { .b   = node->data.box.i1  }); break;
+            case TYPE_I1:  print(printer, "{$key}i1{$} {$lit}{0:b}{$}",    { .b   = node->data.box.i1  }); break;
             case TYPE_I8:  print(printer, "{$key}i8{$} {$lit}{0:i8}{$}",   { .i8  = node->data.box.i8  }); break;
             case TYPE_I16: print(printer, "{$key}i16{$} {$lit}{0:i16}{$}", { .i16 = node->data.box.i16 }); break;
             case TYPE_I32: print(printer, "{$key}i32{$} {$lit}{0:i32}{$}", { .i32 = node->data.box.i32 }); break;

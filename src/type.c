@@ -2,6 +2,24 @@
 
 #include "type.h"
 
+fp_flags_t fp_flags_strict() {
+    return (fp_flags_t) {
+        .associative_math = false,
+        .reciprocal_math  = false,
+        .finite_math      = false,
+        .no_nan_math      = false
+    };
+}
+
+fp_flags_t fp_flags_relaxed() {
+    return (fp_flags_t) {
+        .associative_math = true,
+        .reciprocal_math  = true,
+        .finite_math      = true,
+        .no_nan_math      = true
+    };
+}
+
 size_t type_bitwidth(const type_t* type) {
     switch (type->tag) {
         case TYPE_I1:  return 1;
@@ -96,15 +114,18 @@ static inline const type_t* make_type(mod_t* mod, type_t type) {
     return mod_insert_type(mod, &type);
 }
 
-const type_t* type_i1(mod_t* mod)  { return make_type(mod, (type_t) { .tag = TYPE_I1,  .nops = 0 }); }
-const type_t* type_i8(mod_t* mod)  { return make_type(mod, (type_t) { .tag = TYPE_I8,  .nops = 0 }); }
-const type_t* type_i16(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I16, .nops = 0 }); }
-const type_t* type_i32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I32, .nops = 0 }); }
-const type_t* type_i64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_I64, .nops = 0 }); }
-const type_t* type_u8(mod_t* mod)  { return make_type(mod, (type_t) { .tag = TYPE_U8,  .nops = 0 }); }
-const type_t* type_u16(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U16, .nops = 0 }); }
-const type_t* type_u32(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U32, .nops = 0 }); }
-const type_t* type_u64(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_U64, .nops = 0 }); }
+const type_t* type_i1(mod_t* mod)  { return type_prim(mod, TYPE_I1 ); }
+const type_t* type_i8(mod_t* mod)  { return type_prim(mod, TYPE_I8 ); }
+const type_t* type_i16(mod_t* mod) { return type_prim(mod, TYPE_I16); }
+const type_t* type_i32(mod_t* mod) { return type_prim(mod, TYPE_I32); }
+const type_t* type_i64(mod_t* mod) { return type_prim(mod, TYPE_I64); }
+const type_t* type_u8(mod_t* mod)  { return type_prim(mod, TYPE_U8 ); }
+const type_t* type_u16(mod_t* mod) { return type_prim(mod, TYPE_U16); }
+const type_t* type_u32(mod_t* mod) { return type_prim(mod, TYPE_U32); }
+const type_t* type_u64(mod_t* mod) { return type_prim(mod, TYPE_U64); }
+
+const type_t* type_f32(mod_t* mod, fp_flags_t flags) { return type_prim_fp(mod, TYPE_F32, flags); }
+const type_t* type_f64(mod_t* mod, fp_flags_t flags) { return type_prim_fp(mod, TYPE_F64, flags); }
 
 const type_t* type_prim(mod_t* mod, uint32_t tag) {
     assert(tag != TYPE_F32 && tag != TYPE_F64);
