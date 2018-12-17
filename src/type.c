@@ -110,6 +110,29 @@ size_t type_order(const type_t* type) {
     }
 }
 
+const type_t* type_member(mod_t* mod, const type_t* type, size_t i) {
+    if (type->tag == TYPE_TUPLE)
+        return type->ops[i];
+
+    assert(type->tag == TYPE_STRUCT);
+    assert(type->data.id < mod->structs.nelems);
+    const struct_def_t* struct_def = mod->structs.elems + i;
+    assert(i < struct_def->nmbs);
+    if (type->nops > 0) {
+        type2type_t type2type = type2type_create();
+        for (size_t i = 0; i < type->nops; ++i) {
+            const type_t* var = type_var(mod, i);
+            if (var != type->ops[i])
+                type2type_insert(&type2type, var, type->ops[i]);
+        }
+        const type_t* res = type_rewrite(mod, struct_def->mbs[i], &type2type);
+        type2type_destroy(&type2type);
+        return res;
+    } else {
+        return struct_def->mbs[i];
+    }
+}
+
 static inline const type_t* make_type(mod_t* mod, type_t type) {
     return mod_insert_type(mod, &type);
 }
@@ -197,4 +220,16 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
         default:
             return make_type(mod, (type_t) { .nops = 0, .tag = type->tag, .data = type->data });
     }
+}
+
+const type_t* type_rewrite(mod_t* mod, const type_t* type, type2type_t* type2type) {
+    const type_t** found = type2type_lookup(type2type, type);
+    if (found)
+        return *found;
+    const type_t* new_ops[type->nops];
+    for (size_t i = 0; i < type->nops; ++i)
+        new_ops[i] = type_rewrite(mod, type->ops[i], type2type);
+    const type_t* new_type = type_rebuild(mod, type, new_ops);
+    type2type_insert(type2type, type, new_type);
+    return new_type;
 }

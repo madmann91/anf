@@ -564,9 +564,9 @@ bool test_io() {
     in = NULL;
 
     CHECK(loaded_mod);
-    CHECK(mod_fns(loaded_mod)->nelems == 2);
-    fn1 = mod_fns(loaded_mod)->elems[0];
-    fn2 = mod_fns(loaded_mod)->elems[1];
+    CHECK(loaded_mod->fns.nelems == 2);
+    fn1 = loaded_mod->fns.elems[0];
+    fn2 = loaded_mod->fns.elems[1];
     param1 = node_param(loaded_mod, fn1, NULL);
     param2 = node_param(loaded_mod, fn2, NULL);
     if (node_count_uses(param2) != 0) {
@@ -656,10 +656,10 @@ bool test_opt(void) {
     node_bind(mod, pow, 1, node_known(mod, n, NULL));
     mod_opt(&mod);
 
-    CHECK(mod_fns(mod)->nelems == 1);
-    CHECK(mod_fns(mod)->elems[0]->data.fn_flags.exported);
+    CHECK(mod->fns.nelems == 1);
+    CHECK(mod->fns.elems[0]->data.fn_flags.exported);
 
-    opt_outer = mod_fns(mod)->elems[0];
+    opt_outer = mod->fns.elems[0];
     opt_y = node_param(mod, opt_outer, NULL);
     pow0 = node_i32(mod, 1);
     pow1 = node_mul(mod, opt_y, pow0, NULL);
@@ -716,9 +716,9 @@ bool test_mem(void) {
 
     mod_opt(&mod);
 
-    CHECK(mod_fns(mod)->nelems == 1);
-    CHECK(mod_fns(mod)->elems[0]->data.fn_flags.exported);
-    CHECK(node_extract(mod, mod_fns(mod)->elems[0]->ops[0], node_i32(mod, 1), NULL) ==
+    CHECK(mod->fns.nelems == 1);
+    CHECK(mod->fns.elems[0]->data.fn_flags.exported);
+    CHECK(node_extract(mod, mod->fns.elems[0]->ops[0], node_i32(mod, 1), NULL) ==
           node_tuple_args(mod, 2, NULL, node_i32(mod, 5), node_tuple_args(mod, 2, NULL, node_i16(mod, 42), node_u32(mod, 33))));
 
 cleanup:

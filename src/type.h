@@ -28,7 +28,7 @@
     f(TYPE_VAR,    "var") \
     f(TYPE_MOD,    "mod")
 
-typedef struct fp_flags_s fp_flags_t;
+typedef struct fp_flags_s   fp_flags_t;
 
 struct fp_flags_s {
     bool associative_math : 1;   // Assume associativity of floating point operations
@@ -63,7 +63,7 @@ bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
-const type_t* type_member(const type_t*, size_t*);
+const type_t* type_member(mod_t*, const type_t*, size_t);
 
 const type_t* type_i1(mod_t*);
 const type_t* type_i8(mod_t*);
@@ -91,6 +91,7 @@ const type_t* type_var(mod_t*, uint32_t);
 const type_t* type_mod(mod_t*, uint32_t);
 
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
+const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);
 
 void type_dump(const type_t*);
 

@@ -253,7 +253,7 @@ bool mod_save(const mod_t* mod, io_t* io) {
 
     // Then types
     off = write_dummy_block(io);
-    count = mod_types(mod)->nelems;
+    count = mod->types.table->nelems;
     if (io->write(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     todo = true;
@@ -267,7 +267,7 @@ bool mod_save(const mod_t* mod, io_t* io) {
 
     // Then nodes
     off = write_dummy_block(io);
-    count = mod_nodes(mod)->nelems;
+    count = mod->nodes.table->nelems;
     if (io->write(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     // Insert all functions in the map
@@ -285,7 +285,7 @@ bool mod_save(const mod_t* mod, io_t* io) {
 
     // Then functions
     off = write_dummy_block(io);
-    count = mod_fns(mod)->nelems;
+    count = mod->fns.nelems;
     if (io->write(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     FORALL_FNS(mod, fn, {
@@ -347,7 +347,7 @@ mod_t* mod_load(io_t* io, mpool_t** dbg_pool) {
     if (!locate_block(io, BLK_NODES) || io->read(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))
         goto error;
     for (uint32_t i = 0; i < count; ++i)
-        idx2node_insert(&idx2node, mod_fns(mod)->nelems + i, read_node(io, mod, &idx2node, &idx2type, dbg_pool ? &idx2dbg : NULL));
+        idx2node_insert(&idx2node, mod->fns.nelems + i, read_node(io, mod, &idx2node, &idx2type, dbg_pool ? &idx2dbg : NULL));
 
     // Then function bodies
     if (!locate_block(io, BLK_FNS) || io->read(io, &count, sizeof(uint32_t)) != sizeof(uint32_t))

@@ -9,7 +9,7 @@
 // that the padding bytes in the data field of a node/type
 // is initialized to zero
 
-static bool node_cmp(const void* ptr1, const void* ptr2) {
+bool node_cmp(const void* ptr1, const void* ptr2) {
     const node_t* node1 = *(const node_t**)ptr1;
     const node_t* node2 = *(const node_t**)ptr2;
     if (node1->tag  != node2->tag  ||
@@ -24,7 +24,7 @@ static bool node_cmp(const void* ptr1, const void* ptr2) {
     return true;
 }
 
-static uint32_t node_hash(const void* ptr) {
+uint32_t node_hash(const void* ptr) {
     const node_t* node = *(const node_t**)ptr;
     uint32_t h = hash_init();
     h = hash_uint32(h, node->tag);
@@ -36,7 +36,7 @@ static uint32_t node_hash(const void* ptr) {
     return h;
 }
 
-static bool type_cmp(const void* ptr1, const void* ptr2) {
+bool type_cmp(const void* ptr1, const void* ptr2) {
     const type_t* type1 = *(const type_t**)ptr1;
     const type_t* type2 = *(const type_t**)ptr2;
     if (type1->tag  != type2->tag ||
@@ -50,7 +50,7 @@ static bool type_cmp(const void* ptr1, const void* ptr2) {
     return true;
 }
 
-static uint32_t type_hash(const void* ptr) {
+uint32_t type_hash(const void* ptr) {
     const type_t* type = *(const type_t**)ptr;
     uint32_t h = hash_init();
     h = hash_uint32(h, type->tag);
@@ -60,16 +60,6 @@ static uint32_t type_hash(const void* ptr) {
         h = hash_uint8(h, ((uint8_t*)&type->data)[i]);
     return h;
 }
-
-HSET(internal_type_set, const type_t*, type_cmp, type_hash)
-HSET(internal_node_set, const node_t*, node_cmp, node_hash)
-
-struct mod_s {
-    mpool_t*  pool;
-    node_vec_t fns;
-    internal_node_set_t nodes;
-    internal_type_set_t types;
-};
 
 mod_t* mod_create(void) {
     mod_t* mod = xmalloc(sizeof(mod_t));
