@@ -70,6 +70,7 @@ fp_flags_t fp_flags_strict();
 fp_flags_t fp_flags_relaxed();
 
 size_t type_bitwidth(const type_t*);
+bool type_is_unit(const type_t*);
 bool type_is_prim(const type_t*);
 bool type_is_i(const type_t*);
 bool type_is_u(const type_t*);
@@ -94,6 +95,7 @@ const type_t* type_prim(mod_t*, uint32_t);
 const type_t* type_prim_fp(mod_t*, uint32_t, fp_flags_t);
 const type_t* type_mem(mod_t*);
 const type_t* type_ptr(mod_t*, const type_t*);
+const type_t* type_unit(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_tuple_args(mod_t*, size_t, ...);
 const type_t* type_array(mod_t*, const type_t*);

@@ -39,6 +39,10 @@ size_t type_bitwidth(const type_t* type) {
     }
 }
 
+bool type_is_unit(const type_t* type) {
+    return type->tag == TYPE_TUPLE && type->nops == 0;
+}
+
 bool type_is_prim(const type_t* type) {
     switch (type->tag) {
         case TYPE_BOOL: return true;
@@ -161,6 +165,10 @@ const type_t* type_mem(mod_t* mod) {
 const type_t* type_ptr(mod_t* mod, const type_t* pointee) {
     assert(pointee->tag != TYPE_MEM);
     return make_type(mod, (type_t) { .tag = TYPE_PTR, .nops = 1, .ops = &pointee });
+}
+
+const type_t* type_unit(mod_t* mod) {
+    return type_tuple(mod, 0, NULL);
 }
 
 const type_t* type_tuple(mod_t* mod, size_t nops, const type_t** ops) {

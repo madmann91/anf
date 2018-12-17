@@ -137,9 +137,11 @@ const node_t* node_f32(mod_t*, float, fp_flags_t);
 const node_t* node_f64(mod_t*, double, fp_flags_t);
 const node_t* node_literal(mod_t*, const type_t*, box_t);
 
+bool node_is_unit(const node_t*);
 bool node_is_not(const node_t*);
 bool node_is_cmp(const node_t*);
 bool node_implies(mod_t*, const node_t*, const node_t*, bool, bool);
+const node_t* node_unit(mod_t*);
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
 const node_t* node_struct(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);

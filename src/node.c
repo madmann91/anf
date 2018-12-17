@@ -66,6 +66,10 @@ bool node_value_b(const node_t* node) {
     return node->data.box.b;
 }
 
+bool node_is_unit(const node_t* node) {
+    return node->tag == NODE_TUPLE && node->nops == 0;
+}
+
 bool node_is_const(const node_t* node) {
     if (node->tag == NODE_LITERAL ||
         node->tag == NODE_FN)
@@ -393,6 +397,10 @@ static inline const node_t* try_fold_tuple(size_t nops, const node_t** ops) {
         base = op->ops[0];
     }
     return base;
+}
+
+const node_t* node_unit(mod_t* mod) {
+    return node_tuple(mod, 0, NULL, NULL);
 }
 
 const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const dbg_t* dbg) {
@@ -1282,6 +1290,8 @@ const node_t* node_load(mod_t* mod, const node_t* mem, const node_t* ptr, const 
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
     const type_t* load_type = type_tuple_args(mod, 2, mem->type, ptr->type->ops[0]);
+    if (type_is_unit(load_type))
+        return node_tuple_args(mod, 2, dbg, mem, node_unit(mod));
     const node_t* ops[] = { mem, ptr };
     return make_node(mod, (node_t) {
         .tag  = NODE_LOAD,
@@ -1297,6 +1307,8 @@ const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const
     assert(ptr->type->tag == TYPE_PTR);
     assert(val->type == ptr->type->ops[0]);
     const node_t* ops[] = { mem, ptr, val };
+    if (type_is_unit(val->type))
+        return mem;
     return make_node(mod, (node_t) {
         .tag  = NODE_STORE,
         .nops = 3,
