@@ -101,7 +101,6 @@ enum cont_tag_e {
 };
 
 enum prim_tag_e {
-    PRIM_BOOL = TYPE_I1,
 #define PRIM(name, str) PRIM_##name = TYPE_##name,
     PRIM_LIST(, PRIM)
 #undef PRIM

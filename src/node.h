@@ -58,7 +58,7 @@ enum node_tag_e {
 };
 
 union box_u {
-    bool     i1;
+    bool     b;
     int8_t   i8;
     int16_t  i16;
     int32_t  i32;
@@ -114,7 +114,7 @@ struct node_s {
 uint64_t node_value_u(const node_t*);
 int64_t  node_value_i(const node_t*);
 double   node_value_f(const node_t*);
-bool     node_value_i1(const node_t*);
+bool     node_value_b(const node_t*);
 bool node_is_const(const node_t*);
 bool node_is_zero(const node_t*);
 bool node_is_one(const node_t*);
@@ -124,7 +124,7 @@ const node_t* node_bottom(mod_t*, const type_t*);
 const node_t* node_zero(mod_t*, const type_t*);
 const node_t* node_one(mod_t*, const type_t*);
 const node_t* node_all_ones(mod_t*, const type_t*);
-const node_t* node_i1(mod_t*, bool);
+const node_t* node_bool(mod_t*, bool);
 const node_t* node_i8(mod_t*, int8_t);
 const node_t* node_i16(mod_t*, int16_t);
 const node_t* node_i32(mod_t*, int32_t);

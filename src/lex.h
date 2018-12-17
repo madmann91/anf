@@ -15,7 +15,6 @@
     f(TOK_BLT,      "boolean literal") \
     f(TOK_ID,       "identifier") \
     f(TOK_NL,       "new line") \
-    f(TOK_BOOL,     "bool") \
     PRIM_LIST(TOK_, f) \
     f(TOK_DEF,      "def") \
     f(TOK_VAR,      "var") \

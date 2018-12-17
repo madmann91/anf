@@ -213,7 +213,6 @@ static ast_t* parse_type(parser_t* parser) {
 #define PRIM(name, str) case TOK_##name: return parse_prim(parser, PRIM_##name);
         PRIM_LIST(,PRIM)
 #undef PRIM
-        case TOK_BOOL:   return parse_prim(parser, PRIM_BOOL);
         case TOK_ID:     return parse_id(parser);
         case TOK_LPAREN: return parse_tuple(parser, "tuple type", parse_type);
         default:

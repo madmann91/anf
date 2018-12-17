@@ -117,6 +117,7 @@ int main(int argc, char** argv) {
     (void)argc, (void)argv; // Silence "unused variable" warnings
     trie_t* trie = new(0);
 
+    add_keyword(trie, "bool",     "TOK_BOOL");
     add_keyword(trie, "i8" ,      "TOK_I8");
     add_keyword(trie, "i16",      "TOK_I16");
     add_keyword(trie, "i32",      "TOK_I32");
@@ -140,7 +141,6 @@ int main(int argc, char** argv) {
     add_keyword(trie, "continue", "TOK_CONTINUE");
     add_keyword(trie, "return",   "TOK_RETURN");
     add_keyword(trie, "mod",      "TOK_MOD");
-    add_keyword(trie, "bool",     "TOK_BOOL");
     add_keyword(trie, "struct",   "TOK_STRUCT");
     add_keyword(trie, "byref",    "TOK_BYREF");
 

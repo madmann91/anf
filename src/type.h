@@ -4,6 +4,7 @@
 #include "mod.h"
 
 #define PRIM_LIST(prefix, f) \
+    f(prefix##BOOL,   "bool") \
     f(prefix##I8,     "i8") \
     f(prefix##I16,    "i16") \
     f(prefix##I32,    "i32") \
@@ -16,7 +17,6 @@
     f(prefix##F64,    "f64")
 
 #define TYPE_LIST(f) \
-    f(TYPE_I1, "i1") \
     PRIM_LIST(TYPE_, f) \
     f(TYPE_MEM,    "mem") \
     f(TYPE_PTR,    "ptr") \
@@ -65,7 +65,7 @@ bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
 const type_t* type_member(mod_t*, const type_t*, size_t);
 
-const type_t* type_i1(mod_t*);
+const type_t* type_bool(mod_t*);
 const type_t* type_i8(mod_t*);
 const type_t* type_i16(mod_t*);
 const type_t* type_i32(mod_t*);

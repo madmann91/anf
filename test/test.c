@@ -95,15 +95,15 @@ bool test_types(void) {
     if (status)
         goto cleanup;
 
-    CHECK(type_i1(mod)  == type_i1(mod));
-    CHECK(type_i8(mod)  == type_i8(mod));
-    CHECK(type_i16(mod) == type_i16(mod));
-    CHECK(type_i32(mod) == type_i32(mod));
-    CHECK(type_i64(mod) == type_i64(mod));
-    CHECK(type_u8(mod)  == type_u8(mod));
-    CHECK(type_u16(mod) == type_u16(mod));
-    CHECK(type_u32(mod) == type_u32(mod));
-    CHECK(type_u64(mod) == type_u64(mod));
+    CHECK(type_bool(mod) == type_bool(mod));
+    CHECK(type_i8(mod)   == type_i8(mod));
+    CHECK(type_i16(mod)  == type_i16(mod));
+    CHECK(type_i32(mod)  == type_i32(mod));
+    CHECK(type_i64(mod)  == type_i64(mod));
+    CHECK(type_u8(mod)   == type_u8(mod));
+    CHECK(type_u16(mod)  == type_u16(mod));
+    CHECK(type_u32(mod)  == type_u32(mod));
+    CHECK(type_u64(mod)  == type_u64(mod));
     CHECK(type_f32(mod, fp_flags_relaxed()) == type_f32(mod, fp_flags_relaxed()));
     CHECK(type_f64(mod, fp_flags_relaxed()) == type_f64(mod, fp_flags_relaxed()));
     CHECK(type_fn(mod, type_i32(mod), type_f32(mod, fp_flags_relaxed())) ==
@@ -117,19 +117,19 @@ bool test_types(void) {
     CHECK(type_tuple(mod, 2, ops) == type_tuple(mod, 2, ops));
     CHECK(type_tuple(mod, 3, ops) == type_tuple(mod, 3, ops));
 
-    CHECK(type_bitwidth(type_i1(mod))  == 1);
-    CHECK(type_bitwidth(type_i8(mod))  == 8);
-    CHECK(type_bitwidth(type_i16(mod)) == 16);
-    CHECK(type_bitwidth(type_i32(mod)) == 32);
-    CHECK(type_bitwidth(type_i64(mod)) == 64);
-    CHECK(type_bitwidth(type_u8(mod))  == 8);
-    CHECK(type_bitwidth(type_u16(mod)) == 16);
-    CHECK(type_bitwidth(type_u32(mod)) == 32);
-    CHECK(type_bitwidth(type_u64(mod)) == 64);
+    CHECK(type_bitwidth(type_bool(mod)) == 1);
+    CHECK(type_bitwidth(type_i8(mod))   == 8);
+    CHECK(type_bitwidth(type_i16(mod))  == 16);
+    CHECK(type_bitwidth(type_i32(mod))  == 32);
+    CHECK(type_bitwidth(type_i64(mod))  == 64);
+    CHECK(type_bitwidth(type_u8(mod))   == 8);
+    CHECK(type_bitwidth(type_u16(mod))  == 16);
+    CHECK(type_bitwidth(type_u32(mod))  == 32);
+    CHECK(type_bitwidth(type_u64(mod))  == 64);
     CHECK(type_bitwidth(type_f32(mod, fp_flags_strict())) == 32);
     CHECK(type_bitwidth(type_f64(mod, fp_flags_strict())) == 64);
 
-    CHECK(type_is_prim(type_i1(mod)));
+    CHECK(type_is_prim(type_bool(mod)));
     CHECK(type_is_prim(type_i8(mod)));
     CHECK(type_is_prim(type_i16(mod)));
     CHECK(type_is_prim(type_i32(mod)));
@@ -154,9 +154,9 @@ bool test_literals(void) {
     if (status)
         goto cleanup;
 
-    CHECK(node_i1(mod, true)  == node_i1(mod, true));
-    CHECK(node_i1(mod, false) == node_i1(mod, false));
-    CHECK(node_i1(mod, true)  != node_i1(mod, false));
+    CHECK(node_bool(mod, true)  == node_bool(mod, true));
+    CHECK(node_bool(mod, false) == node_bool(mod, false));
+    CHECK(node_bool(mod, true)  != node_bool(mod, false));
     for (uint8_t i = 0;; ++i) {
         CHECK(node_i8(mod, i) != node_u8(mod, (uint8_t)i));
         CHECK(node_i8(mod, i) == node_i8(mod, i));
@@ -311,9 +311,9 @@ bool test_select(void) {
     if (status)
         goto cleanup;
 
-    CHECK(node_select(mod, node_i1(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
-    CHECK(node_select(mod, node_i1(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
-    CHECK(node_select(mod, node_bottom(mod, type_i1(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
+    CHECK(node_select(mod, node_bool(mod, true),  node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 32));
+    CHECK(node_select(mod, node_bool(mod, false), node_i32(mod, 32), node_i32(mod, 64), NULL) == node_i32(mod, 64));
+    CHECK(node_select(mod, node_bottom(mod, type_bool(mod)), node_i32(mod, 32), node_i32(mod, 32), NULL) == node_i32(mod, 32));
 
 cleanup:
     mod_destroy(mod);
@@ -378,9 +378,9 @@ bool test_binops(void) {
             node_mul(mod, node_i32(mod, 5), param, NULL), NULL)
         == node_mul(mod, node_i32(mod, -3), param, NULL));
 
-    CHECK(node_cmplt(mod, node_bitcast(mod, param, type_u32(mod), NULL), node_u32(mod, 0), NULL) == node_i1(mod, false));
-    CHECK(node_cmpgt(mod, node_u32(mod, 5), node_u32(mod, 0), NULL) == node_i1(mod, true));
-    CHECK(node_cmpeq(mod, param, param, NULL) == node_i1(mod, true));
+    CHECK(node_cmplt(mod, node_bitcast(mod, param, type_u32(mod), NULL), node_u32(mod, 0), NULL) == node_bool(mod, false));
+    CHECK(node_cmpgt(mod, node_u32(mod, 5), node_u32(mod, 0), NULL) == node_bool(mod, true));
+    CHECK(node_cmpeq(mod, param, param, NULL) == node_bool(mod, true));
 
     CHECK(node_rshft(mod, param, node_i32(mod, 0), NULL) == param);
     CHECK(node_lshft(mod, param, node_i32(mod, 0), NULL) == param);
@@ -618,7 +618,7 @@ bool test_opt(void) {
     dbg_n = (dbg_t) { .file = "", .name = "n" };
     dbg_y = (dbg_t) { .file = "", .name = "y" };
 
-    node_false = node_i1(mod, false);
+    node_false = node_bool(mod, false);
 
     pow_type = type_fn(mod, type_tuple_args(mod, 3, type_i32(mod), type_i32(mod), type_tuple(mod, 0, NULL)), type_i32(mod));
     bb_type  = type_fn(mod, type_tuple(mod, 0, NULL), type_i32(mod));

@@ -10,60 +10,60 @@ static inline const node_t* make_node(mod_t* mod, const node_t node) {
 uint64_t node_value_u(const node_t* node) {
     assert(node->tag == NODE_LITERAL);
     switch (node->type->tag) {
-        case TYPE_I1:  return node->data.box.i1 ? UINT64_C(1) : UINT64_C(0);
-        case TYPE_I8:  return node->data.box.i8;
-        case TYPE_I16: return node->data.box.i16;
-        case TYPE_I32: return node->data.box.i32;
-        case TYPE_I64: return node->data.box.i64;
-        case TYPE_U8:  return node->data.box.u8;
-        case TYPE_U16: return node->data.box.u16;
-        case TYPE_U32: return node->data.box.u32;
-        case TYPE_U64: return node->data.box.u64;
-        case TYPE_F32: return node->data.box.f32;
-        case TYPE_F64: return node->data.box.f64;
-        default:       assert(false); return 0;
+        case TYPE_BOOL: return node->data.box.b ? UINT64_C(1) : UINT64_C(0);
+        case TYPE_I8:   return node->data.box.i8;
+        case TYPE_I16:  return node->data.box.i16;
+        case TYPE_I32:  return node->data.box.i32;
+        case TYPE_I64:  return node->data.box.i64;
+        case TYPE_U8:   return node->data.box.u8;
+        case TYPE_U16:  return node->data.box.u16;
+        case TYPE_U32:  return node->data.box.u32;
+        case TYPE_U64:  return node->data.box.u64;
+        case TYPE_F32:  return node->data.box.f32;
+        case TYPE_F64:  return node->data.box.f64;
+        default:        assert(false); return 0;
     }
 }
 
 int64_t node_value_i(const node_t* node) {
     assert(node->tag == NODE_LITERAL);
     switch (node->type->tag) {
-        case TYPE_I1:  return node->data.box.i1 ? INT64_C(1) : INT64_C(0);
-        case TYPE_I8:  return node->data.box.i8;
-        case TYPE_I16: return node->data.box.i16;
-        case TYPE_I32: return node->data.box.i32;
-        case TYPE_I64: return node->data.box.i64;
-        case TYPE_U8:  return node->data.box.u8;
-        case TYPE_U16: return node->data.box.u16;
-        case TYPE_U32: return node->data.box.u32;
-        case TYPE_U64: return node->data.box.u64;
-        case TYPE_F32: return node->data.box.f32;
-        case TYPE_F64: return node->data.box.f64;
-        default:       assert(false); return 0;
+        case TYPE_BOOL: return node->data.box.b ? INT64_C(1) : INT64_C(0);
+        case TYPE_I8:   return node->data.box.i8;
+        case TYPE_I16:  return node->data.box.i16;
+        case TYPE_I32:  return node->data.box.i32;
+        case TYPE_I64:  return node->data.box.i64;
+        case TYPE_U8:   return node->data.box.u8;
+        case TYPE_U16:  return node->data.box.u16;
+        case TYPE_U32:  return node->data.box.u32;
+        case TYPE_U64:  return node->data.box.u64;
+        case TYPE_F32:  return node->data.box.f32;
+        case TYPE_F64:  return node->data.box.f64;
+        default:        assert(false); return 0;
     }
 }
 
 double node_value_f(const node_t* node) {
     assert(node->tag == NODE_LITERAL);
     switch (node->type->tag) {
-        case TYPE_I1:  return node->data.box.i1 ? 1.0 : 0.0;
-        case TYPE_I8:  return node->data.box.i8;
-        case TYPE_I16: return node->data.box.i16;
-        case TYPE_I32: return node->data.box.i32;
-        case TYPE_I64: return node->data.box.i64;
-        case TYPE_U8:  return node->data.box.u8;
-        case TYPE_U16: return node->data.box.u16;
-        case TYPE_U32: return node->data.box.u32;
-        case TYPE_U64: return node->data.box.u64;
-        case TYPE_F32: return node->data.box.f32;
-        case TYPE_F64: return node->data.box.f64;
-        default:       assert(false); return 0;
+        case TYPE_BOOL: return node->data.box.b ? 1.0 : 0.0;
+        case TYPE_I8:   return node->data.box.i8;
+        case TYPE_I16:  return node->data.box.i16;
+        case TYPE_I32:  return node->data.box.i32;
+        case TYPE_I64:  return node->data.box.i64;
+        case TYPE_U8:   return node->data.box.u8;
+        case TYPE_U16:  return node->data.box.u16;
+        case TYPE_U32:  return node->data.box.u32;
+        case TYPE_U64:  return node->data.box.u64;
+        case TYPE_F32:  return node->data.box.f32;
+        case TYPE_F64:  return node->data.box.f64;
+        default:        assert(false); return 0;
     }
 }
 
-bool node_value_i1(const node_t* node) {
-    assert(node->tag == NODE_LITERAL && node->type->tag == TYPE_I1);
-    return node->data.box.i1;
+bool node_value_b(const node_t* node) {
+    assert(node->tag == NODE_LITERAL && node->type->tag == TYPE_BOOL);
+    return node->data.box.b;
 }
 
 bool node_is_const(const node_t* node) {
@@ -83,18 +83,18 @@ bool node_is_zero(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return !node->data.box.i1;
-        case TYPE_I8:  return node->data.box.i8  == 0;
-        case TYPE_I16: return node->data.box.i16 == 0;
-        case TYPE_I32: return node->data.box.i32 == 0;
-        case TYPE_I64: return node->data.box.i64 == 0;
-        case TYPE_U8:  return node->data.box.u8  == 0;
-        case TYPE_U16: return node->data.box.u16 == 0;
-        case TYPE_U32: return node->data.box.u32 == 0;
-        case TYPE_U64: return node->data.box.u64 == 0;
-        case TYPE_F32: return node->data.box.f32 == 0.0f;
-        case TYPE_F64: return node->data.box.f64 == 0.0;
-        default:       return false;
+        case TYPE_BOOL: return !node->data.box.b;
+        case TYPE_I8:   return node->data.box.i8  == 0;
+        case TYPE_I16:  return node->data.box.i16 == 0;
+        case TYPE_I32:  return node->data.box.i32 == 0;
+        case TYPE_I64:  return node->data.box.i64 == 0;
+        case TYPE_U8:   return node->data.box.u8  == 0;
+        case TYPE_U16:  return node->data.box.u16 == 0;
+        case TYPE_U32:  return node->data.box.u32 == 0;
+        case TYPE_U64:  return node->data.box.u64 == 0;
+        case TYPE_F32:  return node->data.box.f32 == 0.0f;
+        case TYPE_F64:  return node->data.box.f64 == 0.0;
+        default:        return false;
     }
 }
 
@@ -102,18 +102,18 @@ bool node_is_one(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->data.box.i1;
-        case TYPE_I8:  return node->data.box.i8  == 1;
-        case TYPE_I16: return node->data.box.i16 == 1;
-        case TYPE_I32: return node->data.box.i32 == 1;
-        case TYPE_I64: return node->data.box.i64 == 1;
-        case TYPE_U8:  return node->data.box.u8  == 1;
-        case TYPE_U16: return node->data.box.u16 == 1;
-        case TYPE_U32: return node->data.box.u32 == 1;
-        case TYPE_U64: return node->data.box.u64 == 1;
-        case TYPE_F32: return node->data.box.f32 == 1.0f;
-        case TYPE_F64: return node->data.box.f64 == 1.0;
-        default:       return false;
+        case TYPE_BOOL: return node->data.box.b;
+        case TYPE_I8:   return node->data.box.i8  == 1;
+        case TYPE_I16:  return node->data.box.i16 == 1;
+        case TYPE_I32:  return node->data.box.i32 == 1;
+        case TYPE_I64:  return node->data.box.i64 == 1;
+        case TYPE_U8:   return node->data.box.u8  == 1;
+        case TYPE_U16:  return node->data.box.u16 == 1;
+        case TYPE_U32:  return node->data.box.u32 == 1;
+        case TYPE_U64:  return node->data.box.u64 == 1;
+        case TYPE_F32:  return node->data.box.f32 == 1.0f;
+        case TYPE_F64:  return node->data.box.f64 == 1.0;
+        default:        return false;
     }
 }
 
@@ -121,16 +121,16 @@ bool node_is_all_ones(const node_t* node) {
     if (node->tag != NODE_LITERAL)
         return false;
     switch (node->type->tag) {
-        case TYPE_I1:  return node->data.box.i1;
-        case TYPE_I8:  return node->data.box.i8  == -1;
-        case TYPE_I16: return node->data.box.i16 == -1;
-        case TYPE_I32: return node->data.box.i32 == -1;
-        case TYPE_I64: return node->data.box.i64 == -1;
-        case TYPE_U8:  return node->data.box.u8  == (uint8_t) (-1);
-        case TYPE_U16: return node->data.box.u16 == (uint16_t)(-1);
-        case TYPE_U32: return node->data.box.u32 == (uint32_t)(-1);
-        case TYPE_U64: return node->data.box.u64 == (uint64_t)(-1);
-        default:       return false;
+        case TYPE_BOOL: return node->data.box.b;
+        case TYPE_I8:   return node->data.box.i8  == -1;
+        case TYPE_I16:  return node->data.box.i16 == -1;
+        case TYPE_I32:  return node->data.box.i32 == -1;
+        case TYPE_I64:  return node->data.box.i64 == -1;
+        case TYPE_U8:   return node->data.box.u8  == (uint8_t) (-1);
+        case TYPE_U16:  return node->data.box.u16 == (uint16_t)(-1);
+        case TYPE_U32:  return node->data.box.u32 == (uint32_t)(-1);
+        case TYPE_U64:  return node->data.box.u64 == (uint64_t)(-1);
+        default:        return false;
     }
 }
 
@@ -165,36 +165,36 @@ const node_t* node_bottom(mod_t* mod, const type_t* type) {
 const node_t* node_zero(mod_t* mod, const type_t* type) {
     assert(type_is_prim(type));
     switch (type->tag) {
-        case TYPE_I1:  return node_literal(mod, type, (box_t) { .i1  = false });
-        case TYPE_I8:  return node_literal(mod, type, (box_t) { .i8  = 0 });
-        case TYPE_I16: return node_literal(mod, type, (box_t) { .i16 = 0 });
-        case TYPE_I32: return node_literal(mod, type, (box_t) { .i32 = 0 });
-        case TYPE_I64: return node_literal(mod, type, (box_t) { .i64 = 0 });
-        case TYPE_U8:  return node_literal(mod, type, (box_t) { .u8  = 0 });
-        case TYPE_U16: return node_literal(mod, type, (box_t) { .u16 = 0 });
-        case TYPE_U32: return node_literal(mod, type, (box_t) { .u32 = 0 });
-        case TYPE_U64: return node_literal(mod, type, (box_t) { .u64 = 0 });
-        case TYPE_F32: return node_literal(mod, type, (box_t) { .f32 = 0.0f });
-        case TYPE_F64: return node_literal(mod, type, (box_t) { .f64 = 0.0 });
-        default:       assert(false); return NULL;
+        case TYPE_BOOL: return node_literal(mod, type, (box_t) { .b   = false });
+        case TYPE_I8:   return node_literal(mod, type, (box_t) { .i8  = 0 });
+        case TYPE_I16:  return node_literal(mod, type, (box_t) { .i16 = 0 });
+        case TYPE_I32:  return node_literal(mod, type, (box_t) { .i32 = 0 });
+        case TYPE_I64:  return node_literal(mod, type, (box_t) { .i64 = 0 });
+        case TYPE_U8:   return node_literal(mod, type, (box_t) { .u8  = 0 });
+        case TYPE_U16:  return node_literal(mod, type, (box_t) { .u16 = 0 });
+        case TYPE_U32:  return node_literal(mod, type, (box_t) { .u32 = 0 });
+        case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = 0 });
+        case TYPE_F32:  return node_literal(mod, type, (box_t) { .f32 = 0.0f });
+        case TYPE_F64:  return node_literal(mod, type, (box_t) { .f64 = 0.0 });
+        default:        assert(false); return NULL;
     }
 }
 
 const node_t* node_one(mod_t* mod, const type_t* type) {
     assert(type_is_prim(type));
     switch (type->tag) {
-        case TYPE_I1:  return node_literal(mod, type, (box_t) { .i1  = true });
-        case TYPE_I8:  return node_literal(mod, type, (box_t) { .i8  = 1 });
-        case TYPE_I16: return node_literal(mod, type, (box_t) { .i16 = 1 });
-        case TYPE_I32: return node_literal(mod, type, (box_t) { .i32 = 1 });
-        case TYPE_I64: return node_literal(mod, type, (box_t) { .i64 = 1 });
-        case TYPE_U8:  return node_literal(mod, type, (box_t) { .u8  = 1 });
-        case TYPE_U16: return node_literal(mod, type, (box_t) { .u16 = 1 });
-        case TYPE_U32: return node_literal(mod, type, (box_t) { .u32 = 1 });
-        case TYPE_U64: return node_literal(mod, type, (box_t) { .u64 = 1 });
-        case TYPE_F32: return node_literal(mod, type, (box_t) { .f32 = 1.0f });
-        case TYPE_F64: return node_literal(mod, type, (box_t) { .f64 = 1.0 });
-        default:       assert(false); return NULL;
+        case TYPE_BOOL: return node_literal(mod, type, (box_t) { .b   = true });
+        case TYPE_I8:   return node_literal(mod, type, (box_t) { .i8  = 1 });
+        case TYPE_I16:  return node_literal(mod, type, (box_t) { .i16 = 1 });
+        case TYPE_I32:  return node_literal(mod, type, (box_t) { .i32 = 1 });
+        case TYPE_I64:  return node_literal(mod, type, (box_t) { .i64 = 1 });
+        case TYPE_U8:   return node_literal(mod, type, (box_t) { .u8  = 1 });
+        case TYPE_U16:  return node_literal(mod, type, (box_t) { .u16 = 1 });
+        case TYPE_U32:  return node_literal(mod, type, (box_t) { .u32 = 1 });
+        case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = 1 });
+        case TYPE_F32:  return node_literal(mod, type, (box_t) { .f32 = 1.0f });
+        case TYPE_F64:  return node_literal(mod, type, (box_t) { .f64 = 1.0 });
+        default:        assert(false); return NULL;
     }
 }
 
@@ -202,28 +202,28 @@ const node_t* node_all_ones(mod_t* mod, const type_t* type) {
     assert(type_is_prim(type));
     assert(!type_is_f(type));
     switch (type->tag) {
-        case TYPE_I1:  return node_literal(mod, type, (box_t) { .i1  = true });
-        case TYPE_I8:  return node_literal(mod, type, (box_t) { .i8  = -1 });
-        case TYPE_I16: return node_literal(mod, type, (box_t) { .i16 = -1 });
-        case TYPE_I32: return node_literal(mod, type, (box_t) { .i32 = -1 });
-        case TYPE_I64: return node_literal(mod, type, (box_t) { .i64 = -1 });
-        case TYPE_U8:  return node_literal(mod, type, (box_t) { .u8  = -1 });
-        case TYPE_U16: return node_literal(mod, type, (box_t) { .u16 = -1 });
-        case TYPE_U32: return node_literal(mod, type, (box_t) { .u32 = -1 });
-        case TYPE_U64: return node_literal(mod, type, (box_t) { .u64 = -1 });
-        default:       assert(false); return NULL;
+        case TYPE_BOOL: return node_literal(mod, type, (box_t) { .b   = true });
+        case TYPE_I8:   return node_literal(mod, type, (box_t) { .i8  = -1 });
+        case TYPE_I16:  return node_literal(mod, type, (box_t) { .i16 = -1 });
+        case TYPE_I32:  return node_literal(mod, type, (box_t) { .i32 = -1 });
+        case TYPE_I64:  return node_literal(mod, type, (box_t) { .i64 = -1 });
+        case TYPE_U8:   return node_literal(mod, type, (box_t) { .u8  = -1 });
+        case TYPE_U16:  return node_literal(mod, type, (box_t) { .u16 = -1 });
+        case TYPE_U32:  return node_literal(mod, type, (box_t) { .u32 = -1 });
+        case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = -1 });
+        default:        assert(false); return NULL;
     }
 }
 
-const node_t* node_i1 (mod_t* mod, bool     i1)  { return node_literal(mod, type_i1(mod),  (box_t) { .i1  = i1  }); }
-const node_t* node_i8 (mod_t* mod, int8_t   i8)  { return node_literal(mod, type_i8(mod),  (box_t) { .i8  = i8  }); }
-const node_t* node_i16(mod_t* mod, int16_t  i16) { return node_literal(mod, type_i16(mod), (box_t) { .i16 = i16 }); }
-const node_t* node_i32(mod_t* mod, int32_t  i32) { return node_literal(mod, type_i32(mod), (box_t) { .i32 = i32 }); }
-const node_t* node_i64(mod_t* mod, int64_t  i64) { return node_literal(mod, type_i64(mod), (box_t) { .i64 = i64 }); }
-const node_t* node_u8 (mod_t* mod, uint8_t  u8)  { return node_literal(mod, type_u8(mod),  (box_t) { .u8  = u8  }); }
-const node_t* node_u16(mod_t* mod, uint16_t u16) { return node_literal(mod, type_u16(mod), (box_t) { .u16 = u16 }); }
-const node_t* node_u32(mod_t* mod, uint32_t u32) { return node_literal(mod, type_u32(mod), (box_t) { .u32 = u32 }); }
-const node_t* node_u64(mod_t* mod, uint64_t u64) { return node_literal(mod, type_u64(mod), (box_t) { .u64 = u64 }); }
+const node_t* node_bool(mod_t* mod, bool     b)   { return node_literal(mod, type_bool(mod), (box_t) { .b   = b   }); }
+const node_t* node_i8  (mod_t* mod, int8_t   i8)  { return node_literal(mod, type_i8(mod),   (box_t) { .i8  = i8  }); }
+const node_t* node_i16 (mod_t* mod, int16_t  i16) { return node_literal(mod, type_i16(mod),  (box_t) { .i16 = i16 }); }
+const node_t* node_i32 (mod_t* mod, int32_t  i32) { return node_literal(mod, type_i32(mod),  (box_t) { .i32 = i32 }); }
+const node_t* node_i64 (mod_t* mod, int64_t  i64) { return node_literal(mod, type_i64(mod),  (box_t) { .i64 = i64 }); }
+const node_t* node_u8  (mod_t* mod, uint8_t  u8)  { return node_literal(mod, type_u8(mod),   (box_t) { .u8  = u8  }); }
+const node_t* node_u16 (mod_t* mod, uint16_t u16) { return node_literal(mod, type_u16(mod),  (box_t) { .u16 = u16 }); }
+const node_t* node_u32 (mod_t* mod, uint32_t u32) { return node_literal(mod, type_u32(mod),  (box_t) { .u32 = u32 }); }
+const node_t* node_u64 (mod_t* mod, uint64_t u64) { return node_literal(mod, type_u64(mod),  (box_t) { .u64 = u64 }); }
 
 const node_t* node_f32(mod_t* mod, float  f32, fp_flags_t flags) { return node_literal(mod, type_f32(mod, flags), (box_t) { .f32 = f32 }); }
 const node_t* node_f64(mod_t* mod, double f64, fp_flags_t flags) { return node_literal(mod, type_f64(mod, flags), (box_t) { .f64 = f64 }); }
@@ -251,12 +251,12 @@ bool node_is_cmp(const node_t* node) {
 }
 
 bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_left, bool not_right) {
-    assert(left->type->tag == TYPE_I1);
-    assert(right->type->tag == TYPE_I1);
+    assert(left->type->tag  == TYPE_BOOL);
+    assert(right->type->tag == TYPE_BOOL);
     if (left->tag == NODE_LITERAL) {
         // (0 => X) <=> 1
-        if (( not_left &&  node_value_i1(left)) ||
-            (!not_left && !node_value_i1(left)))
+        if (( not_left &&  node_value_b(left)) ||
+            (!not_left && !node_value_b(left)))
             return true;
     }
     if (not_left == not_right && left == right)
@@ -350,18 +350,18 @@ bool node_implies(mod_t* mod, const node_t* left, const node_t* right, bool not_
                     (right->tag == NODE_CMPGT || right->tag == NODE_CMPGE)) {
                     // 3 > x does not imply 3 >= x, but the converse is true
                     if (left->tag == NODE_CMPGT && right->tag == NODE_CMPGE)
-                        return node_value_i1(node_cmplt(mod, left->ops[0], right->ops[0], NULL));
+                        return node_value_b(node_cmplt(mod, left->ops[0], right->ops[0], NULL));
                     else
-                        return node_value_i1(node_cmple(mod, left->ops[0], right->ops[0], NULL));
+                        return node_value_b(node_cmple(mod, left->ops[0], right->ops[0], NULL));
                 }
                 // K1 < X => K2 < X
                 if ((left->tag  == NODE_CMPLT || left->tag  == NODE_CMPLE) &&
                     (right->tag == NODE_CMPLT || right->tag == NODE_CMPLE)) {
                     // 3 < x does not imply 3 <= x, but the converse is true
                     if (left->tag == NODE_CMPLT && right->tag == NODE_CMPLE)
-                        return node_value_i1(node_cmpgt(mod, left->ops[0], right->ops[0], NULL));
+                        return node_value_b(node_cmpgt(mod, left->ops[0], right->ops[0], NULL));
                     else
-                        return node_value_i1(node_cmpge(mod, left->ops[0], right->ops[0], NULL));
+                        return node_value_b(node_cmpge(mod, left->ops[0], right->ops[0], NULL));
                 }
             }
 
@@ -583,11 +583,11 @@ const node_t* node_bitcast(mod_t* mod, const node_t* value, const type_t* type, 
 
 #define EXTENDOP_I(value, type) \
     switch (type->tag) { \
-        case TYPE_I1:  return node_literal(mod, type, (box_t) { .i1  = value != 0 ? true : false }); \
-        case TYPE_I8:  return node_literal(mod, type, (box_t) { .i8  = value }); \
-        case TYPE_I16: return node_literal(mod, type, (box_t) { .i16 = value }); \
-        case TYPE_I32: return node_literal(mod, type, (box_t) { .i32 = value }); \
-        case TYPE_I64: return node_literal(mod, type, (box_t) { .i64 = value }); \
+        case TYPE_BOOL: return node_literal(mod, type, (box_t) { .b  = value != 0 ? true : false }); \
+        case TYPE_I8:   return node_literal(mod, type, (box_t) { .i8  = value }); \
+        case TYPE_I16:  return node_literal(mod, type, (box_t) { .i16 = value }); \
+        case TYPE_I32:  return node_literal(mod, type, (box_t) { .i32 = value }); \
+        case TYPE_I64:  return node_literal(mod, type, (box_t) { .i64 = value }); \
         default: \
             assert(false); \
             break; \
@@ -610,9 +610,9 @@ const node_t* node_extend(mod_t* mod, const node_t* value, const type_t* type, c
     assert(type_bitwidth(value->type) <= type_bitwidth(type));
     if (value->tag == NODE_LITERAL) {
         switch (value->type->tag) {
-            case TYPE_I1:
+            case TYPE_BOOL:
                 {
-                    int8_t i = value->data.box.i1 ? -1 : 0;
+                    int8_t i = value->data.box.b ? -1 : 0;
                     EXTENDOP_I(i, type)
                 }
                 break;
@@ -642,11 +642,11 @@ const node_t* node_extend(mod_t* mod, const node_t* value, const type_t* type, c
 
 #define TRUNCOP_I(value, type) \
     switch (type->tag) { \
-        case TYPE_I1:  return node_literal(mod, type, (box_t) { .i1  = value & 1 ? true : false }); \
-        case TYPE_I8:  return node_literal(mod, type, (box_t) { .i8  = value }); \
-        case TYPE_I16: return node_literal(mod, type, (box_t) { .i16 = value }); \
-        case TYPE_I32: return node_literal(mod, type, (box_t) { .i32 = value }); \
-        case TYPE_I64: return node_literal(mod, type, (box_t) { .i64 = value }); \
+        case TYPE_BOOL: return node_literal(mod, type, (box_t) { .b   = value & 1 ? true : false }); \
+        case TYPE_I8:   return node_literal(mod, type, (box_t) { .i8  = value }); \
+        case TYPE_I16:  return node_literal(mod, type, (box_t) { .i16 = value }); \
+        case TYPE_I32:  return node_literal(mod, type, (box_t) { .i32 = value }); \
+        case TYPE_I64:  return node_literal(mod, type, (box_t) { .i64 = value }); \
         default: \
             assert(false); \
             break; \
@@ -669,9 +669,9 @@ const node_t* node_trunc(mod_t* mod, const node_t* value, const type_t* type, co
     assert(type_bitwidth(value->type) >= type_bitwidth(type));
     if (value->tag == NODE_LITERAL) {
         switch (value->type->tag) {
-            case TYPE_I1:
+            case TYPE_BOOL:
                 {
-                    int8_t i = value->data.box.i1 ? -1 : 0;
+                    int8_t i = value->data.box.b ? -1 : 0;
                     TRUNCOP_I(i, type)
                 }
                 break;
@@ -720,9 +720,9 @@ const node_t* node_itof(mod_t* mod, const node_t* value, const type_t* type, con
     assert(type_is_f(type) && (type_is_i(value->type) || type_is_u(value->type)));
     if (value->tag == NODE_LITERAL) {
         switch (value->type->tag) {
-            case TYPE_I1:
+            case TYPE_BOOL:
                 {
-                    int8_t i = value->data.box.i1 ? -1 : 0;
+                    int8_t i = value->data.box.b ? -1 : 0;
                     ITOFOP(i, type)
                 }
                 break;
@@ -750,15 +750,15 @@ const node_t* node_itof(mod_t* mod, const node_t* value, const type_t* type, con
 
 #define FTOIOP(value, type) \
     switch (type->tag) { \
-        case TYPE_I1:  return node_literal(mod, type, (box_t) { .i1  = value != 0 ? true : false }); \
-        case TYPE_I8:  return node_literal(mod, type, (box_t) { .i8  = value }); \
-        case TYPE_I16: return node_literal(mod, type, (box_t) { .i16 = value }); \
-        case TYPE_I32: return node_literal(mod, type, (box_t) { .i32 = value });  \
-        case TYPE_I64: return node_literal(mod, type, (box_t) { .i64 = value });  \
-        case TYPE_U8:  return node_literal(mod, type, (box_t) { .u8  = value });  \
-        case TYPE_U16: return node_literal(mod, type, (box_t) { .u16 = value });  \
-        case TYPE_U32: return node_literal(mod, type, (box_t) { .u32 = value });  \
-        case TYPE_U64: return node_literal(mod, type, (box_t) { .u64 = value });  \
+        case TYPE_BOOL: return node_literal(mod, type, (box_t) { .b   = value != 0 ? true : false }); \
+        case TYPE_I8:   return node_literal(mod, type, (box_t) { .i8  = value }); \
+        case TYPE_I16:  return node_literal(mod, type, (box_t) { .i16 = value }); \
+        case TYPE_I32:  return node_literal(mod, type, (box_t) { .i32 = value });  \
+        case TYPE_I64:  return node_literal(mod, type, (box_t) { .i64 = value });  \
+        case TYPE_U8:   return node_literal(mod, type, (box_t) { .u8  = value });  \
+        case TYPE_U16:  return node_literal(mod, type, (box_t) { .u16 = value });  \
+        case TYPE_U32:  return node_literal(mod, type, (box_t) { .u32 = value });  \
+        case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = value });  \
         default: \
             assert(false); \
             break; \
@@ -823,8 +823,8 @@ static inline void node_switch_ops(const node_t** left, const node_t** right) {
     *right = tmp;
 }
 
-#define CMPOP_I1(op, res, left, right) \
-    case TYPE_I1:  res  = left.i1  op right.i1;  break;
+#define CMPOP_B(op, res, left, right) \
+    case TYPE_BOOL: res = left.b op right.b; break;
 
 #define CMPOP_I(op, res, left, right) \
     case TYPE_I8:  res = left.i8  op right.i8;  break; \
@@ -847,8 +847,8 @@ static inline void node_switch_ops(const node_t** left, const node_t** right) {
     CMPOP_U(op, res, left, right) \
     CMPOP_F(op, res, left, right)
 
-#define CMPOP_I1IUF(op, res, left, right) \
-    CMPOP_I1(op, res, left, right) \
+#define CMPOP_BIUF(op, res, left, right) \
+    CMPOP_B(op, res, left, right) \
     CMPOP_IUF(op, res, left, right)
 
 #define CMPOP(tag, ...) \
@@ -862,22 +862,22 @@ static inline void node_switch_ops(const node_t** left, const node_t** right) {
 static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* left, const node_t* right, const dbg_t* dbg) {
     assert(left->type == right->type);
     assert(type_is_prim(left->type));
-    assert(tag == NODE_CMPEQ || tag == NODE_CMPNE || left->type->tag != TYPE_I1);
+    assert(tag == NODE_CMPEQ || tag == NODE_CMPNE || left->type->tag != TYPE_BOOL);
 
     if (left->tag == NODE_LITERAL && right->tag == NODE_LITERAL) {
         bool res = false;
         switch (tag) {
-            case NODE_CMPGT: CMPOP(left->type->tag, CMPOP_IUF  (>,  res, left->data.box, right->data.box)) break;
-            case NODE_CMPGE: CMPOP(left->type->tag, CMPOP_IUF  (>=, res, left->data.box, right->data.box)) break;
-            case NODE_CMPLT: CMPOP(left->type->tag, CMPOP_IUF  (<,  res, left->data.box, right->data.box)) break;
-            case NODE_CMPLE: CMPOP(left->type->tag, CMPOP_IUF  (<=, res, left->data.box, right->data.box)) break;
-            case NODE_CMPNE: CMPOP(left->type->tag, CMPOP_I1IUF(!=, res, left->data.box, right->data.box)) break;
-            case NODE_CMPEQ: CMPOP(left->type->tag, CMPOP_I1IUF(==, res, left->data.box, right->data.box)) break;
+            case NODE_CMPGT: CMPOP(left->type->tag, CMPOP_IUF (>,  res, left->data.box, right->data.box)) break;
+            case NODE_CMPGE: CMPOP(left->type->tag, CMPOP_IUF (>=, res, left->data.box, right->data.box)) break;
+            case NODE_CMPLT: CMPOP(left->type->tag, CMPOP_IUF (<,  res, left->data.box, right->data.box)) break;
+            case NODE_CMPLE: CMPOP(left->type->tag, CMPOP_IUF (<=, res, left->data.box, right->data.box)) break;
+            case NODE_CMPNE: CMPOP(left->type->tag, CMPOP_BIUF(!=, res, left->data.box, right->data.box)) break;
+            case NODE_CMPEQ: CMPOP(left->type->tag, CMPOP_BIUF(==, res, left->data.box, right->data.box)) break;
             default:
                 assert(false);
                 break;
         }
-        return node_i1(mod, res);
+        return node_bool(mod, res);
     }
 
     if (node_should_switch_ops(left, right) && node_can_switch_comparands(tag, left->type)) {
@@ -897,17 +897,17 @@ static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* l
         // X > X  <=> false
         // X < X  <=> false
         // X != X <=> false
-        if (tag == NODE_CMPNE || tag == NODE_CMPGT || tag == NODE_CMPLT) return node_i1(mod, false);
+        if (tag == NODE_CMPNE || tag == NODE_CMPGT || tag == NODE_CMPLT) return node_bool(mod, false);
         // X == X <=> true
         // X >= X <=> true
         // X <= X <=> true
-        if (tag == NODE_CMPEQ || tag == NODE_CMPGE || tag == NODE_CMPLE) return node_i1(mod, true);
+        if (tag == NODE_CMPEQ || tag == NODE_CMPGE || tag == NODE_CMPLE) return node_bool(mod, true);
     }
     if (type_is_u(left->type) && node_is_zero(left)) {
         // 0 > X <=> false
-        if (tag == NODE_CMPGT) return node_i1(mod, false);
+        if (tag == NODE_CMPGT) return node_bool(mod, false);
         // 0 <= X <=> true
-        if (tag == NODE_CMPLE) return node_i1(mod, true);
+        if (tag == NODE_CMPLE) return node_bool(mod, true);
     }
 
     const node_t* ops[] = { left, right };
@@ -915,7 +915,7 @@ static inline const node_t* make_cmpop(mod_t* mod, uint32_t tag, const node_t* l
         .tag = tag,
         .nops = 2,
         .ops  = ops,
-        .type = type_i1(mod),
+        .type = type_bool(mod),
         .dbg  = dbg
     });
 }
@@ -932,8 +932,8 @@ NODE_CMPOP(cmple, NODE_CMPLE)
 NODE_CMPOP(cmpne, NODE_CMPNE)
 NODE_CMPOP(cmpeq, NODE_CMPEQ)
 
-#define BINOP_I1(op, res, left, right) \
-    case TYPE_I1:  res.i1  = left.i1  op right.i1;  break;
+#define BINOP_B(op, res, left, right) \
+    case TYPE_BOOL: res.b = left.b op right.b; break;
 
 #define BINOP_I(op, res, left, right) \
     case TYPE_I8:  res.i8  = left.i8  op right.i8;  break; \
@@ -960,8 +960,8 @@ NODE_CMPOP(cmpeq, NODE_CMPEQ)
     BINOP_I(op, res, left, right) \
     BINOP_U(op, res, left, right)
 
-#define BINOP_I1IU(op, res, left, right) \
-    BINOP_I1(op, res, left, right) \
+#define BINOP_BIU(op, res, left, right) \
+    BINOP_B(op, res, left, right) \
     BINOP_IU(op, res, left, right)
 
 #define BINOP(tag, ...) \
@@ -978,7 +978,7 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
     bool is_shft    = tag == NODE_LSHFT || tag == NODE_RSHFT;
     bool is_bitwise = tag == NODE_AND || tag == NODE_OR || tag == NODE_XOR;
     (void)is_shft;
-    assert(is_bitwise || left->type->tag != TYPE_I1);
+    assert(is_bitwise || left->type->tag != TYPE_BOOL);
     assert((!is_bitwise && !is_shft) || !type_is_f(left->type));
     assert(tag != NODE_REM || !type_is_f(left->type));
 
@@ -987,16 +987,16 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
         box_t res;
         memset(&res, 0, sizeof(box_t));
         switch (tag) {
-            case NODE_ADD:   BINOP(left->type->tag, BINOP_IUF (+,  res, left->data.box, right->data.box)) break;
-            case NODE_SUB:   BINOP(left->type->tag, BINOP_IUF (-,  res, left->data.box, right->data.box)) break;
-            case NODE_MUL:   BINOP(left->type->tag, BINOP_IUF (*,  res, left->data.box, right->data.box)) break;
-            case NODE_DIV:   BINOP(left->type->tag, BINOP_IUF (/,  res, left->data.box, right->data.box)) break;
-            case NODE_REM:   BINOP(left->type->tag, BINOP_IU  (%,  res, left->data.box, right->data.box)) break;
-            case NODE_AND:   BINOP(left->type->tag, BINOP_I1IU(&,  res, left->data.box, right->data.box)) break;
-            case NODE_OR:    BINOP(left->type->tag, BINOP_I1IU(|,  res, left->data.box, right->data.box)) break;
-            case NODE_XOR:   BINOP(left->type->tag, BINOP_I1IU(^,  res, left->data.box, right->data.box)) break;
-            case NODE_LSHFT: BINOP(left->type->tag, BINOP_IU  (<<, res, left->data.box, right->data.box)) break;
-            case NODE_RSHFT: BINOP(left->type->tag, BINOP_IU  (>>, res, left->data.box, right->data.box)) break;
+            case NODE_ADD:   BINOP(left->type->tag, BINOP_IUF(+,  res, left->data.box, right->data.box)) break;
+            case NODE_SUB:   BINOP(left->type->tag, BINOP_IUF(-,  res, left->data.box, right->data.box)) break;
+            case NODE_MUL:   BINOP(left->type->tag, BINOP_IUF(*,  res, left->data.box, right->data.box)) break;
+            case NODE_DIV:   BINOP(left->type->tag, BINOP_IUF(/,  res, left->data.box, right->data.box)) break;
+            case NODE_REM:   BINOP(left->type->tag, BINOP_IU (%,  res, left->data.box, right->data.box)) break;
+            case NODE_AND:   BINOP(left->type->tag, BINOP_BIU(&,  res, left->data.box, right->data.box)) break;
+            case NODE_OR:    BINOP(left->type->tag, BINOP_BIU(|,  res, left->data.box, right->data.box)) break;
+            case NODE_XOR:   BINOP(left->type->tag, BINOP_BIU(^,  res, left->data.box, right->data.box)) break;
+            case NODE_LSHFT: BINOP(left->type->tag, BINOP_IU (<<, res, left->data.box, right->data.box)) break;
+            case NODE_RSHFT: BINOP(left->type->tag, BINOP_IU (>>, res, left->data.box, right->data.box)) break;
             default:
                 assert(false);
                 break;
@@ -1151,25 +1151,25 @@ static inline const node_t* make_binop(mod_t* mod, uint32_t tag, const node_t* l
             return make_binop(mod, left->tag, make_binop(mod, tag, l1, r1, dbg), l2, dbg);
     }
     // Logical implications
-    if (left->type->tag == TYPE_I1) {
+    if (left->type->tag == TYPE_BOOL) {
         if (tag == NODE_AND) {
             // (A => B) => (A & B <=> A)
             if (node_implies(mod, left, right, false, false)) return left;
             // (B => A) => (A & B <=> B)
             if (node_implies(mod, right, left, false, false)) return right;
             // (A => ~B) => (A & B <=> 0)
-            if (node_implies(mod, left, right, false, true)) return node_i1(mod, false);
+            if (node_implies(mod, left, right, false, true)) return node_bool(mod, false);
             // (B => ~A) => (A & B <=> 0)
-            if (node_implies(mod, left, right, false, true)) return node_i1(mod, false);
+            if (node_implies(mod, left, right, false, true)) return node_bool(mod, false);
         } else if (tag == NODE_OR) {
             // (~A => ~B) => (A | B <=> A)
             if (node_implies(mod, left, right, true, true)) return left;
             // (~B => ~A) => (A | B <=> B)
             if (node_implies(mod, right, left, true, true)) return right;
             // (~A => B) => (A | B <=> 1)
-            if (node_implies(mod, left, right, true, false)) return node_i1(mod, true);
+            if (node_implies(mod, left, right, true, false)) return node_bool(mod, true);
             // (~B => A) => (A | B <=> 1)
-            if (node_implies(mod, right, left, true, false)) return node_i1(mod, true);
+            if (node_implies(mod, right, left, true, false)) return node_bool(mod, true);
         }
     }
 
@@ -1302,21 +1302,21 @@ const node_t* node_store(mod_t* mod, const node_t* mem, const node_t* ptr, const
 
 const node_t* node_known(mod_t* mod, const node_t* node, const dbg_t* dbg) {
     if (node_is_const(node))
-        return node_i1(mod, true);
+        return node_bool(mod, true);
     return make_node(mod, (node_t) {
         .tag  = NODE_KNOWN,
         .nops = 1,
         .ops  = &node,
-        .type = type_i1(mod),
+        .type = type_bool(mod),
         .dbg  = dbg
     });
 }
 
 const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true, const node_t* if_false, const dbg_t* dbg) {
-    assert(cond->type->tag == TYPE_I1);
+    assert(cond->type->tag == TYPE_BOOL);
     assert(if_true->type == if_false->type);
     if (cond->tag == NODE_LITERAL)
-        return node_value_i1(cond) ? if_true : if_false;
+        return node_value_b(cond) ? if_true : if_false;
     if (cond->tag == NODE_BOTTOM)
         return if_true; // Arbitrary, could be if_false
     if (if_true == if_false)
@@ -1340,7 +1340,7 @@ const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true,
 
 const node_t* node_fn(mod_t* mod, const type_t* type, fn_flags_t flags, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
-    const node_t* ops[] = { node_bottom(mod, type->ops[1]), node_zero(mod, type_i1(mod)) };
+    const node_t* ops[] = { node_bottom(mod, type->ops[1]), node_bool(mod, false) };
     return make_node(mod, (node_t) {
         .tag = NODE_FN,
         .nops = 2,
