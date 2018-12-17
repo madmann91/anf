@@ -401,14 +401,16 @@ const node_t* node_tuple(mod_t* mod, size_t nops, const node_t** ops, const dbg_
     const node_t* base = try_fold_tuple(nops, ops);
     if (base && base->type->tag == TYPE_TUPLE && base->type->nops == nops)
         return base;
-    const type_t* type_ops[nops];
+    TMP_BUF_ALLOC(type_ops, const type_t*, nops)
     for (size_t i = 0; i < nops; ++i)
         type_ops[i] = ops[i]->type;
+    const type_t* type = type_tuple(mod, nops, type_ops);
+    TMP_BUF_FREE(type_ops);
     return make_node(mod, (node_t) {
         .tag  = NODE_TUPLE,
         .nops = nops,
         .ops  = ops,
-        .type = type_tuple(mod, nops, type_ops),
+        .type = type,
         .dbg  = dbg
     });
 }
@@ -453,23 +455,27 @@ const node_t* node_string(mod_t* mod, const char* str, const dbg_t* dbg) {
 }
 
 const node_t* node_tuple_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
-    const node_t* ops[nops];
+    TMP_BUF_ALLOC(ops, const node_t*, nops)
     va_list args;
     va_start(args, dbg);
     for (size_t i = 0; i < nops; ++i)
         ops[i] = va_arg(args, const node_t*);
     va_end(args);
-    return node_tuple(mod, nops, ops, dbg);
+    const node_t* node = node_tuple(mod, nops, ops, dbg);
+    TMP_BUF_FREE(ops)
+    return node;
 }
 
 const node_t* node_array_args(mod_t* mod, size_t nops, const type_t* elem_type, const dbg_t* dbg, ...) {
-    const node_t* ops[nops];
+    TMP_BUF_ALLOC(ops, const node_t*, nops)
     va_list args;
     va_start(args, dbg);
     for (size_t i = 0; i < nops; ++i)
         ops[i] = va_arg(args, const node_t*);
     va_end(args);
-    return node_array(mod, nops, ops, elem_type, dbg);
+    const node_t* node = node_array(mod, nops, ops, elem_type, dbg);
+    TMP_BUF_FREE(ops)
+    return node;
 }
 
 const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index, const dbg_t* dbg) {

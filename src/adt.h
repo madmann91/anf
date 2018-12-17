@@ -9,9 +9,10 @@
 #include "hash.h"
 #include "util.h"
 
-#define VEC_DEFAULT_CAP  64
-#define HMAP_DEFAULT_CAP 64
-#define HSET_DEFAULT_CAP 64
+#define VEC_DEFAULT_CAP   64
+#define HMAP_DEFAULT_CAP  64
+#define HSET_DEFAULT_CAP  64
+#define TMP_BUF_STACK_CAP 1024
 
 #define FORALL_HMAP(hmap, key_t, key, value_t, value, ...) \
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \
@@ -181,5 +182,13 @@
         *a = *b; \
         *b = tmp; \
     }
+
+#define TMP_BUF_ALLOC(buf, value_t, n) \
+    const bool buf##_on_stack = n * sizeof(value_t) <= TMP_BUF_STACK_CAP; \
+    value_t buf##_elems[buf##_on_stack ? n : 1]; \
+    value_t* buf = buf##_on_stack ? buf##_elems : xmalloc(sizeof(value_t) * n);
+
+#define TMP_BUF_FREE(buf) \
+    if (!buf##_on_stack) free(buf);
 
 #endif // ADT_H

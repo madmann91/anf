@@ -110,14 +110,8 @@ size_t type_order(const type_t* type) {
     }
 }
 
-const type_t* type_member(mod_t* mod, const type_t* type, size_t i) {
-    if (type->tag == TYPE_TUPLE)
-        return type->ops[i];
-
+const type_t* type_members(mod_t* mod, const type_t* type) {
     assert(type->tag == TYPE_STRUCT);
-    assert(type->data.id < mod->structs.nelems);
-    const struct_def_t* struct_def = mod->structs.elems + i;
-    assert(i < struct_def->nmbs);
     if (type->nops > 0) {
         type2type_t type2type = type2type_create();
         for (size_t i = 0; i < type->nops; ++i) {
@@ -125,11 +119,11 @@ const type_t* type_member(mod_t* mod, const type_t* type, size_t i) {
             if (var != type->ops[i])
                 type2type_insert(&type2type, var, type->ops[i]);
         }
-        const type_t* res = type_rewrite(mod, struct_def->mbs[i], &type2type);
+        const type_t* res = type_rewrite(mod, type->data.struct_def->members, &type2type);
         type2type_destroy(&type2type);
         return res;
     } else {
-        return struct_def->mbs[i];
+        return type->data.struct_def->members;
     }
 }
 
@@ -189,8 +183,8 @@ const type_t* type_array(mod_t* mod, const type_t* elem_type) {
     return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type });
 }
 
-const type_t* type_struct(mod_t* mod, uint32_t id, size_t nops, const type_t** ops) {
-    return make_type(mod, (type_t) { .tag = TYPE_STRUCT, .nops = nops, .ops = ops, .data = { .id = id } });
+const type_t* type_struct(mod_t* mod, struct_def_t* struct_def, size_t nops, const type_t** ops) {
+    return make_type(mod, (type_t) { .tag = TYPE_STRUCT, .nops = nops, .ops = ops, .data = { .struct_def = struct_def } });
 }
 
 const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
@@ -206,16 +200,12 @@ const type_t* type_var(mod_t* mod, uint32_t id) {
     return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .id = id } });
 }
 
-const type_t* type_mod(mod_t* mod, uint32_t id) {
-    return make_type(mod, (type_t) { .tag = TYPE_MOD, .nops = 0, .data = { .id = id } });
-}
-
 const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
     switch (type->tag) {
         case TYPE_PTR:    return type_ptr(mod, ops[0]);
         case TYPE_TUPLE:  return type_tuple(mod, type->nops, ops);
         case TYPE_ARRAY:  return type_array(mod, ops[0]);
-        case TYPE_STRUCT: return type_struct(mod, type->data.id, type->nops, ops);
+        case TYPE_STRUCT: return type_struct(mod, type->data.struct_def, type->nops, ops);
         case TYPE_FN:     return type_fn(mod, ops[0], ops[1]);
         default:
             return make_type(mod, (type_t) { .nops = 0, .tag = type->tag, .data = type->data });

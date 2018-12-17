@@ -8,16 +8,6 @@ typedef struct mod_s  mod_t;
 typedef struct type_s type_t;
 typedef struct node_s node_t;
 
-typedef struct struct_def_s struct_def_t;
-
-struct struct_def_s {
-    const char* name;
-    const type_t** mbs;
-    size_t nmbs;
-};
-
-VEC(struct_def_vec, struct_def_t)
-
 VEC(type_vec, const type_t*)
 HSET_DEFAULT(type_set, const type_t*)
 HMAP_DEFAULT(type2type, const type_t*, const type_t*)
@@ -41,7 +31,6 @@ HSET(internal_node_set, const node_t*, node_cmp, node_hash)
 struct mod_s {
     mpool_t*            pool;
     node_vec_t          fns;
-    struct_def_vec_t    structs;
     internal_node_set_t nodes;
     internal_type_set_t types;
 };

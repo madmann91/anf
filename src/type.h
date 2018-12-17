@@ -26,15 +26,26 @@
     f(TYPE_FN,     "fn") \
     f(TYPE_NORET,  "noret") \
     f(TYPE_VAR,    "var") \
-    f(TYPE_MOD,    "mod")
 
 typedef struct fp_flags_s   fp_flags_t;
+typedef struct struct_def_s struct_def_t;
+typedef struct enum_def_s   enum_def_t;
 
 struct fp_flags_s {
     bool associative_math : 1;   // Assume associativity of floating point operations
     bool reciprocal_math  : 1;   // Allow the use of reciprocal for 1/x
     bool finite_math      : 1;   // Assume no infs
     bool no_nan_math      : 1;   // Assume no NaNs
+};
+
+struct struct_def_s {
+    const char* name;
+    bool byref;
+    const type_t* members;
+};
+
+struct enum_def_s {
+    void* empty; // TODO
 };
 
 enum type_tag_e {
@@ -48,8 +59,10 @@ struct type_s {
     size_t   nops;
     const type_t** ops;
     union {
-        uint32_t id;
-        fp_flags_t fp_flags;
+        uint32_t      id;
+        fp_flags_t    fp_flags;
+        struct_def_t* struct_def;
+        enum_def_t*   enum_def;
     } data;
 };
 
@@ -63,7 +76,7 @@ bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
-const type_t* type_member(mod_t*, const type_t*, size_t);
+const type_t* type_members(mod_t*, const type_t*);
 
 const type_t* type_bool(mod_t*);
 const type_t* type_i8(mod_t*);
@@ -84,11 +97,10 @@ const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_tuple_args(mod_t*, size_t, ...);
 const type_t* type_array(mod_t*, const type_t*);
-const type_t* type_struct(mod_t*, uint32_t, size_t, const type_t**);
+const type_t* type_struct(mod_t*, struct_def_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 const type_t* type_noret(mod_t*);
 const type_t* type_var(mod_t*, uint32_t);
-const type_t* type_mod(mod_t*, uint32_t);
 
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);

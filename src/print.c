@@ -48,6 +48,18 @@ static void print_type(printer_t* printer, const type_t* type) {
             print(printer, " => ");
             print_type(printer, type->ops[1]);
             break;
+        case TYPE_STRUCT:
+            print(printer, type->data.struct_def->byref ? "{$key}struct{$} {$key}byref{$} {0:s}" : "{$key}struct{$} {0:s}", { .s = type->data.struct_def->name });
+            if (type->nops > 0) {
+                print(printer, "[");
+                for (size_t i = 0; i < type->nops; ++i) {
+                    print_type(printer, type->ops[i]);
+                    if (i != type->nops - 1)
+                        print(printer, ", ");
+                }
+                print(printer, "]");
+            }
+            break;
         default:
             assert(false);
             break;
