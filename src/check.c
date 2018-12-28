@@ -5,10 +5,12 @@ static inline bool subtype(const type_t* src, const type_t* dst) {
 }
 
 static const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, const type_t* type, const type_t* expected) {
-    assert(type && expected);
-    if (!subtype(type, expected)) {
-        log_error(checker->log, &ast->loc, "incompatible types for {0:s}; got '{1:t}', expected '{2:t}'",
-            { .s = msg }, { .t = type }, { .t = expected });
+    assert(expected);
+    if (!type || !subtype(type, expected)) {
+        const char* fmt = type
+            ? "expected expression of type '{2:t}', but got {0:s} with type '{1:t}'"
+            : "expected expression of type '{2:t}', but got {0:s}";
+        log_error(checker->log, &ast->loc, fmt, { .s = msg }, { .t = type }, { .t = expected });
         return expected;
     }
     return type;
@@ -70,10 +72,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 TMP_BUF_ALLOC(type_ops, const type_t*, ast_list_length(ast->data.tuple.args))
                 size_t nops = 0;
                 FORALL_AST(ast->data.tuple.args, arg, {
-                    type_ops[nops] = infer(checker, arg);
-                    if (!type_ops[nops])
-                        return NULL;
-                    nops++;
+                    type_ops[nops++] = infer(checker, arg);
                 })
                 const type_t* type = type_tuple(checker->mod, nops, type_ops);
                 TMP_BUF_FREE(type_ops)
@@ -116,7 +115,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
     assert(expected);
     switch (ast->tag) {
         case AST_ID:
-            return ast->data.id.to ? expect(checker, ast, "expression", ast->data.id.to->type, expected) : expected;
+            return ast->data.id.to ? expect(checker, ast, "identifier", ast->data.id.to->type, expected) : expected;
         case AST_BLOCK:
             for (ast_list_t* cur = ast->data.block.stmts; cur; cur = cur->next) {
                 // Check last element, infer every other one
@@ -128,17 +127,65 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 }
             }
             return expect(checker, ast, "block", type_unit(checker->mod), expected);
+        case AST_IF:
+            check(checker, ast->data.if_.cond, type_bool(checker->mod));
+            if (ast->data.if_.if_false) {
+                check(checker, ast->data.if_.if_true, expected);
+                return check(checker, ast->data.if_.if_false, expected);
+            }
+            return check(checker, ast->data.if_.if_true, type_unit(checker->mod));
+        case AST_TUPLE:
+            {
+                size_t nargs = ast_list_length(ast->data.tuple.args);
+                if (nargs == 1)
+                    return check(checker, ast->data.tuple.args->ast, expected);
+                if (expected->tag != TYPE_TUPLE)
+                    return expect(checker, ast, "tuple", NULL, expected);
+                if (expected->nops != nargs) {
+                    log_error(checker->log, &ast->loc, "expected {0:u32} arguments, but got {1:u32}", { .u32 = expected->nops }, { .u32 = nargs });
+                    return expected;
+                }
+                size_t nops = 0;
+                TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
+                FORALL_AST(ast->data.tuple.args, arg, {
+                    type_ops[nops] = check(checker, arg, expected->ops[nops]);
+                    nops++;
+                });
+                const type_t* type = type_tuple(checker->mod, nops, type_ops);
+                TMP_BUF_FREE(type_ops)
+                return type;
+            }
+        case AST_LIT:
+            switch (ast->data.lit.tag) {
+                case LIT_INT:
+                    if (type_is_i(expected) || type_is_u(expected) || type_is_f(expected))
+                        return expected;
+                    return expect(checker, ast, "integer literal", NULL, expected);
+                case LIT_FLT:
+                    if (type_is_f(expected))
+                        return expected;
+                    return expect(checker, ast, "floating point literal", NULL, expected);
+                case LIT_STR:
+                    return expect(checker, ast, "string literal", type_array(checker->mod, type_u8(checker->mod)), expected);
+                case LIT_CHR:
+                    return expect(checker, ast, "character literal", type_u8(checker->mod), expected);
+                case LIT_BOOL:
+                    return expect(checker, ast, "boolean literal", type_bool(checker->mod), expected);
+                default:
+                    assert(false);
+                    break;
+            }
+            break;
         default:
             assert(false);
             return NULL;
     }
 }
 
-void check(checker_t* checker, ast_t* ast, const type_t* expected) {
-    ast->type = check_internal(checker, ast, expected);
+const type_t* check(checker_t* checker, ast_t* ast, const type_t* expected) {
+    return ast->type = check_internal(checker, ast, expected);
 }
 
 const type_t* infer(checker_t* checker, ast_t* ast) {
-    ast->type = infer_internal(checker, ast);
-    return ast->type;
+    return ast->type = infer_internal(checker, ast);
 }
