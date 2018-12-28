@@ -130,6 +130,7 @@ struct ast_s {
         struct {
             ast_t*      id;
             ast_t*      param;
+            ast_t*      ret;
             ast_t*      value;
         } def;
         struct {

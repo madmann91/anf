@@ -1,43 +1,20 @@
 #include "check.h"
 
 static inline bool subtype(const type_t* src, const type_t* dst) {
-    return src == dst; // TODO: Add more cases
+    return src == dst || src->tag == TYPE_BOTTOM;
 }
 
-static const type_t* unify(const type_t* src, const type_t* dst) {
-    if (subtype(src, dst)) return dst;
-    return NULL;
-}
-
-const type_t* check(checker_t* checker, ast_t* ast, const type_t* type) {
-    switch (ast->tag) {
-        case AST_MOD:
-            FORALL_AST(ast->data.mod.decls, decl, {
-                check(checker, decl, NULL /*TODO*/);
-            })
-            break;
-        default:
-            ast->type = infer(checker, ast);
-            if (ast->type && type) {
-                const type_t* unifier = unify(ast->type, type);
-                if (!unifier) {
-                    log_error(checker->log, &ast->loc, "conflicting types for '{0:a}', got '{1:t}' and '{2:t}'",
-                        { .a = ast }, { .t = ast->type }, { .t = type });
-                    ast->type = type; // Avoid further errors by using the required type here
-                } else {
-                    ast->type = unifier;
-                }
-            } else if (type) {
-                ast->type = type;
-            } else if (!ast->type && !type) {
-                log_error(checker->log, &ast->loc, "cannot infer type for '{0:a}'", { .a = ast });
-            }
-            break;
+static const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, const type_t* type, const type_t* expected) {
+    assert(type && expected);
+    if (!subtype(type, expected)) {
+        log_error(checker->log, &ast->loc, "incompatible types for {0:s}; got '{1:t}', expected '{2:t}'",
+            { .s = msg }, { .t = type }, { .t = expected });
+        return expected;
     }
-    return ast->type;
+    return type;
 }
 
-const type_t* infer_head(checker_t* checker, ast_t* ast) {
+static void infer_head(checker_t* checker, ast_t* ast) {
     switch (ast->tag) {
         case AST_MOD:
             FORALL_AST(ast->data.mod.decls, decl, {
@@ -58,10 +35,9 @@ const type_t* infer_head(checker_t* checker, ast_t* ast) {
             })
             break;
     }
-    return NULL;
-} 
+}
 
-const type_t* infer(checker_t* checker, ast_t* ast) {
+static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
     switch (ast->tag) {
         case AST_PROGRAM:
             FORALL_AST(ast->data.program.mods, mod, { infer(checker, mod); })
@@ -85,38 +61,84 @@ const type_t* infer(checker_t* checker, ast_t* ast) {
                 case TYPE_F32:
                 case TYPE_F64:
                     // TODO: Use proper FP flags
-                    return ast->type = type_prim_fp(checker->mod, ast->data.prim.tag, fp_flags_relaxed());
+                    return type_prim_fp(checker->mod, ast->data.prim.tag, fp_flags_relaxed());
                 default:
-                    return ast->type = type_prim(checker->mod, ast->data.prim.tag);
+                    return type_prim(checker->mod, ast->data.prim.tag);
             }
         case AST_TUPLE:
             {
                 TMP_BUF_ALLOC(type_ops, const type_t*, ast_list_length(ast->data.tuple.args))
                 size_t nops = 0;
-                FORALL_AST(ast->data.tuple.args, arg, { type_ops[nops++] = infer(checker, arg); })
+                FORALL_AST(ast->data.tuple.args, arg, {
+                    type_ops[nops] = infer(checker, arg);
+                    if (!type_ops[nops])
+                        return NULL;
+                    nops++;
+                })
                 const type_t* type = type_tuple(checker->mod, nops, type_ops);
                 TMP_BUF_FREE(type_ops)
-                return ast->type = type;
+                return type;
             }
-            break;
         case AST_ANNOT:
-            return ast->type = check(checker, ast->data.annot.ast, infer(checker, ast->data.annot.type));
+            {
+                const type_t* type = infer(checker, ast->data.annot.type);
+                check(checker, ast->data.annot.ast, type);
+                return type;
+            }
         case AST_VAR:
         case AST_VAL:
             {
                 const type_t* type = infer(checker, ast->data.varl.value);
-                if (type)
-                    check(checker, ast->data.varl.ptrn, type);
-                else {
-                    type = infer(checker, ast->data.varl.ptrn);
-                    if (type)
-                        check(checker, ast->data.varl.value, type);
-                    /*else
-                        cannot_infer_type(checker, ast);*/
-                }
-                return type_unit(checker->mod);
+                if (!type)
+                    return infer(checker, ast->data.varl.ptrn);
+                check(checker, ast->data.varl.ptrn, type);
+                return type;
             }
+        case AST_DEF:
+            {
+                const type_t* param_type = infer(checker, ast->data.def.param);
+                const type_t* ret_type = infer(checker, ast->data.def.ret);
+                if (!ret_type)
+                    ret_type = type_unit(checker->mod);
+                check(checker, ast->data.def.value, ret_type);
+                return type_fn(checker->mod, param_type, ret_type);
+            }
+        case AST_BLOCK:
+            FORALL_AST(ast->data.block.stmts, stmt, { infer(checker, stmt); })
+            break;
         default:
+            assert(false);
             return NULL;
     }
+}
+
+static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t* expected) {
+    assert(expected);
+    switch (ast->tag) {
+        case AST_ID:
+            return ast->data.id.to ? expect(checker, ast, "expression", ast->data.id.to->type, expected) : expected;
+        case AST_BLOCK:
+            for (ast_list_t* cur = ast->data.block.stmts; cur; cur = cur->next) {
+                // Check last element, infer every other one
+                if (cur->next)
+                    infer(checker, cur->ast);
+                else {
+                    check(checker, cur->ast, expected);
+                    return cur->ast->type;
+                }
+            }
+            return expect(checker, ast, "block", type_unit(checker->mod), expected);
+        default:
+            assert(false);
+            return NULL;
+    }
+}
+
+void check(checker_t* checker, ast_t* ast, const type_t* expected) {
+    ast->type = check_internal(checker, ast, expected);
+}
+
+const type_t* infer(checker_t* checker, ast_t* ast) {
+    ast->type = infer_internal(checker, ast);
+    return ast->type;
 }

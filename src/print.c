@@ -184,11 +184,13 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             break;
         case AST_DEF:
             print(printer, "{$key}def{$} {0:s}", { .s = ast->data.mod.id->data.id.str });
-            if (ast->data.def.param) {
+            if (ast->data.def.param)
                 print_ast(printer, ast->data.def.param);
-                print(printer, " ");
-            } else
-                print(printer, " = ");
+            if (ast->data.def.ret) {
+                print(printer, " : ");
+                print_ast(printer, ast->data.def.ret);
+            }
+            print(printer, " = ");
             print_ast(printer, ast->data.def.value);
             break;
         case AST_VAR:
@@ -557,15 +559,15 @@ mem_printer_t printer_from_buffer(char* buf, size_t cap) {
 
 void node_dump(const node_t* node) {
     file_printer_t file_printer = printer_from_file(stdout);
-    print(&file_printer.printer, "{0:n}\n", { .n = node });
+    print_node(&file_printer.printer, node);
 }
 
 void type_dump(const type_t* type) {
     file_printer_t file_printer = printer_from_file(stdout);
-    print(&file_printer.printer, "{0:t}\n", { .t = type });
+    print_type(&file_printer.printer, type);
 }
 
 void ast_dump(const ast_t* ast) {
     file_printer_t file_printer = printer_from_file(stdout);
-    print(&file_printer.printer, "{0:a}\n", { .a = ast });
+    print_ast(&file_printer.printer, ast);
 }

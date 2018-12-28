@@ -11,7 +11,7 @@ struct checker_s {
     mod_t* mod;
 };
 
-const type_t* check(checker_t*, ast_t*, const type_t*);
+void check(checker_t*, ast_t*, const type_t*);
 const type_t* infer(checker_t*, ast_t*);
 
 #endif // CHECK_H

@@ -148,6 +148,9 @@ const type_t* type_u64(mod_t* mod)  { return type_prim(mod, TYPE_U64); }
 const type_t* type_f32(mod_t* mod, fp_flags_t flags) { return type_prim_fp(mod, TYPE_F32, flags); }
 const type_t* type_f64(mod_t* mod, fp_flags_t flags) { return type_prim_fp(mod, TYPE_F64, flags); }
 
+const type_t* type_top(mod_t* mod)    { return make_type(mod, (type_t) { .tag = TYPE_TOP,    .nops = 0 }); }
+const type_t* type_bottom(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_BOTTOM, .nops = 0 }); }
+
 const type_t* type_prim(mod_t* mod, uint32_t tag) {
     assert(tag != TYPE_F32 && tag != TYPE_F64);
     return make_type(mod, (type_t) { .tag = tag, .nops = 0 });

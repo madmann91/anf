@@ -18,6 +18,8 @@
 
 #define TYPE_LIST(f) \
     PRIM_LIST(TYPE_, f) \
+    f(TYPE_TOP,    "top") \
+    f(TYPE_BOTTOM, "bottom") \
     f(TYPE_MEM,    "mem") \
     f(TYPE_PTR,    "ptr") \
     f(TYPE_TUPLE,  "tuple") \
@@ -90,6 +92,9 @@ const type_t* type_u32(mod_t*);
 const type_t* type_u64(mod_t*);
 const type_t* type_f32(mod_t*, fp_flags_t);
 const type_t* type_f64(mod_t*, fp_flags_t);
+
+const type_t* type_top(mod_t*);
+const type_t* type_bottom(mod_t*);
 
 const type_t* type_prim(mod_t*, uint32_t);
 const type_t* type_prim_fp(mod_t*, uint32_t, fp_flags_t);
