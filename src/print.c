@@ -560,14 +560,17 @@ mem_printer_t printer_from_buffer(char* buf, size_t cap) {
 void node_dump(const node_t* node) {
     file_printer_t file_printer = printer_from_file(stdout);
     print_node(&file_printer.printer, node);
+    printf("\n");
 }
 
 void type_dump(const type_t* type) {
     file_printer_t file_printer = printer_from_file(stdout);
     print_type(&file_printer.printer, type);
+    printf("\n");
 }
 
 void ast_dump(const ast_t* ast) {
     file_printer_t file_printer = printer_from_file(stdout);
     print_ast(&file_printer.printer, ast);
+    printf("\n");
 }
