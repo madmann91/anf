@@ -26,7 +26,6 @@
     f(TYPE_ARRAY,  "array") \
     f(TYPE_STRUCT, "struct") \
     f(TYPE_FN,     "fn") \
-    f(TYPE_NORET,  "noret") \
     f(TYPE_VAR,    "var") \
 
 typedef struct fp_flags_s   fp_flags_t;
@@ -77,6 +76,7 @@ bool type_is_prim(const type_t*);
 bool type_is_i(const type_t*);
 bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
+bool type_is_subtype(const type_t*, const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
 const type_t* type_members(mod_t*, const type_t*);
@@ -106,7 +106,6 @@ const type_t* type_tuple_args(mod_t*, size_t, ...);
 const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_struct(mod_t*, struct_def_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
-const type_t* type_noret(mod_t*);
 const type_t* type_var(mod_t*, uint32_t);
 
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);

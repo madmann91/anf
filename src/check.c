@@ -1,16 +1,19 @@
 #include "check.h"
 
-static inline bool subtype(const type_t* src, const type_t* dst) {
-    return src == dst || src->tag == TYPE_BOTTOM;
+static fp_flags_t default_fp_flags() {
+    return fp_flags_relaxed();
 }
 
 static const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, const type_t* type, const type_t* expected) {
     assert(expected);
-    if (!type || !subtype(type, expected)) {
-        const char* fmt = type
-            ? "expected expression of type '{2:t}', but got {0:s} with type '{1:t}'"
-            : "expected expression of type '{2:t}', but got {0:s}";
-        log_error(checker->log, &ast->loc, fmt, { .s = msg }, { .t = type }, { .t = expected });
+    if (!type || !type_is_subtype(type, expected)) {
+        static const char* fmts[] = {
+            "expected type '{2:t}', but got {0:s} with type '{1:t}'",
+            "expected type '{2:t}', but got {0:s}",
+            "expected type '{2:t}', but got type '{1:t}'"
+        };
+        size_t i = msg && type ? 0 : (msg ? 1 : 2);
+        log_error(checker->log, &ast->loc, fmts[i], { .s = msg }, { .t = type }, { .t = expected });
         return expected;
     }
     return type;
@@ -39,6 +42,38 @@ static void infer_head(checker_t* checker, ast_t* ast) {
     }
 }
 
+static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
+    switch (ptrn->tag) {
+        case AST_TUPLE:
+            {
+                size_t nargs = ast_list_length(ptrn->data.tuple.args);
+                if (value->tag == AST_TUPLE && nargs == ast_list_length(value->data.tuple.args)) {
+                    TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
+                    ast_list_t* cur_ptrn  = ptrn->data.tuple.args;
+                    ast_list_t* cur_value = value->data.tuple.args;
+                    size_t nops = 0;
+                    while (cur_ptrn) {
+                        type_ops[nops++] = infer_ptrn(checker, cur_ptrn->ast, cur_value->ast);
+                        cur_ptrn = cur_ptrn->next;
+                        cur_value = cur_value->next;
+                    }
+                    const type_t* type = type_tuple(checker->mod, nargs, type_ops);
+                    TMP_BUF_FREE(type_ops)
+                    return type;
+                }
+            }
+        case AST_ANNOT:
+            {
+                const type_t* type = infer(checker, ptrn->data.annot.type);
+                check(checker, ptrn->data.annot.ast, type);
+                return check(checker, value, type);
+            }
+        default:
+            break;
+    }
+    return check(checker, ptrn, infer(checker, value));
+}
+
 static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
     switch (ast->tag) {
         case AST_PROGRAM:
@@ -57,7 +92,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 // This identifier is refering to some other, previously declared identifier
                 return ast->data.id.to->type;
             }
-            return NULL;
+            return type_top(checker->mod);
         case AST_PRIM:
             switch (ast->data.prim.tag) {
                 case TYPE_F32:
@@ -78,6 +113,18 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 TMP_BUF_FREE(type_ops)
                 return type;
             }
+        case AST_CALL:
+            {
+                const type_t* callee_type = infer(checker, ast->data.call.callee);
+                switch (callee_type->tag) {
+                    case TYPE_FN:
+                        check(checker, ast->data.call.arg, callee_type->ops[0]);
+                        return callee_type->ops[1];
+                    default:
+                        log_error(checker->log, &ast->loc, "function type expected in call expression, but got '{0:t}'", { .t = callee_type });
+                        return type_top(checker->mod);
+                }
+            }
         case AST_ANNOT:
             {
                 const type_t* type = infer(checker, ast->data.annot.type);
@@ -86,25 +133,34 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             }
         case AST_VAR:
         case AST_VAL:
-            {
-                const type_t* type = infer(checker, ast->data.varl.value);
-                if (!type)
-                    return infer(checker, ast->data.varl.ptrn);
-                check(checker, ast->data.varl.ptrn, type);
-                return type;
-            }
+            return infer_ptrn(checker, ast->data.varl.ptrn, ast->data.varl.value);
         case AST_DEF:
             {
-                const type_t* param_type = infer(checker, ast->data.def.param);
-                const type_t* ret_type = infer(checker, ast->data.def.ret);
-                if (!ret_type)
-                    ret_type = type_unit(checker->mod);
-                check(checker, ast->data.def.value, ret_type);
-                return type_fn(checker->mod, param_type, ret_type);
+                const type_t* param_type = ast->data.def.param ? infer(checker, ast->data.def.param) : type_bottom(checker->mod);
+                const type_t* ret_type   = ast->data.def.ret   ? infer(checker, ast->data.def.ret) : type_unit(checker->mod);
+                if (ast->data.def.param) {
+                    check(checker, ast->data.def.value, ret_type);
+                    return type_fn(checker->mod, param_type, ret_type);
+                } else if (ast->data.def.ret) {
+                    return check(checker, ast->data.def.value, ret_type);
+                } else {
+                    return infer(checker, ast->data.def.value);
+                }
             }
         case AST_BLOCK:
             FORALL_AST(ast->data.block.stmts, stmt, { infer(checker, stmt); })
             break;
+        case AST_LIT:
+            switch (ast->data.lit.tag) {
+                case LIT_INT:  return type_i32(checker->mod);
+                case LIT_FLT:  return type_f32(checker->mod, default_fp_flags());
+                case LIT_STR:  return type_array(checker->mod, type_u8(checker->mod));
+                case LIT_CHR:  return type_u8(checker->mod);
+                case LIT_BOOL: return type_bool(checker->mod);
+                default:
+                    assert(false);
+                    return NULL;
+            }
         default:
             assert(false);
             return NULL;
@@ -177,8 +233,10 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
             }
             break;
         default:
-            assert(false);
-            return NULL;
+            {
+                const type_t* type = infer(checker, ast);
+                return expect(checker, ast, NULL, type, expected);
+            }
     }
 }
 

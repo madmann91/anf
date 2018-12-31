@@ -89,6 +89,10 @@ bool type_is_f(const type_t* type) {
     }
 }
 
+bool type_is_subtype(const type_t* src, const type_t* dst) {
+    return src == dst || src->tag == TYPE_BOTTOM || dst->tag == TYPE_TOP;
+}
+
 bool type_contains(const type_t* type, const type_t* op) {
     for (size_t i = 0; i < type->nops; ++i) {
         if (type_contains(type->ops[i], op))
@@ -102,7 +106,7 @@ size_t type_order(const type_t* type) {
         size_t dom   = type_order(type->ops[0]);
         size_t codom = type_order(type->ops[1]);
         return 1 + (dom > codom + 1 ? dom : codom + 1);
-    } else if (type->tag == TYPE_NORET) {
+    } else if (type->tag == TYPE_BOTTOM) {
         return -1;
     } else {
         size_t order = 0;
@@ -201,10 +205,6 @@ const type_t* type_struct(mod_t* mod, struct_def_t* struct_def, size_t nops, con
 const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     const type_t* ops[] = { from, to };
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
-}
-
-const type_t* type_noret(mod_t* mod) {
-    return make_type(mod, (type_t) { .tag = TYPE_NORET, .nops = 0 });
 }
 
 const type_t* type_var(mod_t* mod, uint32_t id) {

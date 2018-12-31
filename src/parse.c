@@ -563,9 +563,11 @@ static ast_t* parse_def(parser_t* parser) {
     eat_nl(parser);
     ast->data.def.id = parse_id(parser);
     eat_nl(parser);
-    ast->data.def.param = parse_tuple(parser, "function parameter", parse_ptrn);
-    if (ast_is_refutable(ast->data.def.param))
-        log_error(parser->log, &ast->data.def.param->loc, "invalid function parameter");
+    if (parser->ahead.tag == TOK_LPAREN) {
+        ast->data.def.param = parse_tuple(parser, "function parameter", parse_ptrn);
+        if (ast_is_refutable(ast->data.def.param))
+            log_error(parser->log, &ast->data.def.param->loc, "invalid function parameter");
+    }
     if (parser->ahead.tag == TOK_COLON) {
         eat(parser, TOK_COLON);
         ast->data.def.ret = parse_type(parser);
