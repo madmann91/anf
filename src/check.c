@@ -19,29 +19,6 @@ static const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, con
     return type;
 }
 
-static void infer_head(checker_t* checker, ast_t* ast) {
-    switch (ast->tag) {
-        case AST_MOD:
-            FORALL_AST(ast->data.mod.decls, decl, {
-                assert(!decl->type);
-                if (decl->tag == AST_STRUCT) {
-                    // Create structure definition
-                    const char* name = decl->data.struct_.id->data.id.str;
-                    struct_def_t* struct_def = mpool_alloc(&checker->mod->pool, sizeof(struct_def_t));
-                    char* buf = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
-                    strcpy(buf, name);
-                    *struct_def = (struct_def_t) {
-                        .name    = buf,
-                        .byref   = decl->data.struct_.byref,
-                        .members = NULL
-                    };
-                    decl->type = type_struct(checker->mod, struct_def, 0, NULL);
-                }
-            })
-            break;
-    }
-}
-
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
     switch (ptrn->tag) {
         case AST_TUPLE:
@@ -80,17 +57,27 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             FORALL_AST(ast->data.program.mods, mod, { infer(checker, mod); })
             return NULL;
         case AST_MOD:
-            infer_head(checker, ast);
             FORALL_AST(ast->data.mod.decls, decl, { infer(checker, decl); })
             return NULL;
         case AST_STRUCT:
-            assert(ast->type && ast->type->tag == TYPE_STRUCT && ast->type->data.struct_def);
-            ast->type->data.struct_def->members = infer(checker, ast->data.struct_.members);
-            return ast->type;
+            {
+                const char* name = ast->data.struct_.id->data.id.str;
+                struct_def_t* struct_def = mpool_alloc(&checker->mod->pool, sizeof(struct_def_t));
+                char* buf = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
+                strcpy(buf, name);
+                *struct_def = (struct_def_t) {
+                    .name    = buf,
+                    .byref   = ast->data.struct_.byref,
+                    .members = NULL
+                };
+                ast->type = type_struct(checker->mod, struct_def, 0, NULL);
+                ast->type->data.struct_def->members = infer(checker, ast->data.struct_.members);
+                return ast->type;
+            }
         case AST_ID:
             if (ast->data.id.to) {
                 // This identifier is refering to some other, previously declared identifier
-                return ast->data.id.to->type;
+                return infer(checker, (ast_t*)ast->data.id.to);
             }
             return type_top(checker->mod);
         case AST_PRIM:
@@ -139,8 +126,10 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 const type_t* param_type = ast->data.def.param ? infer(checker, ast->data.def.param) : type_bottom(checker->mod);
                 const type_t* ret_type   = ast->data.def.ret   ? infer(checker, ast->data.def.ret) : type_unit(checker->mod);
                 if (ast->data.def.param) {
+                    // Set the type immediately to allow checking recursive calls
+                    ast->type = type_fn(checker->mod, param_type, ret_type);
                     check(checker, ast->data.def.value, ret_type);
-                    return type_fn(checker->mod, param_type, ret_type);
+                    return ast->type;
                 } else if (ast->data.def.ret) {
                     return check(checker, ast->data.def.value, ret_type);
                 } else {
@@ -160,6 +149,24 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 default:
                     assert(false);
                     return NULL;
+            }
+        case AST_CONT:
+            {
+                assert(ast->data.cont.parent && ast->data.cont.parent->type);
+                const type_t* parent_type = ast->data.cont.parent->type;
+                switch (ast->data.cont.tag) {
+                    case CONT_RETURN:
+                        if (parent_type->tag == TYPE_FN)
+                            return type_fn(checker->mod, parent_type->ops[1], type_bottom(checker->mod));
+                        break;
+                    case CONT_CONTINUE:
+                    case CONT_BREAK:
+                        return type_fn(checker->mod, type_unit(checker->mod), type_bottom(checker->mod));
+                    default:
+                        assert(false);
+                        break;
+                }
+                return type_top(checker->mod);
             }
         default:
             assert(false);
@@ -241,9 +248,12 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
 }
 
 const type_t* check(checker_t* checker, ast_t* ast, const type_t* expected) {
+    assert(!ast->type);
     return ast->type = check_internal(checker, ast, expected);
 }
 
 const type_t* infer(checker_t* checker, ast_t* ast) {
+    if (ast->type)
+        return ast->type;
     return ast->type = infer_internal(checker, ast);
 }
