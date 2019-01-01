@@ -39,6 +39,7 @@ static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
                     return type;
                 }
             }
+            break;
         case AST_ANNOT:
             {
                 const type_t* type = infer(checker, ptrn->data.annot.type);
@@ -137,8 +138,11 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 }
             }
         case AST_BLOCK:
-            FORALL_AST(ast->data.block.stmts, stmt, { infer(checker, stmt); })
-            break;
+            {
+                const type_t* last = type_unit(checker->mod);
+                FORALL_AST(ast->data.block.stmts, stmt, { last = infer(checker, stmt); })
+                return last;
+            }
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:  return type_i32(checker->mod);
