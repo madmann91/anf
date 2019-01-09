@@ -168,6 +168,7 @@ struct ast_s {
             ast_t*      arg;
         } unop;
         struct {
+            bool        lambda;
             ast_t*      param;
             ast_t*      body;
         } fn;

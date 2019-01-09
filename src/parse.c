@@ -427,6 +427,7 @@ static ast_t* parse_field(parser_t* parser, ast_t* arg) {
 static ast_t* parse_fn(parser_t* parser, ast_t* param) {
     ast_t* ast = ast_create_with_loc(parser, AST_FN, param->loc);
     eat(parser, TOK_RARROW);
+    ast->data.fn.lambda = true;
     ast->data.fn.param = param;
     if (!ast_is_ptrn(param) || ast_is_refutable(param))
         log_error(parser->log, &param->loc, "invalid function parameter");
@@ -550,6 +551,7 @@ static ast_t* parse_prim(parser_t* parser, uint32_t tag) {
 static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
     ast_t* ast = ast_create_with_loc(parser, AST_FN, from->loc);
     eat(parser, TOK_RARROW);
+    ast->data.fn.lambda = false;
     ast->data.fn.param = from;
     ast->data.fn.body  = parse_type(parser);
     return ast_finalize(ast, parser);
