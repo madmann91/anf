@@ -7,6 +7,9 @@ static fp_flags_t default_fp_flags() {
 static const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, const type_t* type, const type_t* expected) {
     assert(expected);
     if (!type || !type_is_subtype(type, expected)) {
+        // When a type contains top, this is an error that has already been logged before
+        if (type_contains(type, type_top(checker->mod)))
+            return expected;
         static const char* fmts[] = {
             "expected type '{2:t}', but got {0:s} with type '{1:t}'",
             "expected type '{2:t}', but got {0:s}",
@@ -80,6 +83,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 // This identifier is refering to some other, previously declared identifier
                 return infer(checker, (ast_t*)ast->data.id.to);
             }
+            log_error(checker->log, &ast->loc, "cannot infer type for identifier '{0:s}'", { .s = ast->data.id.str });
             return type_top(checker->mod);
         case AST_PRIM:
             switch (ast->data.prim.tag) {
@@ -101,6 +105,18 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 TMP_BUF_FREE(type_ops)
                 return type;
             }
+        case AST_FIELD:
+            {
+                const type_t* struct_type = infer(checker, ast->data.field.arg);
+                if (struct_type->tag != TYPE_STRUCT) {
+                    if (struct_type->tag != TYPE_TOP)
+                        log_error(checker->log, &ast->loc, "structure type expected in field expression, but got '{0:t}'", { .t = struct_type });
+                    return type_top(checker->mod);
+                }
+                // TODO
+                assert(false);
+                return NULL;
+            }
         case AST_CALL:
             {
                 const type_t* callee_type = infer(checker, ast->data.call.callee);
@@ -109,7 +125,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                         check(checker, ast->data.call.arg, callee_type->ops[0]);
                         return callee_type->ops[1];
                     default:
-                        log_error(checker->log, &ast->loc, "function type expected in call expression, but got '{0:t}'", { .t = callee_type });
+                        if (callee_type->tag != TYPE_TOP)
+                            log_error(checker->log, &ast->loc, "function type expected in call expression, but got '{0:t}'", { .t = callee_type });
                         return type_top(checker->mod);
                 }
             }
@@ -166,17 +183,15 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 const type_t* parent_type = ast->data.cont.parent->type;
                 switch (ast->data.cont.tag) {
                     case CONT_RETURN:
-                        if (parent_type->tag == TYPE_FN)
-                            return type_fn(checker->mod, parent_type->ops[1], type_bottom(checker->mod));
-                        break;
+                        assert(parent_type->tag == TYPE_FN);
+                        return type_fn(checker->mod, parent_type->ops[1], type_bottom(checker->mod));
                     case CONT_CONTINUE:
                     case CONT_BREAK:
                         return type_fn(checker->mod, type_unit(checker->mod), type_bottom(checker->mod));
                     default:
                         assert(false);
-                        break;
+                        return NULL;
                 }
-                return type_top(checker->mod);
             }
         default:
             assert(false);

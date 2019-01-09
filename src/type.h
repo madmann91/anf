@@ -40,8 +40,8 @@ struct fp_flags_s {
 };
 
 struct struct_def_s {
-    const char* name;
     bool byref;
+    const char* name;
     const type_t* members;
 };
 

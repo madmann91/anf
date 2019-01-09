@@ -94,6 +94,8 @@ bool type_is_subtype(const type_t* src, const type_t* dst) {
 }
 
 bool type_contains(const type_t* type, const type_t* op) {
+    if (type->tag == TYPE_TOP)
+        return true;
     for (size_t i = 0; i < type->nops; ++i) {
         if (type_contains(type->ops[i], op))
             return true;

@@ -3,8 +3,8 @@ mod structs {
     struct byref S2(s: S3)
     struct byref S3(s: S2)
 
-    def test() {
+    def test() = {
         var x = S(1, 2)
-        var y = x.a + x.b
+        var y = (x.a, x.b)
     }
 }
