@@ -333,7 +333,7 @@ static ast_t* parse_pre_unop(parser_t* parser, uint32_t tag) {
 }
 
 static ast_t* parse_call(parser_t* parser, ast_t* callee) {
-    ast_t* ast = ast_create(parser, AST_CALL);
+    ast_t* ast = ast_create_with_loc(parser, AST_CALL, callee->loc);
     ast->data.call.callee = callee;
     ast->data.call.arg    = parse_tuple_or_err(parser, "function call argument", parse_expr);
     return ast_finalize(ast, parser);
