@@ -193,13 +193,13 @@ void bind(binder_t* binder, ast_t* ast) {
             bind(binder, ast->data.binop.left);
             bind(binder, ast->data.binop.right);
             break;
-        case AST_LAMBDA:
+        case AST_FN:
             {
                 push_env(binder);
-                bind_ptrn(binder, ast->data.lambda.param);
+                bind_ptrn(binder, ast->data.fn.param);
                 ast_t* fn = binder->fn;
                 binder->fn = ast;
-                bind(binder, ast->data.lambda.body);
+                bind(binder, ast->data.fn.body);
                 binder->fn = fn;
                 pop_env(binder);
             }

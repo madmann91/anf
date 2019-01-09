@@ -1,5 +1,5 @@
 mod lambda {
-    def x = y => 33
-    def y = (x, y) => x + y
-    def z = (x) => y(x)
+    def x : f32 => i32 = y => 33
+    def y = (x : f32, y : i8) => (x, y)
+    def z : (f32, i8) => (f32, i8) = (x) => y(x)
 }

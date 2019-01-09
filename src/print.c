@@ -243,10 +243,10 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
                 if (!prefix) print(printer, "{0:s}", { .s = symbol });
             }
             break;
-        case AST_LAMBDA:
-            print_ast(printer, ast->data.lambda.param);
+        case AST_FN:
+            print_ast(printer, ast->data.fn.param);
             print(printer, " => ");
-            print_ast(printer, ast->data.lambda.body);
+            print_ast(printer, ast->data.fn.body);
             break;
         case AST_CALL:
             print_ast(printer, ast->data.call.callee);

@@ -121,7 +121,7 @@ static ast_t* parse_tuple(parser_t*, const char*, ast_t* (*) (parser_t*));
 static ast_t* parse_tuple_or_err(parser_t*, const char*, ast_t* (*) (parser_t*));
 static ast_t* parse_array(parser_t*);
 static ast_t* parse_field(parser_t*, ast_t*);
-static ast_t* parse_lambda(parser_t*, ast_t*);
+static ast_t* parse_fn(parser_t*, ast_t*);
 static ast_t* parse_block(parser_t*);
 static ast_t* parse_if(parser_t*);
 static ast_t* parse_while(parser_t*);
@@ -132,6 +132,7 @@ static ast_t* parse_cont(parser_t*, uint32_t);
 
 // Types
 static ast_t* parse_prim(parser_t*, uint32_t);
+static ast_t* parse_fn_type(parser_t*, ast_t*);
 
 // Declarations
 static ast_t* parse_struct(parser_t*);
@@ -209,16 +210,19 @@ static ast_t* parse_decl(parser_t* parser) {
 }
 
 static ast_t* parse_type(parser_t* parser) {
+    ast_t* ast = NULL; 
     switch (parser->ahead.tag) {
-#define PRIM(name, str) case TOK_##name: return parse_prim(parser, PRIM_##name);
+#define PRIM(name, str) case TOK_##name: ast = parse_prim(parser, PRIM_##name); break;
         PRIM_LIST(,PRIM)
 #undef PRIM
-        case TOK_ID:     return parse_id(parser);
-        case TOK_LPAREN: return parse_tuple(parser, "tuple type", parse_type);
+        case TOK_ID:     ast = parse_id(parser); break;
+        case TOK_LPAREN: ast = parse_tuple(parser, "tuple type", parse_type); break;
         default:
-            break;
+            return parse_err(parser, "type");
     }
-    return parse_err(parser, "type");
+    if (parser->ahead.tag == TOK_RARROW)
+        ast = parse_fn_type(parser, ast);
+    return ast;
 }
 
 static ast_t* parse_err(parser_t* parser, const char* msg) {
@@ -295,7 +299,7 @@ static ast_t* parse_primary(parser_t* parser) {
     else if (parser->ahead.tag == TOK_DEC)
         ast = parse_post_unop(parser, ast, UNOP_POST_DEC);
     else if (parser->ahead.tag == TOK_RARROW)
-        ast = parse_lambda(parser, ast);
+        ast = parse_fn(parser, ast);
 
     while (true) {
         switch (parser->ahead.tag) {
@@ -420,13 +424,13 @@ static ast_t* parse_field(parser_t* parser, ast_t* arg) {
     return ast_finalize(ast, parser);
 }
 
-static ast_t* parse_lambda(parser_t* parser, ast_t* param) {
-    ast_t* ast = ast_create_with_loc(parser, AST_LAMBDA, param->loc);
+static ast_t* parse_fn(parser_t* parser, ast_t* param) {
+    ast_t* ast = ast_create_with_loc(parser, AST_FN, param->loc);
     eat(parser, TOK_RARROW);
-    ast->data.lambda.param = param;
+    ast->data.fn.param = param;
     if (!ast_is_ptrn(param) || ast_is_refutable(param))
         log_error(parser->log, &param->loc, "invalid function parameter");
-    ast->data.lambda.body  = parse_expr(parser);
+    ast->data.fn.body  = parse_expr(parser);
     return ast_finalize(ast, parser);
 }
 
@@ -540,6 +544,14 @@ static ast_t* parse_prim(parser_t* parser, uint32_t tag) {
     ast_t* ast = ast_create(parser, AST_PRIM);
     next(parser);
     ast->data.prim.tag = tag;
+    return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
+    ast_t* ast = ast_create_with_loc(parser, AST_FN, from->loc);
+    eat(parser, TOK_RARROW);
+    ast->data.fn.param = from;
+    ast->data.fn.body  = parse_type(parser);
     return ast_finalize(ast, parser);
 }
 

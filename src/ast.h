@@ -32,7 +32,7 @@ enum ast_tag_e {
     AST_FIELD,
     AST_BINOP,
     AST_UNOP,
-    AST_LAMBDA,
+    AST_FN,
     AST_CALL,
     AST_IF,
     AST_WHILE,
@@ -170,7 +170,7 @@ struct ast_s {
         struct {
             ast_t*      param;
             ast_t*      body;
-        } lambda;
+        } fn;
         struct {
             ast_t*      callee;
             ast_t*      arg;

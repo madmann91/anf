@@ -143,6 +143,12 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 FORALL_AST(ast->data.block.stmts, stmt, { last = infer(checker, stmt); })
                 return last;
             }
+        case AST_FN:
+            {
+                const type_t* param_type = infer(checker, ast->data.fn.param);
+                const type_t* body_type  = infer(checker, ast->data.fn.body);
+                return type_fn(checker->mod, param_type, body_type);
+            }
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:  return type_i32(checker->mod);
@@ -194,6 +200,14 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 }
             }
             return expect(checker, ast, "block", type_unit(checker->mod), expected);
+        case AST_FN:
+            {
+                if (expected->tag != TYPE_FN)
+                    return expect(checker, ast, "anonymous function", NULL, expected);
+                const type_t* param_type = check(checker, ast->data.fn.param, expected->ops[0]);
+                const type_t* body_type  = check(checker, ast->data.fn.body, expected->ops[1]);
+                return type_fn(checker->mod, param_type, body_type);
+            }
         case AST_IF:
             check(checker, ast->data.if_.cond, type_bool(checker->mod));
             if (ast->data.if_.if_false) {
