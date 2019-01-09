@@ -1,6 +1,6 @@
 mod annots {
     val x : i32 = 5
-    def f((a: i8, b: bool), c: f32) {
+    def f((a: i8, b: bool), c: f32) : i16 = {
         { 1 } : i16
     }
     val (y : u8, z: u32) = (5, 6) : (u8, u32)
