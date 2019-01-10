@@ -230,6 +230,16 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 return check(checker, ast->data.if_.if_false, expected);
             }
             return check(checker, ast->data.if_.if_true, type_unit(checker->mod));
+        case AST_MATCH:
+            {
+                const type_t* arg_type = infer(checker, ast->data.match.arg);
+                FORALL_AST(ast->data.match.cases, case_, {
+                    assert(case_->tag == AST_CASE);
+                    check(checker, case_->data.case_.ptrn, arg_type);
+                    case_->type = check(checker, case_->data.case_.value, expected);
+                });
+                return expected;
+            }
         case AST_TUPLE:
             {
                 size_t nargs = ast_list_length(ast->data.tuple.args);

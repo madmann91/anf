@@ -59,17 +59,15 @@ static char* tok2str_with_quotes(uint32_t tag, char* buf) {
 
 static inline bool expect(parser_t* parser, const char* msg, uint32_t tag) {
     assert(tag != TOK_ID);
-    bool status = true;
-    if (parser->ahead.tag != tag) {
+    if (!accept(parser, tag)) {
         char buf1[TOK2STR_BUF_SIZE + 2];
         char buf2[TOK2STR_BUF_SIZE + 2];
         const char* str1 = tok2str_with_quotes(tag, buf1);
         const char* str2 = tok2str_with_quotes(parser->ahead.tag, buf2);
         log_error(parser->log, &parser->ahead.loc, "expected {0:s} in {1:s}, but got {2:s}", { .s = str1 }, { .s = msg }, { .s = str2 });
-        status = false;
+        return false;
     }
-    next(parser);
-    return status;
+    return true;
 }
 
 static inline ast_t* ast_create_with_loc(parser_t* parser, uint32_t tag, loc_t loc) {
@@ -459,8 +457,7 @@ static ast_t* parse_if(parser_t* parser) {
     eat_nl(parser);
     ast->data.if_.if_true = parse_expr(parser);
     eat_nl(parser);
-    if (parser->ahead.tag == TOK_ELSE) {
-        eat(parser, TOK_ELSE);
+    if (accept(parser, TOK_ELSE)) {
         eat_nl(parser);
         ast->data.if_.if_false = parse_expr(parser);
     }
@@ -560,10 +557,8 @@ static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
 static ast_t* parse_struct(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_STRUCT);
     eat(parser, TOK_STRUCT);
-    if (parser->ahead.tag == TOK_BYREF) {
-        eat(parser, TOK_BYREF);
+    if (accept(parser, TOK_BYREF))
         ast->data.struct_.byref = true;
-    }
     ast->data.struct_.id = parse_id(parser);
     ast->data.struct_.members = parse_tuple(parser, "structure definition", parse_ptrn);
     if (ast_is_refutable(ast->data.struct_.members))
