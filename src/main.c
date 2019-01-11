@@ -99,7 +99,7 @@ static bool process_file(const char* file) {
     }
 
     mod_t* mod = mod_create();
-    if (ok) {
+    /*if (ok) {
         // Perform type checking
         checker_t checker = {
             .log = &file_log.log,
@@ -107,7 +107,7 @@ static bool process_file(const char* file) {
         };
         infer(&checker, ast);
         ok &= !file_log.log.errs;
-    }
+    }*/
 
     // Display program on success
     if (ok) {

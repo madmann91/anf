@@ -1,13 +1,13 @@
 mod literals {
-    def a = 1
-    def b = 1e5
-    def c = 1.0
-    def d = 1.0e5
-    def e = true
-    def f = false
-    def g = "Hello world !"
-    def h = 't'
-    def i = "āãäâàáēẽëêèéīĩïîìíōõöôòóūũüûùúỹÿŷỳý€¥ß"
-    def j = 0b1001001010
-    def k = 0xABCDEF98
+    val a = 1
+    val b = 1e5
+    val c = 1.0
+    val d = 1.0e5
+    val e = true
+    val f = false
+    val g = "Hello world !"
+    val h = 't'
+    val i = "āãäâàáēẽëêèéīĩïîìíōõöôòóūũüûùúỹÿŷỳý€¥ß"
+    val j = 0b1001001010
+    val k = 0xABCDEF98
 }

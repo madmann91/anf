@@ -637,8 +637,13 @@ static ast_t* parse_def(parser_t* parser) {
     } else {
         ast->data.def.param = parse_err(parser, "function parameter list");
     }
-    if (accept(parser, TOK_RARROW))
+    eat_nl(parser);
+    if (accept(parser, TOK_COLON)) {
+        eat_nl(parser);
         ast->data.def.ret = parse_type(parser);
+    }
+    eat_nl(parser);
+    expect(parser, "function definition", TOK_EQ);
     eat_nl(parser);
     ast->data.def.value = parse_expr(parser);
     return ast_finalize(ast, parser);
