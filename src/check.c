@@ -136,23 +136,19 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 check(checker, ast->data.annot.ast, type);
                 return type;
             }
+        case AST_NAME:
+            return infer(checker, ast->data.name.value);
         case AST_VAR:
         case AST_VAL:
             return infer_ptrn(checker, ast->data.varl.ptrn, ast->data.varl.value);
         case AST_DEF:
             {
-                const type_t* param_type = ast->data.def.param ? infer(checker, ast->data.def.param) : type_bottom(checker->mod);
-                const type_t* ret_type   = ast->data.def.ret   ? infer(checker, ast->data.def.ret) : type_unit(checker->mod);
-                if (ast->data.def.param) {
-                    // Set the type immediately to allow checking recursive calls
-                    ast->type = type_fn(checker->mod, param_type, ret_type);
-                    check(checker, ast->data.def.value, ret_type);
-                    return ast->type;
-                } else if (ast->data.def.ret) {
-                    return check(checker, ast->data.def.value, ret_type);
-                } else {
-                    return infer(checker, ast->data.def.value);
-                }
+                const type_t* param_type = infer(checker, ast->data.def.param);
+                const type_t* ret_type   = ast->data.def.ret ? infer(checker, ast->data.def.ret) : type_unit(checker->mod);
+                // Set the type immediately to allow checking recursive calls
+                ast->type = type_fn(checker->mod, param_type, ret_type);
+                check(checker, ast->data.def.value, ret_type);
+                return ast->type;
             }
         case AST_BLOCK:
             {

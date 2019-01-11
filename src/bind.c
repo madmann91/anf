@@ -172,6 +172,9 @@ void bind(binder_t* binder, ast_t* ast) {
             bind(binder, ast->data.annot.ast);
             bind(binder, ast->data.annot.type);
             break;
+        case AST_NAME:
+            bind(binder, ast->data.name.value);
+            break;
         case AST_ARRAY:
             FORALL_AST(ast->data.array.elems, elem, {
                 bind(binder, elem);

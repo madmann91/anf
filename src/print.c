@@ -199,6 +199,10 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print(printer, " : ");
             print_ast(printer, ast->data.annot.type);
             break;
+        case AST_NAME:
+            print(printer, "{0:s} = ", { .s = ast->data.name.id->data.id.str });
+            print_ast(printer, ast->data.name.value);
+            break;
         case AST_PRIM:
             print(printer, "{$key}{0:s}{$}", { .s = prim2str(ast->data.prim.tag) });
             break;

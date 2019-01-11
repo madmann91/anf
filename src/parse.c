@@ -116,7 +116,8 @@ static ast_t* parse_pre_unop(parser_t*, uint32_t);
 static ast_t* parse_binop(parser_t*, ast_t*, int);
 static ast_t* parse_call(parser_t*, ast_t*);
 static ast_t* parse_tuple(parser_t*, const char*, ast_t* (*) (parser_t*));
-static ast_t* parse_tuple_or_err(parser_t*, const char*, ast_t* (*) (parser_t*));
+static ast_t* parse_name(parser_t*);
+static ast_t* parse_args(parser_t*);
 static ast_t* parse_array(parser_t*);
 static ast_t* parse_field(parser_t*, ast_t*);
 static ast_t* parse_fn(parser_t*, ast_t*);
@@ -133,6 +134,9 @@ static ast_t* parse_prim(parser_t*, uint32_t);
 static ast_t* parse_fn_type(parser_t*, ast_t*);
 
 // Declarations
+static ast_t* parse_member_or_param(parser_t*, const char* msg);
+static ast_t* parse_member(parser_t*);
+static ast_t* parse_param(parser_t*);
 static ast_t* parse_struct(parser_t*);
 static ast_t* parse_def(parser_t*);
 static ast_t* parse_var_or_val(parser_t*, bool);
@@ -226,7 +230,7 @@ static ast_t* parse_type(parser_t* parser) {
 static ast_t* parse_err(parser_t* parser, const char* msg) {
     ast_t* ast = ast_create(parser, AST_ERR);
     char buf[TOK2STR_BUF_SIZE + 2];
-    log_error(parser->log, &parser->ahead.loc, "expected {0:s}, got {1:s}", { .s = msg }, { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
+    log_error(parser->log, &parser->ahead.loc, "expected {0:s}, but got {1:s}", { .s = msg }, { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
     next(parser);
     return ast_finalize(ast, parser);
 }
@@ -236,7 +240,7 @@ static ast_t* parse_id(parser_t* parser) {
     char* str = "";
     if (parser->ahead.tag != TOK_ID) {
         char buf[TOK2STR_BUF_SIZE + 2];
-        log_error(parser->log, &parser->ahead.loc, "identifier expected, got {0:s}", { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
+        log_error(parser->log, &parser->ahead.loc, "identifier expected, but got {0:s}", { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
     } else {
         str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
         strcpy(str, parser->ahead.str);
@@ -262,6 +266,30 @@ static ast_t* parse_lit(parser_t* parser) {
     ast->data.lit.tag   = parser->ahead.tag;
     next(parser);
     return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_suffix(parser_t* parser, ast_t* ast) {
+    if (parser->ahead.tag == TOK_INC)
+        ast = parse_post_unop(parser, ast, UNOP_POST_INC);
+    else if (parser->ahead.tag == TOK_DEC)
+        ast = parse_post_unop(parser, ast, UNOP_POST_DEC);
+    else if (parser->ahead.tag == TOK_RARROW)
+        ast = parse_fn(parser, ast);
+
+    while (true) {
+        switch (parser->ahead.tag) {
+            case TOK_LPAREN: ast = parse_call(parser, ast);  continue;
+            case TOK_MATCH:  ast = parse_match(parser, ast); continue;
+            case TOK_DOT:    ast = parse_field(parser, ast); continue;
+            default: break;
+        }
+        break;
+    }
+
+    if (parser->ahead.tag == TOK_COLON)
+        ast = parse_annot(parser, ast);
+    return ast;
+
 }
 
 static ast_t* parse_primary(parser_t* parser) {
@@ -292,26 +320,7 @@ static ast_t* parse_primary(parser_t* parser) {
             break;
     }
     assert(ast);
-    if (parser->ahead.tag == TOK_INC)
-        ast = parse_post_unop(parser, ast, UNOP_POST_INC);
-    else if (parser->ahead.tag == TOK_DEC)
-        ast = parse_post_unop(parser, ast, UNOP_POST_DEC);
-    else if (parser->ahead.tag == TOK_RARROW)
-        ast = parse_fn(parser, ast);
-
-    while (true) {
-        switch (parser->ahead.tag) {
-            case TOK_LPAREN: ast = parse_call(parser, ast);  continue;
-            case TOK_MATCH:  ast = parse_match(parser, ast); continue;
-            case TOK_DOT:    ast = parse_field(parser, ast); continue;
-            default: break;
-        }
-        break;
-    }
-
-    if (parser->ahead.tag == TOK_COLON)
-        ast = parse_annot(parser, ast);
-    return ast;
+    return parse_suffix(parser, ast);
 }
 
 static ast_t* parse_post_unop(parser_t* parser, ast_t* arg, uint32_t tag) {
@@ -333,7 +342,7 @@ static ast_t* parse_pre_unop(parser_t* parser, uint32_t tag) {
 static ast_t* parse_call(parser_t* parser, ast_t* callee) {
     ast_t* ast = ast_create_with_loc(parser, AST_CALL, callee->loc);
     ast->data.call.callee = callee;
-    ast->data.call.arg    = parse_tuple_or_err(parser, "function call argument", parse_expr);
+    ast->data.call.arg    = parse_args(parser);
     return ast_finalize(ast, parser);
 }
 
@@ -363,14 +372,10 @@ static ast_t* parse_binop(parser_t* parser, ast_t* left, int max_prec) {
     return left;
 }
 
-static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
-    ast_t* ast = ast_create(parser, AST_TUPLE);
-    eat(parser, TOK_LPAREN);
-    eat_nl(parser);
-    ast_list_t** cur = &ast->data.tuple.args;
+static inline ast_list_t** parse_tuple_elems(parser_t* parser, const char* msg, ast_list_t** elems, ast_t* (*parse_elem)(parser_t*)) {
     while (parser->ahead.tag != TOK_RPAREN) {
-        ast_t* arg = parse_elem(parser);
-        cur = ast_list_add(parser, cur, arg);
+        ast_t* elem = parse_elem(parser);
+        elems = ast_list_add(parser, elems, elem);
 
         eat_nl(parser);
         if (!accept(parser, TOK_COMMA))
@@ -378,6 +383,14 @@ static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem
         eat_nl(parser);
     }
     expect(parser, msg, TOK_RPAREN);
+    return elems;
+}
+
+static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
+    ast_t* ast = ast_create(parser, AST_TUPLE);
+    eat(parser, TOK_LPAREN);
+    eat_nl(parser);
+    parse_tuple_elems(parser, msg, &ast->data.tuple.args, parse_elem);
     return ast_finalize(ast, parser);
 }
 
@@ -385,6 +398,49 @@ static ast_t* parse_tuple_or_err(parser_t* parser, const char* msg, ast_t* (*par
     if (parser->ahead.tag == TOK_LPAREN)
         return parse_tuple(parser, msg, parse_elem);
     return parse_err(parser, msg);
+}
+
+static ast_t* parse_name(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_NAME);
+    ast->data.name.id = parse_id(parser);
+    if (!expect(parser, "named argument", TOK_EQ))
+        log_note(parser->log, &parser->ahead.loc, "mixing named and unnamed arguments is not allowed");
+    ast->data.name.value = parse_expr(parser);
+    return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_args(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_TUPLE);
+    eat(parser, TOK_LPAREN);
+    eat_nl(parser);
+    ast_list_t** cur = &ast->data.tuple.args;
+
+    bool named = false;
+    if (parser->ahead.tag == TOK_ID) {
+        ast_t* id = parse_id(parser);
+        eat_nl(parser);
+        ast_t* elem = NULL;
+        if (accept(parser, TOK_EQ)) {
+            ast_t* value = parse_expr(parser);
+            eat_nl(parser);
+            elem = ast_create_with_loc(parser, AST_NAME, id->loc);
+            elem->data.name.id = id;
+            elem->data.name.value = value;
+            ast_finalize(elem, parser);
+            named = true;
+        } else {
+            elem = parse_suffix(parser, id);
+        }
+        cur = ast_list_add(parser, cur, elem);
+        if (!accept(parser, TOK_COMMA)) {
+            expect(parser, "call arguments", TOK_RPAREN);
+            return ast_finalize(ast, parser);
+        }
+        eat_nl(parser);
+    }
+
+    parse_tuple_elems(parser, "call arguments", cur, named ? parse_name : parse_expr);
+    return ast;
 }
 
 static ast_t* parse_array(parser_t* parser) {
@@ -554,13 +610,29 @@ static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
     return ast_finalize(ast, parser);
 }
 
+static ast_t* parse_member_or_param(parser_t* parser, const char* msg) {
+    ast_t* ast = ast_create(parser, AST_ANNOT);
+    ast->data.annot.ast = parse_id(parser);
+    expect(parser, msg, TOK_COLON);
+    ast->data.annot.type = parse_type(parser);
+    return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_member(parser_t* parser) {
+    return parse_member_or_param(parser, "structure member");
+}
+
+static ast_t* parse_param(parser_t* parser) {
+    return parse_member_or_param(parser, "function parameter");
+}
+
 static ast_t* parse_struct(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_STRUCT);
     eat(parser, TOK_STRUCT);
     if (accept(parser, TOK_BYREF))
         ast->data.struct_.byref = true;
     ast->data.struct_.id = parse_id(parser);
-    ast->data.struct_.members = parse_tuple(parser, "structure definition", parse_ptrn);
+    ast->data.struct_.members = parse_tuple(parser, "structure members", parse_member);
     if (ast_is_refutable(ast->data.struct_.members))
         log_error(parser->log, &ast->data.struct_.members->loc, "invalid structure definition");
     return ast_finalize(ast, parser);
@@ -573,15 +645,14 @@ static ast_t* parse_def(parser_t* parser) {
     ast->data.def.id = parse_id(parser);
     eat_nl(parser);
     if (parser->ahead.tag == TOK_LPAREN) {
-        ast->data.def.param = parse_tuple(parser, "function parameter", parse_ptrn);
+        ast->data.def.param = parse_tuple(parser, "function parameters", parse_param);
         if (ast_is_refutable(ast->data.def.param))
-            log_error(parser->log, &ast->data.def.param->loc, "invalid function parameter");
+            log_error(parser->log, &ast->data.def.param->loc, "invalid function parameters");
+    } else {
+        ast->data.def.param = parse_err(parser, "function parameter list");
     }
-    if (parser->ahead.tag == TOK_COLON) {
-        eat(parser, TOK_COLON);
+    if (accept(parser, TOK_RARROW))
         ast->data.def.ret = parse_type(parser);
-    }
-    expect(parser, "definition", TOK_EQ);
     eat_nl(parser);
     ast->data.def.value = parse_expr(parser);
     return ast_finalize(ast, parser);

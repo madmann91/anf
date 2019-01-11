@@ -25,6 +25,7 @@ enum ast_tag_e {
     AST_VAR,
     AST_VAL,
     AST_ANNOT,
+    AST_NAME,
     AST_PRIM,
     AST_BLOCK,
     AST_TUPLE,
@@ -148,6 +149,7 @@ struct ast_s {
             ast_list_t* stmts;
         } block;
         struct {
+            bool        named;
             ast_list_t* args;
         } tuple;
         struct {
@@ -155,6 +157,11 @@ struct ast_s {
             ast_list_t* elems;
         } array;
         struct {
+            ast_t*      id;
+            ast_t*      value;
+        } name;
+        struct {
+            size_t      index;
             ast_t*      arg;
             ast_t*      id;
         } field;
