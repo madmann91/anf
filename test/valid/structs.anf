@@ -4,7 +4,7 @@ mod structs {
     struct byref S3(s: S2)
 
     def test() = {
-        var x = S(1, 2)
+        var x = S(b = 1, a = 2)
         var y = (x.a, x.b)
     }
 }

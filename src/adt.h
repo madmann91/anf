@@ -30,7 +30,7 @@
     static inline hmap##_t hmap##_create_with_cap(size_t cap) { \
         struct pair_s { key_t key; value_t value; }; \
         return (hmap##_t) { \
-            .table = htable_create(sizeof(struct pair_s), cap, cmp) \
+            .table = cap > 0 ? htable_create(sizeof(struct pair_s), cap, cmp) : 0 \
         }; \
     } \
     static inline hmap##_t hmap##_create(void) { \
@@ -38,23 +38,26 @@
     } \
     static inline hmap##_t hmap##_copy(const hmap##_t* map) { \
         return (hmap##_t) { \
-            .table = htable_copy(map->table) \
+            .table = map->table ? htable_copy(map->table) : NULL \
         }; \
     } \
     static inline void hmap##_destroy(hmap##_t* map) { \
-        htable_destroy(map->table); \
+        if (map->table) htable_destroy(map->table); \
     } \
     static inline void hmap##_clear(hmap##_t* map) { \
-        htable_clear(map->table); \
+        if (map->table) htable_clear(map->table); \
     } \
     static inline bool hmap##_insert(hmap##_t* map, key_t k, value_t v) { \
+        if (!map->table) *map = hmap##_create(); \
         struct { key_t key; value_t value; } elem = { .key = k, .value = v }; \
         return htable_insert(map->table, &elem, hash(&elem)); \
     } \
     static inline bool hmap##_remove(hmap##_t* map, key_t k) { \
+        if (!map->table) return false; \
         return htable_remove(map->table, &k, hash(&k)); \
     } \
     static inline const value_t* hmap##_lookup(const hmap##_t* map, key_t k) { \
+        if (!map->table) return NULL; \
         size_t index = htable_lookup(map->table, &k, hash(&k)); \
         struct pair_s { key_t key; const value_t value; };\
         return index != INVALID_INDEX ? &((struct pair_s*)map->table->elems)[index].value : NULL; \
@@ -86,7 +89,7 @@
     typedef struct { htable_t* table; } hset##_t; \
     static inline hset##_t hset##_create_with_cap(size_t cap) { \
         return (hset##_t) { \
-            .table = htable_create(sizeof(value_t), cap, cmp) \
+            .table = cap > 0 ? htable_create(sizeof(value_t), cap, cmp) : NULL \
         }; \
     } \
     static inline hset##_t hset##_create(void) { \
@@ -94,22 +97,25 @@
     } \
     static inline hset##_t hset##_copy(const hset##_t* set) { \
         return (hset##_t) { \
-            .table = htable_copy(set->table) \
+            .table = set->table ? htable_copy(set->table) : NULL \
         }; \
     } \
     static inline void hset##_destroy(hset##_t* set) { \
-        htable_destroy(set->table); \
+        if (set->table) htable_destroy(set->table); \
     } \
     static inline void hset##_clear(hset##_t* set) { \
-        htable_clear(set->table); \
+        if (set->table) htable_clear(set->table); \
     } \
     static inline bool hset##_insert(hset##_t* set, value_t v) { \
+        if (!set->table) *set = hset##_create(); \
         return htable_insert(set->table, &v, hash(&v)); \
     } \
     static inline bool hset##_remove(hset##_t* set, value_t v) { \
+        if (!set->table) return false; \
         return htable_remove(set->table, &v, hash(&v)); \
     } \
     static inline const value_t* hset##_lookup(const hset##_t* set, value_t v) { \
+        if (!set->table) return NULL; \
         size_t index = htable_lookup(set->table, &v, hash(&v)); \
         return index != INVALID_INDEX ? &((const value_t*)set->table->elems)[index] : NULL; \
     } \
@@ -140,7 +146,7 @@
         return (vec##_t) { \
             .cap = cap, \
             .nelems = 0, \
-            .elems = xmalloc(sizeof(value_t) * cap) \
+            .elems = cap > 0 ? xmalloc(sizeof(value_t) * cap) : NULL \
         }; \
     } \
     static inline vec##_t vec##_create(void) { \
