@@ -372,10 +372,14 @@ static ast_t* parse_binop(parser_t* parser, ast_t* left, int max_prec) {
     return left;
 }
 
-static inline ast_list_t** parse_tuple_elems(parser_t* parser, const char* msg, ast_list_t** elems, ast_t* (*parse_elem)(parser_t*)) {
+static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
+    ast_t* ast = ast_create(parser, AST_TUPLE);
+    eat(parser, TOK_LPAREN);
+    eat_nl(parser);
+    ast_list_t** cur = &ast->data.tuple.args;
     while (parser->ahead.tag != TOK_RPAREN) {
-        ast_t* elem = parse_elem(parser);
-        elems = ast_list_add(parser, elems, elem);
+        ast_t* arg = parse_elem(parser);
+        cur = ast_list_add(parser, cur, arg);
 
         eat_nl(parser);
         if (!accept(parser, TOK_COMMA))
@@ -383,29 +387,16 @@ static inline ast_list_t** parse_tuple_elems(parser_t* parser, const char* msg, 
         eat_nl(parser);
     }
     expect(parser, msg, TOK_RPAREN);
-    return elems;
-}
-
-static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
-    ast_t* ast = ast_create(parser, AST_TUPLE);
-    eat(parser, TOK_LPAREN);
-    eat_nl(parser);
-    parse_tuple_elems(parser, msg, &ast->data.tuple.args, parse_elem);
     return ast_finalize(ast, parser);
 }
 
-static ast_t* parse_tuple_or_err(parser_t* parser, const char* msg, ast_t* (*parse_elem) (parser_t*)) {
-    if (parser->ahead.tag == TOK_LPAREN)
-        return parse_tuple(parser, msg, parse_elem);
-    return parse_err(parser, msg);
-}
-
 static ast_t* parse_name(parser_t* parser) {
-    ast_t* ast = ast_create(parser, AST_NAME);
-    ast->data.name.id = parse_id(parser);
+    ast_t* ast = ast_create(parser, AST_BINOP);
+    ast->data.binop.tag = BINOP_ASSIGN;
+    ast->data.binop.left = parse_id(parser);
     if (!expect(parser, "named argument", TOK_EQ))
-        log_note(parser->log, &parser->ahead.loc, "mixing named and unnamed arguments is not allowed");
-    ast->data.name.value = parse_expr(parser);
+        log_note(parser->log, &parser->ahead.loc, "positional arguments cannot be placed after named arguments");
+    ast->data.binop.right = parse_expr(parser);
     return ast_finalize(ast, parser);
 }
 
@@ -414,33 +405,20 @@ static ast_t* parse_args(parser_t* parser) {
     eat(parser, TOK_LPAREN);
     eat_nl(parser);
     ast_list_t** cur = &ast->data.tuple.args;
-
     bool named = false;
-    if (parser->ahead.tag == TOK_ID) {
-        ast_t* id = parse_id(parser);
+    while (parser->ahead.tag != TOK_RPAREN) {
+        ast_t* arg = named ? parse_name(parser) : parse_expr(parser);
+        named |= ast_is_name(arg);
+        cur = ast_list_add(parser, cur, arg);
+
         eat_nl(parser);
-        ast_t* elem = NULL;
-        if (accept(parser, TOK_EQ)) {
-            ast_t* value = parse_expr(parser);
-            eat_nl(parser);
-            elem = ast_create_with_loc(parser, AST_NAME, id->loc);
-            elem->data.name.id = id;
-            elem->data.name.value = value;
-            ast_finalize(elem, parser);
-            named = true;
-        } else {
-            elem = parse_suffix(parser, id);
-        }
-        cur = ast_list_add(parser, cur, elem);
-        if (!accept(parser, TOK_COMMA)) {
-            expect(parser, "call arguments", TOK_RPAREN);
-            return ast_finalize(ast, parser);
-        }
+        if (!accept(parser, TOK_COMMA))
+            break;
         eat_nl(parser);
     }
-
-    parse_tuple_elems(parser, "call arguments", cur, named ? parse_name : parse_expr);
-    return ast;
+    expect(parser, "call arguments", TOK_RPAREN);
+    ast->data.tuple.named = named;
+    return ast_finalize(ast, parser);
 }
 
 static ast_t* parse_array(parser_t* parser) {
@@ -509,7 +487,11 @@ static ast_t* parse_if(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_IF);
     eat(parser, TOK_IF);
     eat_nl(parser);
-    ast->data.if_.cond = parse_tuple_or_err(parser, "if condition", parse_expr);
+    expect(parser, "if condition", TOK_LPAREN);
+    eat_nl(parser);
+    ast->data.if_.cond = parse_expr(parser);
+    eat_nl(parser);
+    expect(parser, "if condition", TOK_RPAREN);
     eat_nl(parser);
     ast->data.if_.if_true = parse_expr(parser);
     eat_nl(parser);
@@ -524,7 +506,11 @@ static ast_t* parse_while(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_WHILE);
     eat(parser, TOK_WHILE);
     eat_nl(parser);
-    ast->data.while_.cond = parse_tuple_or_err(parser, "while condition", parse_expr);
+    expect(parser, "while condition", TOK_LPAREN);
+    eat_nl(parser);
+    ast->data.while_.cond = parse_expr(parser);
+    eat_nl(parser);
+    expect(parser, "while condition", TOK_LPAREN);
     eat_nl(parser);
     ast->data.while_.body = parse_expr(parser);
     return ast_finalize(ast, parser);

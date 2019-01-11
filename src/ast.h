@@ -25,7 +25,6 @@ enum ast_tag_e {
     AST_VAR,
     AST_VAL,
     AST_ANNOT,
-    AST_NAME,
     AST_PRIM,
     AST_BLOCK,
     AST_TUPLE,
@@ -157,10 +156,6 @@ struct ast_s {
             ast_list_t* elems;
         } array;
         struct {
-            ast_t*      id;
-            ast_t*      value;
-        } name;
-        struct {
             size_t      index;
             ast_t*      arg;
             ast_t*      id;
@@ -223,6 +218,7 @@ struct ast_list_s {
 };
 
 bool ast_is_ptrn(const ast_t*);
+bool ast_is_name(const ast_t*);
 bool ast_is_refutable(const ast_t*);
 
 size_t ast_list_length(const ast_list_t*);

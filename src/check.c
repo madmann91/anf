@@ -136,8 +136,6 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 check(checker, ast->data.annot.ast, type);
                 return type;
             }
-        case AST_NAME:
-            return infer(checker, ast->data.name.value);
         case AST_VAR:
         case AST_VAL:
             return infer_ptrn(checker, ast->data.varl.ptrn, ast->data.varl.value);

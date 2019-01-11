@@ -165,15 +165,15 @@ void bind(binder_t* binder, ast_t* ast) {
             break;
         case AST_TUPLE:
             FORALL_AST(ast->data.tuple.args, arg, {
-                bind(binder, arg);
+                if (ast->data.tuple.named && ast_is_name(arg))
+                    bind(binder, arg->data.binop.right);
+                else
+                    bind(binder, arg);
             })
             break;
         case AST_ANNOT:
             bind(binder, ast->data.annot.ast);
             bind(binder, ast->data.annot.type);
-            break;
-        case AST_NAME:
-            bind(binder, ast->data.name.value);
             break;
         case AST_ARRAY:
             FORALL_AST(ast->data.array.elems, elem, {
