@@ -471,7 +471,7 @@ static ast_t* parse_block(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_BLOCK);
     eat(parser, TOK_LBRACE);
     eat_nl_or_semi(parser);
-    ast_list_t** cur = &ast->data.tuple.args;
+    ast_list_t** cur = &ast->data.block.stmts;
     while (parser->ahead.tag != TOK_RBRACE) {
         ast_t* stmt = parse_stmt(parser);
         cur = ast_list_add(parser, cur, stmt);
