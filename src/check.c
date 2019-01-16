@@ -286,7 +286,9 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     return expect(checker, ast, "array", NULL, expected);
                 if (ast->data.array.regular) {
                     if (expected->data.dim <= 1) {
-                        log_error(checker->log, &ast->loc, "expected array with 1 dimension, but got regular array with more than one dimension");
+                        log_error(checker->log, &ast->loc,
+                            "expected array of type '{0:t}' with one dimension, but got regular array with more than one dimension",
+                            { .t = expected });
                         return expected;
                     }
                     const type_t* array_type = type_array(checker->mod, expected->data.dim - 1, expected->ops[0]);
@@ -296,7 +298,10 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     return type_array(checker->mod, array_type->data.dim + 1, array_type->ops[0]);
                 } else {
                     if (expected->data.dim != 1) {
-                        log_error(checker->log, &ast->loc, "expected array with {0:u32} dimensions, but got array with only one dimension", { .u32 = expected->data.dim });
+                        log_error(checker->log, &ast->loc,
+                            "expected array of type '{0:t}' with {1:u32} dimensions, but got array with only one dimension",
+                            { .t = expected },
+                            { .u32 = expected->data.dim });
                         return expected;
                     }
                     const type_t* elem_type = expected->ops[0];
