@@ -1,5 +1,5 @@
 mod array {
-    def a = [1, 2, 3]
-    def b = [[1, 2]; [3, 4]]
-    def c = [a ; a]
+    val a = [1, 2, 3]
+    val b = [[1, 2]; [3, 4]]
+    val c = [a ; a]
 }
