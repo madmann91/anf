@@ -195,9 +195,9 @@ const type_t* type_tuple_args(mod_t* mod, size_t nops, ...) {
     return type_tuple(mod, nops, ops);
 }
 
-const type_t* type_array(mod_t* mod, const type_t* elem_type) {
+const type_t* type_array(mod_t* mod, uint32_t dim, const type_t* elem_type) {
     assert(elem_type->tag != TYPE_MEM);
-    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type });
+    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type, .data = { .dim = dim } });
 }
 
 const type_t* type_struct(mod_t* mod, struct_def_t* struct_def, size_t nops, const type_t** ops) {
@@ -209,15 +209,15 @@ const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
 }
 
-const type_t* type_var(mod_t* mod, uint32_t id) {
-    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .id = id } });
+const type_t* type_var(mod_t* mod, uint32_t var) {
+    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .var = var } });
 }
 
 const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
     switch (type->tag) {
         case TYPE_PTR:    return type_ptr(mod, ops[0]);
         case TYPE_TUPLE:  return type_tuple(mod, type->nops, ops);
-        case TYPE_ARRAY:  return type_array(mod, ops[0]);
+        case TYPE_ARRAY:  return type_array(mod, type->data.dim, ops[0]);
         case TYPE_STRUCT: return type_struct(mod, type->data.struct_def, type->nops, ops);
         case TYPE_FN:     return type_fn(mod, ops[0], ops[1]);
         default:

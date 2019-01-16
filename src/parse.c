@@ -132,6 +132,7 @@ static ast_t* parse_cont(parser_t*, uint32_t);
 // Types
 static ast_t* parse_prim(parser_t*, uint32_t);
 static ast_t* parse_fn_type(parser_t*, ast_t*);
+static ast_t* parse_array_type(parser_t*);
 
 // Declarations
 static ast_t* parse_member_or_param(parser_t*, const char* msg);
@@ -217,8 +218,9 @@ static ast_t* parse_type(parser_t* parser) {
 #define PRIM(name, str) case TOK_##name: ast = parse_prim(parser, PRIM_##name); break;
         PRIM_LIST(,PRIM)
 #undef PRIM
-        case TOK_ID:     ast = parse_id(parser); break;
-        case TOK_LPAREN: ast = parse_tuple(parser, "tuple type", parse_type); break;
+        case TOK_ID:       ast = parse_id(parser);                              break;
+        case TOK_LPAREN:   ast = parse_tuple(parser, "tuple type", parse_type); break;
+        case TOK_LBRACKET: ast = parse_array_type(parser);                      break;
         default:
             return parse_err(parser, "type");
     }
@@ -443,6 +445,7 @@ static ast_t* parse_array(parser_t* parser) {
         regular = semi;
         eat_nl(parser);
     }
+    ast->data.array.type = false;
     ast->data.array.regular = regular;
     expect(parser, "array", TOK_RBRACKET);
     return ast_finalize(ast, parser);
@@ -459,7 +462,7 @@ static ast_t* parse_field(parser_t* parser, ast_t* arg) {
 static ast_t* parse_fn(parser_t* parser, ast_t* param) {
     ast_t* ast = ast_create_with_loc(parser, AST_FN, param->loc);
     eat(parser, TOK_RARROW);
-    ast->data.fn.lambda = true;
+    ast->data.fn.type  = false;
     ast->data.fn.param = param;
     if (!ast_is_ptrn(param) || ast_is_refutable(param))
         log_error(parser->log, &param->loc, "invalid function parameter");
@@ -590,9 +593,30 @@ static ast_t* parse_prim(parser_t* parser, uint32_t tag) {
 static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
     ast_t* ast = ast_create_with_loc(parser, AST_FN, from->loc);
     eat(parser, TOK_RARROW);
-    ast->data.fn.lambda = false;
+    ast->data.fn.type  = true;
     ast->data.fn.param = from;
     ast->data.fn.body  = parse_type(parser);
+    return ast_finalize(ast, parser);
+}
+
+static ast_t* parse_array_type(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_ARRAY);
+    eat(parser, TOK_LBRACKET);
+    bool regular = false;
+    ast_t* elem_type = parse_type(parser);
+    ast_t* dims = NULL;
+    if (accept(parser, TOK_SEMI)) {
+        regular = true;
+        dims = parse_lit(parser);
+        if (dims->data.lit.tag != LIT_INT)
+            log_error(parser->log, &dims->loc, "integer literal expected for array dimensions");
+    }
+    expect(parser, "array type", TOK_RBRACKET);
+    ast_list_t** cur = &ast->data.array.elems;
+    cur = ast_list_add(parser, cur, elem_type);
+    if (dims) cur = ast_list_add(parser, cur, dims);
+    ast->data.array.type = true;
+    ast->data.array.regular = regular;
     return ast_finalize(ast, parser);
 }
 

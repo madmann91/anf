@@ -432,7 +432,7 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const type
         .tag  = NODE_ARRAY,
         .nops = nops,
         .ops  = ops,
-        .type = type_array(mod, elem_type),
+        .type = type_array(mod, 1, elem_type),
         .dbg  = dbg
     });
 }

@@ -199,7 +199,10 @@ void bind(binder_t* binder, ast_t* ast) {
             bind(binder, ast->data.binop.right);
             break;
         case AST_FN:
-            if (ast->data.fn.lambda) {
+            if (ast->data.fn.type) {
+                bind(binder, ast->data.fn.param);
+                bind(binder, ast->data.fn.body);
+            } else {
                 push_env(binder);
                 bind_ptrn(binder, ast->data.fn.param);
                 ast_t* fn = binder->fn;
@@ -207,9 +210,6 @@ void bind(binder_t* binder, ast_t* ast) {
                 bind(binder, ast->data.fn.body);
                 binder->fn = fn;
                 pop_env(binder);
-            } else {
-                bind(binder, ast->data.fn.param);
-                bind(binder, ast->data.fn.body);
             }
             break;
         case AST_CALL:

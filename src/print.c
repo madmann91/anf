@@ -33,7 +33,7 @@ static void print_type(printer_t* printer, const type_t* type) {
         case TYPE_ARRAY:
             print(printer, "[");
             print_type(printer, type->ops[0]);
-            print(printer, "]");
+            print(printer, type->data.dim > 1 ? " ; {0:u32}]" : "]", { .u32 = type->data.dim });
             break;
         case TYPE_FN:
             if (type->ops[0]->tag == TYPE_FN) print(printer, "(");

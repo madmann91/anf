@@ -153,6 +153,7 @@ struct ast_s {
         } tuple;
         struct {
             bool        regular;
+            bool        type;
             ast_list_t* elems;
         } array;
         struct {
@@ -170,7 +171,7 @@ struct ast_s {
             ast_t*      arg;
         } unop;
         struct {
-            bool        lambda;
+            bool        type;
             ast_t*      param;
             ast_t*      body;
         } fn;
