@@ -65,6 +65,7 @@ static inline bool expect(parser_t* parser, const char* msg, uint32_t tag) {
         const char* str1 = tok2str_with_quotes(tag, buf1);
         const char* str2 = tok2str_with_quotes(parser->ahead.tag, buf2);
         log_error(parser->log, &parser->ahead.loc, "expected {0:s} in {1:s}, but got {2:s}", { .s = str1 }, { .s = msg }, { .s = str2 });
+        next(parser);
         return false;
     }
     return true;
@@ -603,18 +604,16 @@ static ast_t* parse_array_type(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_ARRAY);
     eat(parser, TOK_LBRACKET);
     bool regular = false;
-    ast_t* elem_type = parse_type(parser);
-    ast_t* dims = NULL;
+    ast_list_t** cur = &ast->data.array.elems;
+    cur = ast_list_add(parser, cur, parse_type(parser));
     if (accept(parser, TOK_SEMI)) {
         regular = true;
-        dims = parse_lit(parser);
-        if (dims->data.lit.tag != LIT_INT)
-            log_error(parser->log, &dims->loc, "integer literal expected for array dimensions");
+        if (parser->ahead.tag == TOK_INT)
+            cur = ast_list_add(parser, cur, parse_lit(parser));
+        else
+            expect(parser, "array dimensions", TOK_INT);
     }
     expect(parser, "array type", TOK_RBRACKET);
-    ast_list_t** cur = &ast->data.array.elems;
-    cur = ast_list_add(parser, cur, elem_type);
-    if (dims) cur = ast_list_add(parser, cur, dims);
     ast->data.array.type = true;
     ast->data.array.regular = regular;
     return ast_finalize(ast, parser);
