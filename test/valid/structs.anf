@@ -8,6 +8,6 @@ mod structs {
         var x = S(b = 1 : i64, a = 2 : i32)
         var y = (x.a : i32, x.b : i64)
         var z = S4(x.b)
-        var w = S4(x = 1)
+        var w = S4(x = 1).x
     }
 }

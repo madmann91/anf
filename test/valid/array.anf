@@ -2,4 +2,5 @@ mod array {
     val a = [1, 2, 3]
     val b = [[1, 2]; [3, 4]]
     val c = [a ; a]
+    val d : [i32] = []
 }

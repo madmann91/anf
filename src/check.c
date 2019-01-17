@@ -8,7 +8,7 @@ static inline const type_t* expect(checker_t* checker, ast_t* ast, const char* m
     assert(expected);
     if (!type || !type_is_subtype(type, expected)) {
         // When a type contains top, this is an error that has already been logged before
-        if (type_contains(type, type_top(checker->mod)))
+        if (type && type_contains(type, type_top(checker->mod)))
             return expected;
         static const char* fmts[] = {
             "expected type '{2:t}', but got {0:s} with type '{1:t}'",
@@ -42,6 +42,14 @@ static inline size_t find_member(const struct_def_t* struct_def, const char* nam
             return i;
     }
     return INVALID_INDEX;
+}
+
+static inline void invalid_member_or_param(checker_t* checker, ast_t* ast, const char* name, const char* member_name, bool is_struct) {
+    log_error(checker->log, &ast->loc, is_struct
+        ? "structure '{0:s}' has no member named '{1:s}'"
+        : "function '{0:s}' has no parameter named '{1:s}'",
+        { .s = name },
+        { .s = member_name });
 }
 
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
@@ -123,21 +131,15 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
 
     // For every named argument, find the index into the tuple
     bool status = true;
-    const char* param_msg  = is_struct ? "member" : "parameter";
-    const char* callee_msg = is_struct ? "structure" : "function";
     FORALL_AST(cur_arg, name, {
         const char* param_name = name->data.field.id->data.id.str;
         const type_t* param_type = find_param(params, param_name, &param_index);
         if (!param_type) {
-            log_error(checker->log, &name->loc, "cannot find {0:s} named '{1:s}' in {2:s} '{3:s}'",
-                { .s = param_msg },
-                { .s = param_name },
-                { .s = callee_msg },
-                { .s = callee->data.id.str });
+            invalid_member_or_param(checker, name, callee->data.id.str, param_name, is_struct);
             status = false;
         } else if (param_seen[param_index]) {
             log_error(checker->log, &name->loc, "{0:s} '{1:s}' can only be mentioned once",
-                { .s = param_msg },
+                { .s = is_struct ? "member" : "parameter" },
                 { .s = param_name });
             status = false;
         } else {
@@ -286,9 +288,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 const struct_def_t* struct_def = struct_type->data.struct_def;
                 size_t member_index = find_member(struct_def, ast->data.field.id->data.id.str);
                 if (member_index == INVALID_INDEX) {
-                    log_error(checker->log, &ast->loc, "structure '{0:s}' does not have member named '{0:s}'",
-                       { .s = struct_def->name },
-                       { .s = ast->data.field.id->data.id.str });
+                    invalid_member_or_param(checker, ast, struct_def->name, ast->data.field.id->data.id.str, true);
                     return type_top(checker->mod);
                 }
                 return type_member(checker->mod, struct_type, member_index);
@@ -406,10 +406,11 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 size_t nargs = ast_list_length(ast->data.tuple.args);
                 if (nargs == 1)
                     return check(checker, ast->data.tuple.args->ast, expected);
-                if (expected->tag != TYPE_TUPLE)
-                    return expect(checker, ast, "tuple", NULL, expected);
                 if (expected->nops != nargs) {
-                    log_error(checker->log, &ast->loc, "expected {0:u32} arguments, but got {1:u32}", { .u32 = expected->nops }, { .u32 = nargs });
+                    log_error(checker->log, &ast->loc, "expected {0:u32} argument{1:s}, but got {2:u32}",
+                        { .u32 = expected->tag == TYPE_TUPLE ? expected->nops : 1 },
+                        { .s   = expected->tag == TYPE_TUPLE && expected->nops >= 2 ? "s" : "" },
+                        { .u32 = nargs });
                     return expected;
                 }
                 size_t nops = 0;

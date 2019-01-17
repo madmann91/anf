@@ -1,0 +1,7 @@
+mod structs {
+    struct S(x: i32)
+    val x = S(x = 1, x = 1)
+    val y = S(x = 1).y
+    val z = S(y = 1).x
+    val w = S(1, 2)
+}

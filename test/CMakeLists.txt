@@ -14,6 +14,7 @@ add_test(NAME valid_lambda    COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/lambd
 add_test(NAME valid_annots    COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/annots.anf)
 add_test(NAME valid_structs   COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/structs.anf)
 
+add_test(NAME invalid_structs  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/structs.anf)
 add_test(NAME invalid_array    COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/array.anf)
 add_test(NAME invalid_params   COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/params.anf)
 add_test(NAME invalid_comment  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/comment.anf)
