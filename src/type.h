@@ -30,6 +30,7 @@
 
 typedef struct fp_flags_s   fp_flags_t;
 typedef struct struct_def_s struct_def_t;
+typedef struct struct_mb_s  struct_mb_t;
 typedef struct enum_def_s   enum_def_t;
 
 struct fp_flags_s {
@@ -39,10 +40,16 @@ struct fp_flags_s {
     bool no_nan_math      : 1;   // Assume no NaNs
 };
 
+struct struct_mb_s {
+    const char* name;
+    const type_t* type;
+};
+
 struct struct_def_s {
     bool byref;
     const char* name;
-    const type_t* members;
+    size_t nmbs;
+    struct_mb_t* mbs;
 };
 
 struct enum_def_s {
@@ -80,7 +87,7 @@ bool type_is_f(const type_t*);
 bool type_is_subtype(const type_t*, const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
-const type_t* type_members(mod_t*, const type_t*);
+const type_t* type_member(mod_t*, const type_t*, size_t);
 
 const type_t* type_bool(mod_t*);
 const type_t* type_i8(mod_t*);
@@ -103,7 +110,8 @@ const type_t* type_mem(mod_t*);
 const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_unit(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
-const type_t* type_tuple_args(mod_t*, size_t, ...);
+const type_t* type_tuple_from_args(mod_t*, size_t, ...);
+const type_t* type_tuple_from_struct(mod_t*, const type_t*);
 const type_t* type_array(mod_t*, uint32_t, const type_t*);
 const type_t* type_struct(mod_t*, struct_def_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);

@@ -22,6 +22,28 @@ static inline const type_t* expect(checker_t* checker, ast_t* ast, const char* m
     return type;
 }
 
+static inline const type_t* find_param(ast_list_t* params, const char* name, size_t* index) {
+    size_t i = 0;
+    FORALL_AST(params, param, {
+        assert(param->tag == AST_ANNOT);
+        assert(param->data.annot.ast->tag == AST_ID);
+        if (!strcmp(name, param->data.annot.ast->data.id.str)) {
+            *index = i;
+            return param->type;
+        }
+        i++;
+    })
+    return NULL;
+}
+
+static inline size_t find_member(const struct_def_t* struct_def, const char* name) {
+    for (size_t i = 0; i < struct_def->nmbs; ++i) {
+        if (!strcmp(struct_def->mbs[i].name, name))
+            return i;
+    }
+    return INVALID_INDEX;
+}
+
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
     switch (ptrn->tag) {
         case AST_TUPLE:
@@ -53,20 +75,6 @@ static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
             break;
     }
     return check(checker, ptrn, infer(checker, value));
-}
-
-static const type_t* find_param(ast_list_t* params, const char* name, size_t* index) {
-    size_t i = 0;
-    FORALL_AST(params, param, {
-        assert(param->tag == AST_ANNOT);
-        assert(param->data.annot.ast->tag == AST_ID);
-        if (!strcmp(name, param->data.annot.ast->data.id.str)) {
-            *index = i;
-            return param->type;
-        }
-        i++;
-    })
-    return NULL;
 }
 
 static bool infer_names(checker_t* checker, ast_t* ast) {
@@ -170,7 +178,7 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
                 return callee_type->ops[0];
             }
         case TYPE_STRUCT:
-            check(checker, ast->data.call.arg, type_members(checker->mod, callee_type));
+            check(checker, ast->data.call.arg, type_tuple_from_struct(checker->mod, callee_type));
             return callee_type;
         case TYPE_FN:
             check(checker, ast->data.call.arg, callee_type->ops[0]);
@@ -197,12 +205,20 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 char* buf = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
                 strcpy(buf, name);
                 *struct_def = (struct_def_t) {
-                    .name    = buf,
-                    .byref   = ast->data.struct_.byref,
-                    .members = NULL,
+                    .name  = buf,
+                    .byref = ast->data.struct_.byref,
                 };
+                ast_list_t* members = ast->data.struct_.members->data.tuple.args;
                 ast->type = type_struct(checker->mod, struct_def, 0, NULL);
-                ast->type->data.struct_def->members = infer(checker, ast->data.struct_.members);
+                struct_def->nmbs = ast_list_length(members);
+                struct_def->mbs  = mpool_alloc(&checker->mod->pool, struct_def->nmbs * sizeof(struct_mb_t));
+                size_t nmbs = 0;
+                FORALL_AST(members, member, {
+                    assert(member->tag == AST_ANNOT && member->data.annot.ast->tag == AST_ID);
+                    struct_def->mbs[nmbs].name = member->data.annot.ast->data.id.str;
+                    struct_def->mbs[nmbs].type = infer(checker, member);
+                    nmbs++;
+                })
                 return ast->type;
             }
         case AST_ID:
@@ -265,9 +281,15 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                         log_error(checker->log, &ast->loc, "structure type expected in field expression, but got '{0:t}'", { .t = struct_type });
                     return type_top(checker->mod);
                 }
-                // TODO
-                assert(false);
-                return NULL;
+                const struct_def_t* struct_def = struct_type->data.struct_def;
+                size_t member_index = find_member(struct_def, ast->data.field.id->data.id.str);
+                if (member_index == INVALID_INDEX) {
+                    log_error(checker->log, &ast->loc, "structure '{0:s}' does not have member named '{0:s}'",
+                       { .s = struct_def->name },
+                       { .s = ast->data.field.id->data.id.str });
+                    return type_top(checker->mod);
+                }
+                return type_member(checker->mod, struct_type, member_index);
             }
         case AST_CALL:
             return infer_call(checker, ast);
@@ -279,7 +301,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             }
         case AST_VAR:
         case AST_VAL:
-            return infer_ptrn(checker, ast->data.varl.ptrn, ast->data.varl.value);
+            infer_ptrn(checker, ast->data.varl.ptrn, ast->data.varl.value);
+            return type_unit(checker->mod);
         case AST_DEF:
             {
                 const type_t* param_type = infer(checker, ast->data.def.param);

@@ -462,7 +462,7 @@ const node_t* node_string(mod_t* mod, const char* str, const dbg_t* dbg) {
     return array;
 }
 
-const node_t* node_tuple_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
+const node_t* node_tuple_from_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
     TMP_BUF_ALLOC(ops, const node_t*, nops)
     va_list args;
     va_start(args, dbg);
@@ -474,7 +474,7 @@ const node_t* node_tuple_args(mod_t* mod, size_t nops, const dbg_t* dbg, ...) {
     return node;
 }
 
-const node_t* node_array_args(mod_t* mod, size_t nops, const type_t* elem_type, const dbg_t* dbg, ...) {
+const node_t* node_array_from_args(mod_t* mod, size_t nops, const type_t* elem_type, const dbg_t* dbg, ...) {
     TMP_BUF_ALLOC(ops, const node_t*, nops)
     va_list args;
     va_start(args, dbg);
@@ -1289,9 +1289,9 @@ const node_t* node_dealloc(mod_t* mod, const node_t* mem, const node_t* ptr, con
 const node_t* node_load(mod_t* mod, const node_t* mem, const node_t* ptr, const dbg_t* dbg) {
     assert(mem->type->tag == TYPE_MEM);
     assert(ptr->type->tag == TYPE_PTR);
-    const type_t* load_type = type_tuple_args(mod, 2, mem->type, ptr->type->ops[0]);
+    const type_t* load_type = type_tuple_from_args(mod, 2, mem->type, ptr->type->ops[0]);
     if (type_is_unit(load_type))
-        return node_tuple_args(mod, 2, dbg, mem, node_unit(mod));
+        return node_tuple_from_args(mod, 2, dbg, mem, node_unit(mod));
     const node_t* ops[] = { mem, ptr };
     return make_node(mod, (node_t) {
         .tag  = NODE_LOAD,
