@@ -274,7 +274,9 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 return type_array(checker->mod, 1, elem_type);
             }
         case AST_FIELD:
-            {
+            if (ast->data.field.name) {
+                return infer(checker, ast->data.field.arg);
+            } else {
                 const type_t* struct_type = infer(checker, ast->data.field.arg);
                 if (struct_type->tag != TYPE_STRUCT) {
                     if (struct_type->tag != TYPE_TOP)
@@ -453,6 +455,10 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     return type_array(checker->mod, 1, elem_type);
                 }
             }
+        case AST_FIELD:
+            if (ast->data.field.name)
+                return check(checker, ast->data.field.arg, expected);
+            return expect(checker, ast, "field expression", infer(checker, ast), expected);
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:
@@ -474,10 +480,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     return NULL;
             }
         default:
-            {
-                const type_t* type = infer(checker, ast);
-                return expect(checker, ast, NULL, type, expected);
-            }
+            return expect(checker, ast, NULL, infer(checker, ast), expected);
     }
 }
 
