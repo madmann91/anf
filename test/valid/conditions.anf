@@ -1,8 +1,8 @@
 mod conditions {
-    def c1 = if (true) { 1 } else { 2 }
-    def c2 = if (false) true else false
-    def c3 = if (c2) c1 else { 2 }
-    def c4 = if
+    val c1 = if (true) { 1 } else { 2 }
+    val c2 = if (false) true else false
+    val c3 = if (c2) c1 else { 2 }
+    val c4 = if
         (
         true
         )

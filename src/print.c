@@ -14,9 +14,10 @@ static void print_type(printer_t* printer, const type_t* type) {
 #define PRIM(name, str) case name: print(printer, "{$key}"str"{$}"); break;
         PRIM_LIST(TYPE_, PRIM)
 #undef PRIM
-        case TYPE_TOP:    print(printer, "{$key}top{$}"); break;
+        case TYPE_TOP:    print(printer, "{$key}top{$}");    break;
         case TYPE_BOTTOM: print(printer, "{$key}bottom{$}"); break;
-        case TYPE_MEM:    print(printer, "{$key}mem{$}"); break;
+        case TYPE_MEM:    print(printer, "{$key}mem{$}");    break;
+        case TYPE_VAR:    print(printer, "#{0:u32}", { .u32 = type->data.var }); break;
         case TYPE_PTR:
             print_type(printer, type->ops[0]);
             print(printer, "*");
