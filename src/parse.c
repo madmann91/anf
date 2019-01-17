@@ -394,12 +394,12 @@ static ast_t* parse_tuple(parser_t* parser, const char* msg, ast_t* (*parse_elem
 }
 
 static ast_t* parse_name(parser_t* parser) {
-    ast_t* ast = ast_create(parser, AST_BINOP);
-    ast->data.binop.tag = BINOP_ASSIGN;
-    ast->data.binop.left = parse_id(parser);
+    ast_t* ast = ast_create(parser, AST_FIELD);
+    ast->data.field.name = true;
+    ast->data.field.id = parse_id(parser);
     if (!expect(parser, "named argument", TOK_EQ))
         log_note(parser->log, &parser->ahead.loc, "positional arguments cannot be placed after named arguments");
-    ast->data.binop.right = parse_expr(parser);
+    ast->data.field.arg = parse_expr(parser);
     return ast_finalize(ast, parser);
 }
 
@@ -411,7 +411,19 @@ static ast_t* parse_args(parser_t* parser) {
     bool named = false;
     while (parser->ahead.tag != TOK_RPAREN) {
         ast_t* arg = named ? parse_name(parser) : parse_expr(parser);
-        named |= ast_is_name(arg);
+        if (!named &&
+            arg->tag == AST_BINOP &&
+            arg->data.binop.tag == BINOP_ASSIGN &&
+            arg->data.binop.left->tag == AST_ID) {
+            ast_t* left  = arg->data.binop.left;
+            ast_t* right = arg->data.binop.right;
+            arg->tag = AST_FIELD;
+            arg->data.field.name = true;
+            arg->data.field.index = 0;
+            arg->data.field.id = left;
+            arg->data.field.arg = right;
+            named = true;
+        }
         cur = ast_list_add(parser, cur, arg);
 
         eat_nl(parser);
@@ -419,8 +431,8 @@ static ast_t* parse_args(parser_t* parser) {
             break;
         eat_nl(parser);
     }
-    expect(parser, "call arguments", TOK_RPAREN);
     ast->data.tuple.named = named;
+    expect(parser, "call arguments", TOK_RPAREN);
     return ast_finalize(ast, parser);
 }
 
@@ -446,7 +458,7 @@ static ast_t* parse_array(parser_t* parser) {
         regular = semi;
         eat_nl(parser);
     }
-    ast->data.array.type = false;
+    ast->data.array.dim = false;
     ast->data.array.regular = regular;
     expect(parser, "array", TOK_RBRACKET);
     return ast_finalize(ast, parser);
@@ -455,6 +467,7 @@ static ast_t* parse_array(parser_t* parser) {
 static ast_t* parse_field(parser_t* parser, ast_t* arg) {
     ast_t* ast = ast_create_with_loc(parser, AST_FIELD, arg->loc);
     eat(parser, TOK_DOT);
+    ast->data.field.name = false;
     ast->data.field.arg = arg;
     ast->data.field.id  = parse_id(parser);
     return ast_finalize(ast, parser);
@@ -463,7 +476,7 @@ static ast_t* parse_field(parser_t* parser, ast_t* arg) {
 static ast_t* parse_fn(parser_t* parser, ast_t* param) {
     ast_t* ast = ast_create_with_loc(parser, AST_FN, param->loc);
     eat(parser, TOK_RARROW);
-    ast->data.fn.type  = false;
+    ast->data.fn.lambda = true;
     ast->data.fn.param = param;
     if (!ast_is_ptrn(param) || ast_is_refutable(param))
         log_error(parser->log, &param->loc, "invalid function parameter");
@@ -594,9 +607,9 @@ static ast_t* parse_prim(parser_t* parser, uint32_t tag) {
 static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
     ast_t* ast = ast_create_with_loc(parser, AST_FN, from->loc);
     eat(parser, TOK_RARROW);
-    ast->data.fn.type  = true;
-    ast->data.fn.param = from;
-    ast->data.fn.body  = parse_type(parser);
+    ast->data.fn.lambda = false;
+    ast->data.fn.param  = from;
+    ast->data.fn.body   = parse_type(parser);
     return ast_finalize(ast, parser);
 }
 
@@ -614,7 +627,7 @@ static ast_t* parse_array_type(parser_t* parser) {
             expect(parser, "array dimensions", TOK_INT);
     }
     expect(parser, "array type", TOK_RBRACKET);
-    ast->data.array.type = true;
+    ast->data.array.dim = true;
     ast->data.array.regular = regular;
     return ast_finalize(ast, parser);
 }

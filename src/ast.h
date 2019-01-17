@@ -11,8 +11,8 @@ typedef struct ast_list_s ast_list_t;
 #define INVALID_TAG ((uint32_t)-1)
 
 #define FORALL_AST(first, elem, ...) \
-    for (ast_list_t* list = (first); list; list = list->next) { \
-        ast_t* elem = list->ast; \
+    for (ast_list_t* ast_list = (first); ast_list; ast_list = ast_list->next) { \
+        ast_t* elem = ast_list->ast; \
         __VA_ARGS__ \
     }
 
@@ -153,10 +153,11 @@ struct ast_s {
         } tuple;
         struct {
             bool        regular;
-            bool        type;
+            bool        dim;
             ast_list_t* elems;
         } array;
         struct {
+            bool        name;
             size_t      index;
             ast_t*      arg;
             ast_t*      id;
@@ -171,7 +172,7 @@ struct ast_s {
             ast_t*      arg;
         } unop;
         struct {
-            bool        type;
+            bool        lambda;
             ast_t*      param;
             ast_t*      body;
         } fn;
@@ -219,7 +220,6 @@ struct ast_list_s {
 };
 
 bool ast_is_ptrn(const ast_t*);
-bool ast_is_name(const ast_t*);
 bool ast_is_refutable(const ast_t*);
 
 size_t ast_list_length(const ast_list_t*);

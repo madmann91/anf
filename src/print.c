@@ -223,8 +223,13 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print(printer, "]");
             break;
         case AST_FIELD:
-            print_ast(printer, ast->data.field.arg);
-            print(printer, ".{0:s}", { .s = ast->data.field.id->data.id.str });
+            if (ast->data.field.name) {
+                print(printer, "{0:s} = ", { .s = ast->data.field.id->data.id.str });
+                print_ast(printer, ast->data.field.arg);
+            } else {
+                print_ast(printer, ast->data.field.arg);
+                print(printer, ".{0:s}", { .s = ast->data.field.id->data.id.str });
+            }
             break;
         case AST_BINOP:
             {

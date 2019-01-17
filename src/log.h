@@ -36,11 +36,11 @@ void log_format(log_t*, uint32_t, const loc_t*, const char*, const fmt_arg_t*);
 
 #define log_format(log, type, loc, fmt, ...) \
     do { \
-        fmt_arg_t args[] = { \
+        fmt_arg_t fmt_args[] = { \
             { .u64 = 0 }, \
             __VA_ARGS__ \
         }; \
-        (log)->log_fn(log, type, loc, fmt, sizeof(args) > sizeof(args[0]) ? args + 1 : NULL); \
+        (log)->log_fn(log, type, loc, fmt, sizeof(fmt_args) > sizeof(fmt_args[0]) ? fmt_args + 1 : NULL); \
     } while (false)
 
 #define log_error(log, loc, fmt, ...) do { (log)->errs++;  log_format(log, LOG_ERR,  loc, fmt, __VA_ARGS__); } while (false)

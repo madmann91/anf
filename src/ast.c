@@ -16,12 +16,6 @@ bool ast_is_ptrn(const ast_t* ast) {
     }
 }
 
-bool ast_is_name(const ast_t* ast) {
-    return ast->tag == AST_BINOP &&
-           ast->data.binop.tag == BINOP_ASSIGN &&
-           ast->data.binop.left->tag == AST_ID;
-}
-
 bool ast_is_refutable(const ast_t* ast) {
     switch (ast->tag) {
         case AST_ANNOT: return ast_is_refutable(ast->data.annot.ast);

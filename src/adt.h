@@ -12,7 +12,7 @@
 #define VEC_DEFAULT_CAP   64
 #define HMAP_DEFAULT_CAP  64
 #define HSET_DEFAULT_CAP  64
-#define TMP_BUF_STACK_CAP 1024
+#define TMP_BUF_STACK_CAP 16
 
 #define FORALL_HMAP(hmap, key_t, key, value_t, value, ...) \
     for (size_t i = 0; i < (hmap).table->cap; ++i) { \

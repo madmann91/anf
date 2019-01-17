@@ -165,10 +165,7 @@ void bind(binder_t* binder, ast_t* ast) {
             break;
         case AST_TUPLE:
             FORALL_AST(ast->data.tuple.args, arg, {
-                if (ast->data.tuple.named && ast_is_name(arg))
-                    bind(binder, arg->data.binop.right);
-                else
-                    bind(binder, arg);
+                bind(binder, arg);
             })
             break;
         case AST_ANNOT:
@@ -199,10 +196,7 @@ void bind(binder_t* binder, ast_t* ast) {
             bind(binder, ast->data.binop.right);
             break;
         case AST_FN:
-            if (ast->data.fn.type) {
-                bind(binder, ast->data.fn.param);
-                bind(binder, ast->data.fn.body);
-            } else {
+            if (ast->data.fn.lambda) {
                 push_env(binder);
                 bind_ptrn(binder, ast->data.fn.param);
                 ast_t* fn = binder->fn;
@@ -210,6 +204,9 @@ void bind(binder_t* binder, ast_t* ast) {
                 bind(binder, ast->data.fn.body);
                 binder->fn = fn;
                 pop_env(binder);
+            } else {
+                bind(binder, ast->data.fn.param);
+                bind(binder, ast->data.fn.body);
             }
             break;
         case AST_CALL:
