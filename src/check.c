@@ -22,18 +22,6 @@ static inline const type_t* expect(checker_t* checker, ast_t* ast, const char* m
     return type;
 }
 
-static inline bool expect_args(checker_t* checker, ast_t* args, const char* msg, size_t nargs, size_t nparams) {
-    if (nargs != nparams) {
-        log_error(checker->log, &args->loc, "expected {0:u32} argument{1:s} in {2:s}, but got {3:u32}",
-            { .u32 = nparams },
-            { .s = nparams >= 2 ? "s" : "" },
-            { .s = msg },
-            { .u32 = nargs });
-        return false;
-    }
-    return true;
-}
-
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
     switch (ptrn->tag) {
         case AST_TUPLE:
@@ -163,8 +151,14 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
             {
                 ast_list_t* args = ast->data.call.arg->data.tuple.args;
                 size_t nargs = ast_list_length(args);
-                if (!expect_args(checker, ast->data.call.arg, "array indexing expression", nargs, callee_type->data.dim))
+                size_t dim   = callee_type->data.dim;
+                if (nargs != dim) {
+                    log_error(checker->log, &ast->loc, "expected {0:u32} argument{1:s} in array indexing expression, but got {2:u32}",
+                        { .u32 = dim },
+                        { .s = dim >= 2 ? "s" : "" },
+                        { .u32 = nargs });
                     return type_top(checker->mod);
+                }
                 FORALL_AST(args, arg, {
                     const type_t* arg_type = infer(checker, arg);
                     if (!type_is_i(arg_type) && !type_is_u(arg_type)) {
