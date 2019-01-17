@@ -471,9 +471,8 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     return expect(checker, ast, "boolean literal", type_bool(checker->mod), expected);
                 default:
                     assert(false);
-                    break;
+                    return NULL;
             }
-            break;
         default:
             {
                 const type_t* type = infer(checker, ast);
