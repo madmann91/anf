@@ -81,96 +81,91 @@ static const type_t* find_param(ast_list_t* params, const char* name, size_t* in
     return NULL;
 }
 
-static bool check_args(checker_t* checker, ast_t* callee, const ast_t* params, ast_t* args, bool is_struct) {
-    assert(params->tag == AST_TUPLE && args->tag == AST_TUPLE);
-    size_t nparams = ast_list_length(params->data.tuple.args);
-    size_t nargs   = ast_list_length(args->data.tuple.args);
-    const char* call_msg = is_struct ? "structure constructor call" : "function call";
-    if (!expect_args(checker, args, call_msg, nargs, nparams))
-        return false;
+static bool infer_names(checker_t* checker, ast_t* ast) {
+    assert(ast->tag == AST_CALL);
+    if (!ast->data.call.arg->data.tuple.named)
+        return true;
 
+    ast_list_t* args = ast->data.call.arg->data.tuple.args;
+    ast_list_t* params = NULL;
+
+    bool is_struct = false;
+    ast_t* callee = ast->data.call.callee;
+    if (callee->tag == AST_ID) {
+        const ast_t* to = callee->data.id.to;
+        if (to->tag == AST_DEF)
+            params = to->data.def.param->data.tuple.args;
+        else if (to->tag == AST_STRUCT) {
+            is_struct = true;
+            params = to->data.struct_.members->data.tuple.args;
+        }
+    }
+
+    if (!params) {
+        log_error(checker->log, &ast->loc, "named arguments are only allowed for calls to top-level functions or structure constructors");
+        return false;
+    }
+
+    size_t nparams = ast_list_length(params);
     TMP_BUF_ALLOC(param_seen, bool, nparams)
-    bool status = true;
     for (size_t i = 0; i < nparams; ++i)
         param_seen[i] = false;
 
+    // Mark every positional argument as seen
     size_t param_index = 0;
-    ast_list_t* cur_param = params->data.tuple.args;
-    ast_list_t* cur_arg   = args->data.tuple.args;
-    while (cur_arg) {
+    ast_list_t* cur_param = params;
+    ast_list_t* cur_arg   = args;
+    while (cur_arg && cur_param) {
         ast_t* arg = cur_arg->ast;
         if (arg->tag == AST_FIELD && arg->data.field.name)
             break;
         param_seen[param_index] = true;
-        check(checker, arg, cur_param->ast->type);
         param_index++;
         cur_param = cur_param->next;
         cur_arg   = cur_arg->next;
     }
 
+    // For every named argument, find the index into the tuple
+    bool status = true;
     const char* param_msg  = is_struct ? "member" : "parameter";
     const char* callee_msg = is_struct ? "structure" : "function";
     FORALL_AST(cur_arg, name, {
         const char* param_name = name->data.field.id->data.id.str;
-        const type_t* param_type = find_param(params->data.tuple.args, param_name, &param_index);
+        const type_t* param_type = find_param(params, param_name, &param_index);
         if (!param_type) {
             log_error(checker->log, &name->loc, "cannot find {0:s} named '{1:s}' in {2:s} '{3:s}'",
                 { .s = param_msg },
                 { .s = param_name },
                 { .s = callee_msg },
                 { .s = callee->data.id.str });
-            goto error;
-        }
-        if (param_seen[param_index]) {
-            log_error(checker->log, &name->loc, "{0:s} '{1:s}' can only be mentioned once in {2:s}",
+            status = false;
+        } else if (param_seen[param_index]) {
+            log_error(checker->log, &name->loc, "{0:s} '{1:s}' can only be mentioned once",
                 { .s = param_msg },
-                { .s = param_name },
-                { .s = call_msg });
-            goto error;
+                { .s = param_name });
+            status = false;
+        } else {
+            param_seen[param_index] = true;
+            name->data.field.index = param_index;
         }
-        param_seen[param_index] = true;
-        name->data.field.index = param_index;
-        check(checker, name->data.field.arg, param_type);
     })
 
-    goto exit;
-
-error:
-    status = false;
-
-exit:
     TMP_BUF_FREE(param_seen)
     return status;
 }
 
 static const type_t* infer_call(checker_t* checker, ast_t* ast) {
-    ast_t* callee = ast->data.call.callee;
-    ast_t* arg    = ast->data.call.arg;
-    assert(arg->tag == AST_TUPLE);
-
-    const ast_t* param = NULL;
-    if (callee->tag == AST_ID) {
-        const ast_t* to = callee->data.id.to;
-        if (to->tag == AST_DEF)
-            param = to->data.def.param;
-        else if (to->tag == AST_STRUCT)
-            param = to->data.struct_.members;
-    }
-
-    if (arg->data.tuple.named && !param) {
-        log_error(checker->log, &arg->loc, "named arguments are only allowed for calls to top-level functions or structure constructors");
+    if (!infer_names(checker, ast))
         return type_top(checker->mod);
-    }
-
     const type_t* callee_type = infer(checker, ast->data.call.callee);
     switch (callee_type->tag) {
         case TYPE_ARRAY:
             {
-                ast_list_t* args = arg->data.tuple.args;
+                ast_list_t* args = ast->data.call.arg->data.tuple.args;
                 size_t nargs = ast_list_length(args);
-                if (!expect_args(checker, arg, "array indexing expression", nargs, callee_type->data.dim))
+                if (!expect_args(checker, ast->data.call.arg, "array indexing expression", nargs, callee_type->data.dim))
                     return type_top(checker->mod);
-                FORALL_AST(arg->data.tuple.args, arg, {
+                FORALL_AST(args, arg, {
                     const type_t* arg_type = infer(checker, arg);
                     if (!type_is_i(arg_type) && !type_is_u(arg_type)) {
                         log_error(checker->log, &arg->loc, "expected integer type as array index, but got '{0:t}'",
@@ -181,14 +176,10 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
                 return callee_type->ops[0];
             }
         case TYPE_STRUCT:
-            assert(param);
-            check_args(checker, callee, param, arg, true);
+            check(checker, ast->data.call.arg, type_members(checker->mod, callee_type));
             return callee_type;
         case TYPE_FN:
-            if (param)
-                check_args(checker, callee, param, arg, false);
-            else
-                check(checker, arg, callee_type->ops[0]);
+            check(checker, ast->data.call.arg, callee_type->ops[0]);
             return callee_type->ops[1];
         default:
             if (callee_type->tag != TYPE_TOP)
@@ -241,7 +232,9 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 TMP_BUF_ALLOC(type_ops, const type_t*, ast_list_length(ast->data.tuple.args))
                 size_t nops = 0;
                 FORALL_AST(ast->data.tuple.args, arg, {
-                    type_ops[nops++] = infer(checker, arg);
+                    bool name = arg->tag == AST_FIELD && arg->data.field.name;
+                    size_t index = name ? arg->data.field.index : nops++;
+                    type_ops[index] = infer(checker, name ? arg->data.field.arg : arg);
                 })
                 const type_t* type = type_tuple(checker->mod, nops, type_ops);
                 TMP_BUF_FREE(type_ops)
@@ -403,8 +396,9 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 size_t nops = 0;
                 TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
                 FORALL_AST(ast->data.tuple.args, arg, {
-                    type_ops[nops] = check(checker, arg, expected->ops[nops]);
-                    nops++;
+                    bool name = arg->tag == AST_FIELD && arg->data.field.name;
+                    size_t index = name ? arg->data.field.index : nops++;
+                    type_ops[index] = check(checker, name ? arg->data.field.arg : arg, expected->ops[index]);
                 });
                 const type_t* type = type_tuple(checker->mod, nops, type_ops);
                 TMP_BUF_FREE(type_ops)
