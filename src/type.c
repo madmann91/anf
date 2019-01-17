@@ -243,6 +243,7 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
         case TYPE_STRUCT: return type_struct(mod, type->data.struct_def, type->nops, ops);
         case TYPE_FN:     return type_fn(mod, ops[0], ops[1]);
         default:
+            assert(type->nops == 0);
             return make_type(mod, (type_t) { .nops = 0, .tag = type->tag, .data = type->data });
     }
 }
