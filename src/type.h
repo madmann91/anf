@@ -86,6 +86,7 @@ bool type_is_u(const type_t*);
 bool type_is_f(const type_t*);
 bool type_is_subtype(const type_t*, const type_t*);
 bool type_contains(const type_t*, const type_t*);
+size_t type_arg_count(const type_t*);
 size_t type_order(const type_t*);
 const type_t* type_member(mod_t*, const type_t*, size_t);
 

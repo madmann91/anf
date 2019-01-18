@@ -103,6 +103,10 @@ bool type_contains(const type_t* type, const type_t* op) {
     return false;
 }
 
+size_t type_arg_count(const type_t* type) {
+    return type->tag == TYPE_TUPLE ? type->nops : 1;
+}
+
 size_t type_order(const type_t* type) {
     if (type->tag == TYPE_FN) {
         size_t dom   = type_order(type->ops[0]);

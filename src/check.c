@@ -22,6 +22,25 @@ static inline const type_t* expect(checker_t* checker, ast_t* ast, const char* m
     return type;
 }
 
+static inline bool expect_args(checker_t* checker, ast_t* ast, const char* msg, size_t nargs, size_t nparams, const type_t* expected) {
+    if (nargs != nparams) {
+        if (expected && nparams == 1) {
+            log_error(checker->log, &ast->loc, "expected type '{0:t}', but got {1:s} with {2:u32} arguments",
+                { .t = expected },
+                { .s = msg },
+                { .u32 = nargs });
+        } else {
+            log_error(checker->log, &ast->loc, "expected {0:u32} argument{1:s} in {2:s}, but got {3:u32}",
+                { .u32 = nparams },
+                { .s   = nparams >= 2 ? "s" : "" },
+                { .s   = msg },
+                { .u32 = nargs });
+        }
+        return false;
+    }
+    return true;
+}
+
 static inline const type_t* find_param(ast_list_t* params, const char* name, size_t* index) {
     size_t i = 0;
     FORALL_AST(params, param, {
@@ -106,7 +125,7 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
     }
 
     if (!params) {
-        log_error(checker->log, &ast->loc, "named arguments are only allowed for calls to top-level functions or structure constructors");
+        log_error(checker->log, &ast->loc, "named arguments are only allowed for to top-level functions or structures");
         return false;
     }
 
@@ -156,20 +175,15 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
 static const type_t* infer_call(checker_t* checker, ast_t* ast) {
     if (!infer_names(checker, ast))
         return type_top(checker->mod);
+    ast_list_t* args = ast->data.call.arg->data.tuple.args;
     const type_t* callee_type = infer(checker, ast->data.call.callee);
+    size_t nargs = ast_list_length(args);
     switch (callee_type->tag) {
         case TYPE_ARRAY:
             {
-                ast_list_t* args = ast->data.call.arg->data.tuple.args;
-                size_t nargs = ast_list_length(args);
                 size_t dim   = callee_type->data.dim;
-                if (nargs != dim) {
-                    log_error(checker->log, &ast->loc, "expected {0:u32} argument{1:s} in array indexing expression, but got {2:u32}",
-                        { .u32 = dim },
-                        { .s = dim >= 2 ? "s" : "" },
-                        { .u32 = nargs });
+                if (!expect_args(checker, ast, "array indexing expression", nargs, dim, NULL))
                     return type_top(checker->mod);
-                }
                 FORALL_AST(args, arg, {
                     const type_t* arg_type = infer(checker, arg);
                     if (!type_is_i(arg_type) && !type_is_u(arg_type)) {
@@ -181,9 +195,13 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
                 return callee_type->ops[0];
             }
         case TYPE_STRUCT:
+            if (!expect_args(checker, ast, "structure expression", nargs, callee_type->data.struct_def->nmbs, NULL))
+                return type_top(checker->mod);
             check(checker, ast->data.call.arg, type_tuple_from_struct(checker->mod, callee_type));
             return callee_type;
         case TYPE_FN:
+            if (!expect_args(checker, ast, "function call", nargs, type_arg_count(callee_type->ops[0]), NULL))
+                return type_top(checker->mod);
             check(checker, ast->data.call.arg, callee_type->ops[0]);
             return callee_type->ops[1];
         default:
@@ -407,13 +425,8 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 size_t nargs = ast_list_length(ast->data.tuple.args);
                 if (nargs == 1)
                     return check(checker, ast->data.tuple.args->ast, expected);
-                if (expected->nops != nargs) {
-                    log_error(checker->log, &ast->loc, "expected {0:u32} argument{1:s}, but got {2:u32}",
-                        { .u32 = expected->tag == TYPE_TUPLE ? expected->nops : 1 },
-                        { .s   = expected->tag == TYPE_TUPLE && expected->nops >= 2 ? "s" : "" },
-                        { .u32 = nargs });
+                if (!expect_args(checker, ast, "tuple", nargs, type_arg_count(expected), expected))
                     return expected;
-                }
                 size_t nops = 0;
                 TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
                 FORALL_AST(ast->data.tuple.args, arg, {
