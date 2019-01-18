@@ -111,9 +111,9 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
     }
 
     size_t nparams = ast_list_length(params);
-    TMP_BUF_ALLOC(param_seen, bool, nparams)
+    TMP_BUF_ALLOC(param_seen, ast_t*, nparams)
     for (size_t i = 0; i < nparams; ++i)
-        param_seen[i] = false;
+        param_seen[i] = NULL;
 
     // Mark every positional argument as seen
     size_t param_index = 0;
@@ -123,7 +123,7 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
         ast_t* arg = cur_arg->ast;
         if (arg->tag == AST_FIELD && arg->data.field.name)
             break;
-        param_seen[param_index] = true;
+        param_seen[param_index] = arg;
         param_index++;
         cur_param = cur_param->next;
         cur_arg   = cur_arg->next;
@@ -138,12 +138,13 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
             invalid_member_or_param(checker, name, callee->data.id.str, param_name, is_struct);
             status = false;
         } else if (param_seen[param_index]) {
-            log_error(checker->log, &name->loc, "{0:s} '{1:s}' can only be mentioned once",
+            log_error(checker->log, &name->loc, "{0:s} '{1:s}' has already been specified",
                 { .s = is_struct ? "member" : "parameter" },
                 { .s = param_name });
+            log_note(checker->log, &param_seen[param_index]->loc, "previous specification was here");
             status = false;
         } else {
-            param_seen[param_index] = true;
+            param_seen[param_index] = name;
             name->data.field.index = param_index;
         }
     })
