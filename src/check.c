@@ -333,6 +333,30 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 const type_t* body_type  = infer(checker, ast->data.fn.body);
                 return type_fn(checker->mod, param_type, body_type);
             }
+        case AST_IF:
+            {
+                check(checker, ast->data.if_.cond, type_bool(checker->mod));
+                const type_t* type = infer(checker, ast->data.if_.if_true);
+                if (ast->data.if_.if_false)
+                    check(checker, ast->data.if_.if_false, type);
+                return type;
+            }
+        case AST_MATCH:
+            {
+                const type_t* arg_type   = infer(checker, ast->data.match.arg);
+                const type_t* value_type = NULL;
+                FORALL_AST(ast->data.match.cases, case_, {
+                    check(checker, case_->data.case_.ptrn, arg_type);
+                    if (value_type)
+                        check(checker, case_->data.case_.value, value_type);
+                    else
+                        value_type = infer(checker, case_->data.case_.value);
+                })
+                return value_type ? value_type : type_unit(checker->mod);
+            }
+        case AST_WHILE:
+            check(checker, ast->data.while_.cond, type_bool(checker->mod));
+            return infer(checker, ast->data.while_.body);
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:  return type_i32(checker->mod);
