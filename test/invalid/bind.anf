@@ -1,6 +1,6 @@
 mod bind {
-    def test() {
-        def exit = break
+    def test() = {
+        val exit = break
         while (true)
             exit()
     }

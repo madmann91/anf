@@ -886,7 +886,7 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "invalid module name: %s\n", name);
                     return 1;
                 }
-                run_test(&tests[j]);
+                ok &= run_test(&tests[j]);
             } else {
                 fprintf(stderr, "unknown option: %s\n", argv[i]);
                 return 1;
