@@ -177,10 +177,10 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
         return type_top(checker->mod);
     ast_list_t* args = ast->data.call.arg->data.tuple.args;
     const type_t* callee_type = infer(checker, ast->data.call.callee);
-    size_t nargs = ast_list_length(args);
     switch (callee_type->tag) {
         case TYPE_ARRAY:
             {
+                size_t nargs = ast_list_length(args);
                 size_t dim   = callee_type->data.dim;
                 if (!expect_args(checker, ast, "array indexing expression", nargs, dim, NULL))
                     return type_top(checker->mod);
@@ -195,13 +195,9 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
                 return callee_type->ops[0];
             }
         case TYPE_STRUCT:
-            if (!expect_args(checker, ast, "structure expression", nargs, callee_type->data.struct_def->nmbs, NULL))
-                return type_top(checker->mod);
             check(checker, ast->data.call.arg, type_tuple_from_struct(checker->mod, callee_type));
             return callee_type;
         case TYPE_FN:
-            if (!expect_args(checker, ast, "function call", nargs, type_arg_count(callee_type->ops[0]), NULL))
-                return type_top(checker->mod);
             check(checker, ast->data.call.arg, callee_type->ops[0]);
             return callee_type->ops[1];
         default:

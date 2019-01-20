@@ -592,6 +592,7 @@ static ast_t* parse_cont(parser_t* parser, uint32_t tag) {
 static ast_t* parse_annot(parser_t* parser, ast_t* arg) {
     ast_t* ast = ast_create_with_loc(parser, AST_ANNOT, arg->loc);
     eat(parser, TOK_COLON);
+    eat_nl(parser);
     ast->data.annot.ast = arg;
     ast->data.annot.type = parse_type(parser);
     return ast_finalize(ast, parser);
@@ -635,7 +636,9 @@ static ast_t* parse_array_type(parser_t* parser) {
 static ast_t* parse_member_or_param(parser_t* parser, const char* msg) {
     ast_t* ast = ast_create(parser, AST_ANNOT);
     ast->data.annot.ast = parse_id(parser);
+    eat_nl(parser);
     expect(parser, msg, TOK_COLON);
+    eat_nl(parser);
     ast->data.annot.type = parse_type(parser);
     return ast_finalize(ast, parser);
 }

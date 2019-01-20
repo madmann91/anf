@@ -787,7 +787,7 @@ bool test_parse(void) {
         "mod hello {\n"
         "    var z = 33 * 4 + (2 >> 1)\n"
         "    val (a, b) = 7\n"
-        "    def func(x\n) {\n"
+        "    def func(\nx\n:\ni32\n) = {\n"
         "        z >>= 3\n"
         "        (x, z, \n"
         "        {x ; y})\n"
