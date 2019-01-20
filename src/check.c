@@ -337,10 +337,10 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             }
         case AST_CONT:
             {
-                assert(ast->data.cont.parent && ast->data.cont.parent->type);
-                const type_t* parent_type = ast->data.cont.parent->type;
                 switch (ast->data.cont.tag) {
                     case CONT_RETURN:
+                        assert(ast->data.cont.parent && ast->data.cont.parent->type);
+                        const type_t* parent_type = ast->data.cont.parent->type;
                         assert(parent_type->tag == TYPE_FN);
                         return type_fn(checker->mod, parent_type->ops[1], type_bottom(checker->mod));
                     case CONT_CONTINUE:
@@ -399,6 +399,10 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 });
                 return expected;
             }
+        case AST_WHILE:
+            check(checker, ast->data.while_.cond, type_bool(checker->mod));
+            check(checker, ast->data.while_.body, type_unit(checker->mod));
+            return type_unit(checker->mod);
         case AST_TUPLE:
             {
                 size_t nargs = ast_list_length(ast->data.tuple.args);
