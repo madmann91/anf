@@ -12,15 +12,15 @@ static inline uint32_t hash_uint8(uint32_t h, uint8_t d) {
 }
 
 static inline uint32_t hash_uint16(uint32_t h, uint16_t d) {
-    return hash_uint8(hash_uint8(h, d & 0xFF), d >> 8);
+    return hash_uint8(hash_uint8(h, d), d >> 8);
 }
 
 static inline uint32_t hash_uint32(uint32_t h, uint32_t d) {
-    return hash_uint16(hash_uint16(h, d & 0xFFFF), d >> 16);
+    return hash_uint16(hash_uint16(h, d), d >> 16);
 }
 
 static inline uint32_t hash_uint64(uint32_t h, uint64_t d) {
-    return hash_uint32(hash_uint32(h, d & ((uint64_t)0xFFFFFFFF)), d >> 32);
+    return hash_uint32(hash_uint32(h, d), d >> 32);
 }
 
 static inline uint32_t hash_bytes(uint32_t h, const void* ptr, size_t nbytes) {
