@@ -46,10 +46,10 @@ struct struct_mb_s {
 };
 
 struct struct_def_s {
-    bool byref;
     const char* name;
-    size_t nmbs;
-    struct_mb_t* mbs;
+    struct ast_s* ast;
+    const type_t* members;
+    bool byref;
 };
 
 struct enum_def_s {
@@ -88,6 +88,7 @@ bool type_is_subtype(const type_t*, const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_arg_count(const type_t*);
 size_t type_order(const type_t*);
+const type_t* type_arg(const type_t*, size_t);
 const type_t* type_member(mod_t*, const type_t*, size_t);
 
 const type_t* type_bool(mod_t*);

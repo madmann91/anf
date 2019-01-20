@@ -527,7 +527,7 @@ static ast_t* parse_while(parser_t* parser) {
     eat_nl(parser);
     ast->data.while_.cond = parse_expr(parser);
     eat_nl(parser);
-    expect(parser, "while condition", TOK_LPAREN);
+    expect(parser, "while condition", TOK_RPAREN);
     eat_nl(parser);
     ast->data.while_.body = parse_expr(parser);
     return ast_finalize(ast, parser);

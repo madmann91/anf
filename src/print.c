@@ -259,9 +259,9 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print_ast(printer, ast->data.call.arg);
             break;
         case AST_IF:
-            print(printer, "{$key}if{$} ");
+            print(printer, "{$key}if{$} (");
             print_ast(printer, ast->data.if_.cond);
-            print(printer, " ");
+            print(printer, ") ");
             print_ast(printer, ast->data.if_.if_true);
             if (ast->data.if_.if_false) {
                 print(printer, " {$key}else{$} ");
@@ -269,9 +269,9 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             }
             break;
         case AST_WHILE:
-            print(printer, "{$key}while{$} ");
+            print(printer, "{$key}while{$} (");
             print_ast(printer, ast->data.while_.cond);
-            print(printer, " ");
+            print(printer, ") ");
             print_ast(printer, ast->data.while_.body);
             break;
         case AST_FOR:

@@ -7,4 +7,9 @@ mod functions {
         test1(z, 8)
         y
     }
+    val a : (i32, i64) = (1, 2)
+    val b = test1(a)
+    val c = test1(b = 2, a = 1)
+    val d = test1(1, b = 2)
+    val e = test1(1, 2)
 }

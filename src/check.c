@@ -41,7 +41,7 @@ static inline bool expect_args(checker_t* checker, ast_t* ast, const char* msg, 
     return true;
 }
 
-static inline const type_t* find_param(ast_list_t* params, const char* name, size_t* index) {
+static inline const type_t* find_member_or_param(ast_list_t* params, const char* name, size_t* index) {
     size_t i = 0;
     FORALL_AST(params, param, {
         assert(param->tag == AST_ANNOT);
@@ -53,14 +53,6 @@ static inline const type_t* find_param(ast_list_t* params, const char* name, siz
         i++;
     })
     return NULL;
-}
-
-static inline size_t find_member(const struct_def_t* struct_def, const char* name) {
-    for (size_t i = 0; i < struct_def->nmbs; ++i) {
-        if (!strcmp(struct_def->mbs[i].name, name))
-            return i;
-    }
-    return INVALID_INDEX;
 }
 
 static inline void invalid_member_or_param(checker_t* checker, ast_t* ast, const char* name, const char* member_name, bool is_struct) {
@@ -76,22 +68,21 @@ static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
         case AST_TUPLE:
             {
                 size_t nargs = ast_list_length(ptrn->data.tuple.args);
-                if (value->tag == AST_TUPLE && nargs == ast_list_length(value->data.tuple.args)) {
-                    TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
-                    ast_list_t* cur_ptrn  = ptrn->data.tuple.args;
-                    ast_list_t* cur_value = value->data.tuple.args;
-                    size_t nops = 0;
-                    while (cur_ptrn) {
-                        type_ops[nops++] = infer_ptrn(checker, cur_ptrn->ast, cur_value->ast);
-                        cur_ptrn = cur_ptrn->next;
-                        cur_value = cur_value->next;
-                    }
-                    const type_t* type = type_tuple(checker->mod, nargs, type_ops);
-                    TMP_BUF_FREE(type_ops)
-                    return type;
+                if (value->tag != AST_TUPLE || nargs != ast_list_length(value->data.tuple.args))
+                    break;
+                TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
+                ast_list_t* cur_ptrn  = ptrn->data.tuple.args;
+                ast_list_t* cur_value = value->data.tuple.args;
+                size_t nops = 0;
+                while (cur_ptrn) {
+                    type_ops[nops++] = infer_ptrn(checker, cur_ptrn->ast, cur_value->ast);
+                    cur_ptrn = cur_ptrn->next;
+                    cur_value = cur_value->next;
                 }
+                const type_t* type = type_tuple(checker->mod, nargs, type_ops);
+                TMP_BUF_FREE(type_ops)
+                return type;
             }
-            break;
         case AST_ANNOT:
             {
                 const type_t* type = infer(checker, ptrn->data.annot.type);
@@ -152,8 +143,7 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
     bool status = true;
     FORALL_AST(cur_arg, name, {
         const char* param_name = name->data.field.id->data.id.str;
-        const type_t* param_type = find_param(params, param_name, &param_index);
-        if (!param_type) {
+        if (!find_member_or_param(params, param_name, &param_index)) {
             invalid_member_or_param(checker, name, callee->data.id.str, param_name, is_struct);
             status = false;
         } else if (param_seen[param_index]) {
@@ -222,20 +212,12 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 char* buf = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
                 strcpy(buf, name);
                 *struct_def = (struct_def_t) {
-                    .name  = buf,
+                    .ast = ast,
+                    .name = ast->data.struct_.id->data.id.str,
                     .byref = ast->data.struct_.byref,
                 };
-                ast_list_t* members = ast->data.struct_.members->data.tuple.args;
                 ast->type = type_struct(checker->mod, struct_def, 0, NULL);
-                struct_def->nmbs = ast_list_length(members);
-                struct_def->mbs  = mpool_alloc(&checker->mod->pool, struct_def->nmbs * sizeof(struct_mb_t));
-                size_t nmbs = 0;
-                FORALL_AST(members, member, {
-                    assert(member->tag == AST_ANNOT && member->data.annot.ast->tag == AST_ID);
-                    struct_def->mbs[nmbs].name = member->data.annot.ast->data.id.str;
-                    struct_def->mbs[nmbs].type = infer(checker, member);
-                    nmbs++;
-                })
+                struct_def->members = infer(checker, ast->data.struct_.members);
                 return ast->type;
             }
         case AST_ID:
@@ -300,10 +282,11 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                         log_error(checker->log, &ast->loc, "structure type expected in field expression, but got '{0:t}'", { .t = struct_type });
                     return type_top(checker->mod);
                 }
-                const struct_def_t* struct_def = struct_type->data.struct_def;
-                size_t member_index = find_member(struct_def, ast->data.field.id->data.id.str);
-                if (member_index == INVALID_INDEX) {
-                    invalid_member_or_param(checker, ast, struct_def->name, ast->data.field.id->data.id.str, true);
+                ast_t* struct_ast = struct_type->data.struct_def->ast;
+                const char* member_name = ast->data.field.id->data.id.str;
+                size_t member_index = 0;
+                if (!find_member_or_param(struct_ast->data.struct_.members->data.tuple.args, member_name, &member_index)) {
+                    invalid_member_or_param(checker, ast, struct_ast->data.struct_.id->data.id.str, member_name, true);
                     return type_top(checker->mod);
                 }
                 return type_member(checker->mod, struct_type, member_index);
@@ -419,7 +402,8 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
         case AST_TUPLE:
             {
                 size_t nargs = ast_list_length(ast->data.tuple.args);
-                if (nargs == 1)
+                // Named tuples must have the same number of arguments as the expected type
+                if (nargs == 1 && (!ast->data.tuple.named || expected->tag != TYPE_TUPLE))
                     return check(checker, ast->data.tuple.args->ast, expected);
                 if (!expect_args(checker, ast, "tuple", nargs, type_arg_count(expected), expected))
                     return expected;

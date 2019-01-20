@@ -124,18 +124,22 @@ size_t type_order(const type_t* type) {
     }
 }
 
+const type_t* type_arg(const type_t* type, size_t index) {
+    assert(index == 0 || (type->tag == TYPE_TUPLE && index < type->nops));
+    return type->tag == TYPE_TUPLE ? type->ops[index] : type;
+}
+
 const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
     assert(type->tag == TYPE_STRUCT);
-    assert(index < type->data.struct_def->nmbs);
     if (type->nops == 0)
-        return type->data.struct_def->mbs[index].type;
+        return type_arg(type->data.struct_def->members, index);
     type2type_t type2type = type2type_create();
     for (size_t i = 0; i < type->nops; ++i) {
         const type_t* var = type_var(mod, i);
         if (var != type->ops[i])
             type2type_insert(&type2type, var, type->ops[i]);
     }
-    const type_t* member = type_rewrite(mod, type->data.struct_def->mbs[index].type, &type2type);
+    const type_t* member = type_rewrite(mod, type_arg(type->data.struct_def->members, index), &type2type);
     type2type_destroy(&type2type);
     return member;
 }
@@ -201,23 +205,16 @@ const type_t* type_tuple_from_args(mod_t* mod, size_t nops, ...) {
 const type_t* type_tuple_from_struct(mod_t* mod, const type_t* type) {
     assert(type->tag == TYPE_STRUCT);
     const struct_def_t* struct_def = type->data.struct_def;
-    TMP_BUF_ALLOC(type_ops, const type_t*, struct_def->nmbs)
-    if (type->nops == 0) {
-        for (size_t i = 0; i < struct_def->nmbs; ++i)
-            type_ops[i] = struct_def->mbs[i].type;
-    } else {
-        type2type_t type2type = type2type_create();
-        for (size_t i = 0; i < type->nops; ++i) {
-            const type_t* var = type_var(mod, i);
-            if (var != type->ops[i])
-                type2type_insert(&type2type, var, type->ops[i]);
-        }
-        for (size_t i = 0; i < struct_def->nmbs; ++i)
-            type_ops[i] = type_rewrite(mod, type->data.struct_def->mbs[i].type, &type2type);
-        type2type_destroy(&type2type);
+    if (type->nops == 0)
+        return struct_def->members;
+    type2type_t type2type = type2type_create();
+    for (size_t i = 0; i < type->nops; ++i) {
+        const type_t* var = type_var(mod, i);
+        if (var != type->ops[i])
+            type2type_insert(&type2type, var, type->ops[i]);
     }
-    const type_t* tuple_type = type_tuple(mod, struct_def->nmbs, type_ops);
-    TMP_BUF_FREE(type_ops)
+    const type_t* tuple_type = type_rewrite(mod, struct_def->members, &type2type);
+    type2type_destroy(&type2type);
     return tuple_type;
 }
 
