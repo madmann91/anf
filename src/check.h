@@ -8,6 +8,7 @@ typedef struct checker_s checker_t;
 
 struct checker_s {
     log_t* log;
+    ast_set_t* defs;
     mod_t* mod;
 };
 

@@ -101,11 +101,14 @@ static bool process_file(const char* file) {
     mod_t* mod = mod_create();
     if (ok) {
         // Perform type checking
+        ast_set_t defs = ast_set_create();
         checker_t checker = {
             .log = &file_log.log,
+            .defs = &defs,
             .mod = mod
         };
         infer(&checker, ast);
+        ast_set_destroy(&defs);
         ok &= !file_log.log.errs;
     }
 

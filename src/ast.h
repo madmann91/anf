@@ -3,6 +3,7 @@
 
 #include "type.h"
 #include "lex.h"
+#include "adt.h"
 
 typedef struct ast_s      ast_t;
 typedef struct ast_list_s ast_list_t;
@@ -218,6 +219,8 @@ struct ast_list_s {
     ast_t*      ast;
     ast_list_t* next;
 };
+
+HSET_DEFAULT(ast_set, ast_t*)
 
 bool ast_is_ptrn(const ast_t*);
 bool ast_is_refutable(const ast_t*);

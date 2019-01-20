@@ -223,6 +223,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_ID:
             if (ast->data.id.to) {
                 // This identifier is refering to some other, previously declared identifier
+                if (ast->data.id.to->type)
+                    return ast->data.id.to->type;
                 return infer(checker, (ast_t*)ast->data.id.to);
             }
             log_error(checker->log, &ast->loc, "cannot infer type for identifier '{0:s}'", { .s = ast->data.id.str });
@@ -306,10 +308,17 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_DEF:
             {
                 const type_t* param_type = infer(checker, ast->data.def.param);
-                const type_t* ret_type   = ast->data.def.ret ? infer(checker, ast->data.def.ret) : type_unit(checker->mod);
-                // Set the type immediately to allow checking recursive calls
-                ast->type = type_fn(checker->mod, param_type, ret_type);
-                check(checker, ast->data.def.value, ret_type);
+                if (ast->data.def.ret) {
+                    // Set the type immediately to allow checking recursive calls
+                    ast->type = type_fn(checker->mod, param_type, infer(checker, ast->data.def.ret));
+                } else if (ast_set_insert(checker->defs, ast)) {
+                    ast->type = type_fn(checker->mod, param_type, infer(checker, ast->data.def.value));
+                    ast_set_remove(checker->defs, ast);
+                } else {
+                    log_error(checker->log, &ast->loc, "cannot infer return type for recursive function '{0:s}'",
+                        { .s = ast->data.def.id->data.id.str });
+                    ast->type = type_top(checker->mod);
+                }
                 return ast->type;
             }
         case AST_BLOCK:
@@ -361,6 +370,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
     assert(expected);
     switch (ast->tag) {
         case AST_ID:
+            assert(!ast->data.id.to || ast->data.id.to->type);
             return ast->data.id.to ? expect(checker, ast, "identifier", ast->data.id.to->type, expected) : expected;
         case AST_BLOCK:
             for (ast_list_t* cur = ast->data.block.stmts; cur; cur = cur->next) {
