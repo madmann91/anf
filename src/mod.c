@@ -79,18 +79,6 @@ void mod_opt(mod_t** mod) {
     (void)mod;
 }
 
-const htable_t* mod_types(const mod_t* mod) {
-    return mod->types.table;
-}
-
-const htable_t* mod_nodes(const mod_t* mod) {
-    return mod->nodes.table;
-}
-
-const node_vec_t* mod_fns(const mod_t* mod) {
-    return &mod->fns;
-}
-
 static inline void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {
     use_t* use = mpool_alloc(&mod->pool, sizeof(use_t));
     use->index = index;
