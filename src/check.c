@@ -199,8 +199,8 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
 
 static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
     switch (ast->tag) {
-        case AST_PROGRAM:
-            FORALL_AST(ast->data.program.mods, mod, { infer(checker, mod); })
+        case AST_PROG:
+            FORALL_AST(ast->data.prog.mods, mod, { infer(checker, mod); })
             return NULL;
         case AST_MOD:
             FORALL_AST(ast->data.mod.decls, decl, { infer(checker, decl); })
@@ -258,7 +258,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 const type_t* elem_type = infer(checker, ast->data.array.elems->ast);
                 if (!ast->data.array.dim) {
                     FORALL_AST(ast->data.array.elems->next, elem, {
-                        elem_type = check(checker, elem, elem_type);
+                        check(checker, elem, elem_type);
                     });
                 }
                 if (ast->data.array.regular) {
@@ -482,7 +482,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     }
                     const type_t* elem_type = expected->ops[0];
                     FORALL_AST(ast->data.array.elems, elem, {
-                        elem_type = check(checker, elem, expected->ops[0]);
+                        check(checker, elem, expected->ops[0]);
                     })
                     return type_array(checker->mod, 1, elem_type);
                 }

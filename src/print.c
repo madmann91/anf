@@ -311,8 +311,8 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
                     break;
             }
             break;
-        case AST_PROGRAM:
-            print_ast_list(printer, ast->data.program.mods, "\n", true);
+        case AST_PROG:
+            print_ast_list(printer, ast->data.prog.mods, "\n", true);
             break;
         case AST_ERR:
             print(printer, "{$err}<syntax error>{$}");

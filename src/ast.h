@@ -41,7 +41,7 @@ enum ast_tag_e {
     AST_MATCH,
     AST_CASE,
     AST_CONT,
-    AST_PROGRAM,
+    AST_PROG,
     AST_ERR
 };
 
@@ -209,7 +209,7 @@ struct ast_s {
         } cont;
         struct {
             ast_list_t* mods;
-        } program;
+        } prog;
     } data;
     const type_t* type;
     loc_t loc;

@@ -723,8 +723,8 @@ static ast_t* parse_mod(parser_t* parser) {
 }
 
 static ast_t* parse_program(parser_t* parser) {
-    ast_t* ast = ast_create(parser, AST_PROGRAM);
-    ast_list_t** cur = &ast->data.program.mods;
+    ast_t* ast = ast_create(parser, AST_PROG);
+    ast_list_t** cur = &ast->data.prog.mods;
     while (parser->ahead.tag == TOK_MOD) {
         eat_nl(parser);
         ast_t* mod = parse_mod(parser);

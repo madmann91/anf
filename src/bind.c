@@ -95,8 +95,8 @@ static void bind_head(binder_t* binder, ast_t* ast) {
                     insert_env(binder, decl->data.struct_.id, decl);
             })
             break;
-        case AST_PROGRAM:
-            FORALL_AST(ast->data.program.mods, mod, {
+        case AST_PROG:
+            FORALL_AST(ast->data.prog.mods, mod, {
                 insert_env(binder, mod->data.mod.id, mod);
             })
             break;
@@ -108,13 +108,13 @@ static void bind_head(binder_t* binder, ast_t* ast) {
 
 void bind(binder_t* binder, ast_t* ast) {
     switch (ast->tag) {
-        case AST_PROGRAM:
+        case AST_PROG:
             assert(binder->env == NULL);
             binder->fn = NULL;
             binder->loop = NULL;
             binder->env = alloc_env(NULL);
             bind_head(binder, ast);
-            FORALL_AST(ast->data.program.mods, mod, {
+            FORALL_AST(ast->data.prog.mods, mod, {
                 bind(binder, mod);
             })
             free_env(binder->env);
