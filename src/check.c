@@ -223,9 +223,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_ID:
             if (ast->data.id.to) {
                 // This identifier is refering to some other, previously declared identifier
-                if (ast->data.id.to->type)
-                    return ast->data.id.to->type;
-                return infer(checker, (ast_t*)ast->data.id.to);
+                ast_t* to = (ast_t*)ast->data.id.to;
+                return to->type ? to->type : infer(checker, to);
             }
             log_error(checker->log, &ast->loc, "cannot infer type for identifier '{0:s}'", { .s = ast->data.id.str });
             return type_top(checker->mod);
