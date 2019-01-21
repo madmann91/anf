@@ -2,6 +2,7 @@
 #define AST_H
 
 #include "type.h"
+#include "node.h"
 #include "lex.h"
 #include "adt.h"
 
@@ -212,6 +213,7 @@ struct ast_s {
         } prog;
     } data;
     const type_t* type;
+    const node_t* node;
     loc_t loc;
 };
 

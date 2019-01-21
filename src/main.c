@@ -9,10 +9,10 @@
 #include "parse.h"
 #include "bind.h"
 #include "check.h"
+#include "emit.h"
 #include "util.h"
 #include "mpool.h"
 #include "print.h"
-#include "util.h"
 
 #if defined(_WIN32) && !defined (__CYGWIN__)
     #define WIN32_LEAN_AND_MEAN 1
@@ -112,11 +112,26 @@ static bool process_file(const char* file) {
         ok &= !file_log.log.errs;
     }
 
+    if (ok) {
+        emitter_t emitter = {
+            .mod = mod,
+            .file = file
+        };
+        emit(&emitter, ast);
+    }
+
     // Display program on success
     if (ok) {
         file_printer_t file_printer = printer_from_file(stdout);
         file_printer.printer.colorize = global_log.log.colorize;
         print(&file_printer.printer, "{0:a}\n", { .a = ast });
+
+        FORALL_FNS(mod, fn, {
+            node_dump(fn);
+            printf("\t");
+            if (fn->ops[0]) node_dump(fn->ops[0]);
+        })
+
     }
 
     free(file_data);

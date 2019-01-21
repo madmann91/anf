@@ -62,9 +62,10 @@ static void print_type(printer_t* printer, const type_t* type) {
 }
 
 static inline void print_node_name(printer_t* printer, const node_t* node) {
+    bool use_name = node->dbg && node->dbg->name;
     print(printer, "<{0:s}{1:s}{$id}{2:p}{$}>",
-        { .s = node->dbg ? node->dbg->name : "" },
-        { .s = node->dbg ? " : " : "" },
+        { .s = use_name ? node->dbg->name : "" },
+        { .s = use_name ? " : " : "" },
         { .p = node });
 }
 
