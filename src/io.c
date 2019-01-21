@@ -60,7 +60,7 @@ static inline void write_fn(io_t* io, const node_t* fn, const node2idx_t* node2i
     io->write(io, node2idx_lookup(node2idx, fn->ops[0]), sizeof(uint32_t));
     io->write(io, node2idx_lookup(node2idx, fn->ops[1]), sizeof(uint32_t));
     io->write(io, type2idx_lookup(type2idx, fn->type), sizeof(uint32_t));
-    io->write(io, &fn->data.fn_flags, sizeof(fn_flags_t));
+    io->write(io, &fn->data.fn_flags, sizeof(uint32_t));
     uint32_t dbg_idx = fn->dbg ? *dbg2idx_lookup(dbg2idx, fn->dbg) : (uint32_t)-1;
     io->write(io, &dbg_idx, sizeof(uint32_t));
 }
@@ -151,15 +151,15 @@ static inline void read_fn_ops(io_t* io, mod_t* mod, uint32_t i, idx2node_t* idx
     assert(fn->tag == NODE_FN);
     node_bind(mod, fn, 0, *idx2node_lookup(idx2node, body_idx));
     node_bind(mod, fn, 1, *idx2node_lookup(idx2node, run_if_idx));
-    io->seek(io, sizeof(uint32_t) * 2 + sizeof(fn_flags_t), SEEK_CUR);
+    io->seek(io, sizeof(uint32_t) * 3, SEEK_CUR);
 }
 
 static inline const node_t* read_fn(io_t* io, mod_t* mod, const idx2type_t* idx2type, const idx2dbg_t* idx2dbg) {
     io->seek(io, 2 * sizeof(uint32_t), SEEK_CUR);
     uint32_t type_idx;
-    fn_flags_t flags;
+    uint32_t flags;
     io->read(io, &type_idx, sizeof(uint32_t));
-    io->read(io, &flags,    sizeof(fn_flags_t));
+    io->read(io, &flags,    sizeof(uint32_t));
     uint32_t dbg_idx;
     io->read(io, &dbg_idx,  sizeof(uint32_t));
     const dbg_t* dbg = idx2dbg && dbg_idx != (uint32_t)-1 ? *idx2dbg_lookup(idx2dbg, dbg_idx) : NULL;

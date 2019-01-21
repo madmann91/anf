@@ -2,24 +2,6 @@
 
 #include "type.h"
 
-fp_flags_t fp_flags_strict() {
-    return (fp_flags_t) {
-        .associative_math = false,
-        .reciprocal_math  = false,
-        .finite_math      = false,
-        .no_nan_math      = false
-    };
-}
-
-fp_flags_t fp_flags_relaxed() {
-    return (fp_flags_t) {
-        .associative_math = true,
-        .reciprocal_math  = true,
-        .finite_math      = true,
-        .no_nan_math      = true
-    };
-}
-
 size_t type_bitwidth(const type_t* type) {
     switch (type->tag) {
         case TYPE_BOOL: return 1;
@@ -158,8 +140,8 @@ const type_t* type_u16(mod_t* mod)  { return type_prim(mod, TYPE_U16); }
 const type_t* type_u32(mod_t* mod)  { return type_prim(mod, TYPE_U32); }
 const type_t* type_u64(mod_t* mod)  { return type_prim(mod, TYPE_U64); }
 
-const type_t* type_f32(mod_t* mod, fp_flags_t flags) { return type_prim_fp(mod, TYPE_F32, flags); }
-const type_t* type_f64(mod_t* mod, fp_flags_t flags) { return type_prim_fp(mod, TYPE_F64, flags); }
+const type_t* type_f32(mod_t* mod, uint32_t fp_flags) { return type_prim_fp(mod, TYPE_F32, fp_flags); }
+const type_t* type_f64(mod_t* mod, uint32_t fp_flags) { return type_prim_fp(mod, TYPE_F64, fp_flags); }
 
 const type_t* type_top(mod_t* mod)    { return make_type(mod, (type_t) { .tag = TYPE_TOP,    .nops = 0 }); }
 const type_t* type_bottom(mod_t* mod) { return make_type(mod, (type_t) { .tag = TYPE_BOTTOM, .nops = 0 }); }
@@ -169,9 +151,9 @@ const type_t* type_prim(mod_t* mod, uint32_t tag) {
     return make_type(mod, (type_t) { .tag = tag, .nops = 0 });
 }
 
-const type_t* type_prim_fp(mod_t* mod, uint32_t tag, fp_flags_t flags) {
+const type_t* type_prim_fp(mod_t* mod, uint32_t tag, uint32_t fp_flags) {
     assert(tag == TYPE_F32 || tag == TYPE_F64);
-    return make_type(mod, (type_t) { .tag = tag, .nops = 0, .data = { .fp_flags = flags } });
+    return make_type(mod, (type_t) { .tag = tag, .nops = 0, .data = { .fp_flags = fp_flags }, .dsize = sizeof(uint32_t) });
 }
 
 const type_t* type_mem(mod_t* mod) {
@@ -220,11 +202,11 @@ const type_t* type_tuple_from_struct(mod_t* mod, const type_t* type) {
 
 const type_t* type_array(mod_t* mod, uint32_t dim, const type_t* elem_type) {
     assert(elem_type->tag != TYPE_MEM);
-    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type, .data = { .dim = dim } });
+    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type, .data = { .dim = dim }, .dsize = sizeof(uint32_t) });
 }
 
 const type_t* type_struct(mod_t* mod, struct_def_t* struct_def, size_t nops, const type_t** ops) {
-    return make_type(mod, (type_t) { .tag = TYPE_STRUCT, .nops = nops, .ops = ops, .data = { .struct_def = struct_def } });
+    return make_type(mod, (type_t) { .tag = TYPE_STRUCT, .nops = nops, .ops = ops, .data = { .struct_def = struct_def }, .dsize = sizeof(struct_def_t*) });
 }
 
 const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
@@ -233,7 +215,7 @@ const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
 }
 
 const type_t* type_var(mod_t* mod, uint32_t var) {
-    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .var = var } });
+    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .var = var }, .dsize = sizeof(uint32_t) });
 }
 
 const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
@@ -245,7 +227,7 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
         case TYPE_FN:     return type_fn(mod, ops[0], ops[1]);
         default:
             assert(type->nops == 0);
-            return make_type(mod, (type_t) { .nops = 0, .tag = type->tag, .data = type->data });
+            return make_type(mod, (type_t) { .nops = 0, .tag = type->tag, .data = type->data, .dsize = type->dsize });
     }
 }
 

@@ -3,6 +3,25 @@
 #include "node.h"
 #include "type.h"
 
+static inline size_t box_size(uint32_t tag) {
+    switch (tag) {
+        case TYPE_BOOL: return sizeof(bool);
+        case TYPE_I8:   return sizeof(int8_t);
+        case TYPE_I16:  return sizeof(int16_t);
+        case TYPE_I32:  return sizeof(int32_t);
+        case TYPE_I64:  return sizeof(int64_t);
+        case TYPE_U8:   return sizeof(uint8_t);
+        case TYPE_U16:  return sizeof(uint16_t);
+        case TYPE_U32:  return sizeof(uint32_t);
+        case TYPE_U64:  return sizeof(uint64_t);
+        case TYPE_F32:  return sizeof(float);
+        case TYPE_F64:  return sizeof(double);
+        default:
+            assert(false);
+            return 0;
+    }
+}
+
 static inline const node_t* make_node(mod_t* mod, const node_t node) {
     return mod_insert_node(mod, &node);
 }
@@ -21,7 +40,9 @@ uint64_t node_value_u(const node_t* node) {
         case TYPE_U64:  return node->data.box.u64;
         case TYPE_F32:  return node->data.box.f32;
         case TYPE_F64:  return node->data.box.f64;
-        default:        assert(false); return 0;
+        default:
+            assert(false);
+            return 0;
     }
 }
 
@@ -39,7 +60,9 @@ int64_t node_value_i(const node_t* node) {
         case TYPE_U64:  return node->data.box.u64;
         case TYPE_F32:  return node->data.box.f32;
         case TYPE_F64:  return node->data.box.f64;
-        default:        assert(false); return 0;
+        default:
+            assert(false);
+            return 0;
     }
 }
 
@@ -57,7 +80,9 @@ double node_value_f(const node_t* node) {
         case TYPE_U64:  return node->data.box.u64;
         case TYPE_F32:  return node->data.box.f32;
         case TYPE_F64:  return node->data.box.f64;
-        default:        assert(false); return 0;
+        default:
+            assert(false);
+            return 0;
     }
 }
 
@@ -180,7 +205,9 @@ const node_t* node_zero(mod_t* mod, const type_t* type) {
         case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = 0 });
         case TYPE_F32:  return node_literal(mod, type, (box_t) { .f32 = 0.0f });
         case TYPE_F64:  return node_literal(mod, type, (box_t) { .f64 = 0.0 });
-        default:        assert(false); return NULL;
+        default:
+            assert(false);
+            return NULL;
     }
 }
 
@@ -198,7 +225,9 @@ const node_t* node_one(mod_t* mod, const type_t* type) {
         case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = 1 });
         case TYPE_F32:  return node_literal(mod, type, (box_t) { .f32 = 1.0f });
         case TYPE_F64:  return node_literal(mod, type, (box_t) { .f64 = 1.0 });
-        default:        assert(false); return NULL;
+        default:
+            assert(false);
+            return NULL;
     }
 }
 
@@ -215,7 +244,9 @@ const node_t* node_all_ones(mod_t* mod, const type_t* type) {
         case TYPE_U16:  return node_literal(mod, type, (box_t) { .u16 = -1 });
         case TYPE_U32:  return node_literal(mod, type, (box_t) { .u32 = -1 });
         case TYPE_U64:  return node_literal(mod, type, (box_t) { .u64 = -1 });
-        default:        assert(false); return NULL;
+        default:
+            assert(false);
+            return NULL;
     }
 }
 
@@ -229,14 +260,15 @@ const node_t* node_u16 (mod_t* mod, uint16_t u16) { return node_literal(mod, typ
 const node_t* node_u32 (mod_t* mod, uint32_t u32) { return node_literal(mod, type_u32(mod),  (box_t) { .u32 = u32 }); }
 const node_t* node_u64 (mod_t* mod, uint64_t u64) { return node_literal(mod, type_u64(mod),  (box_t) { .u64 = u64 }); }
 
-const node_t* node_f32(mod_t* mod, float  f32, fp_flags_t flags) { return node_literal(mod, type_f32(mod, flags), (box_t) { .f32 = f32 }); }
-const node_t* node_f64(mod_t* mod, double f64, fp_flags_t flags) { return node_literal(mod, type_f64(mod, flags), (box_t) { .f64 = f64 }); }
+const node_t* node_f32(mod_t* mod, float  f32, uint32_t fp_flags) { return node_literal(mod, type_f32(mod, fp_flags), (box_t) { .f32 = f32 }); }
+const node_t* node_f64(mod_t* mod, double f64, uint32_t fp_flags) { return node_literal(mod, type_f64(mod, fp_flags), (box_t) { .f64 = f64 }); }
 
 const node_t* node_literal(mod_t* mod, const type_t* type, box_t box) {
     return make_node(mod, (node_t) {
         .tag  = NODE_LITERAL,
         .nops = 0,
         .data = { .box = box },
+        .dsize = box_size(type->tag),
         .type = type,
     });
 }
@@ -813,7 +845,7 @@ static inline bool node_is_commutative(uint32_t tag) {
 static inline bool node_is_distributive(uint32_t tag1, uint32_t tag2, const type_t* type) {
     switch (tag1) {
         case NODE_MUL: return (tag2 == NODE_ADD || tag2 == NODE_SUB) &&
-                              (!type_is_f(type) || type->data.fp_flags.associative_math);
+                              (!type_is_f(type) || (type->data.fp_flags & FP_ASSOCIATIVE_MATH));
         case NODE_AND: return tag2 == NODE_OR;
         case NODE_OR:  return tag2 == NODE_AND;
         default: return false;
@@ -821,7 +853,7 @@ static inline bool node_is_distributive(uint32_t tag1, uint32_t tag2, const type
 }
 
 static inline bool node_can_switch_comparands(uint32_t tag, const type_t* type) {
-    return tag == NODE_CMPEQ || !type_is_f(type) || type->data.fp_flags.no_nan_math;
+    return tag == NODE_CMPEQ || !type_is_f(type) || (type->data.fp_flags & FP_NO_NAN_MATH);
 }
 
 static inline bool node_should_switch_ops(const node_t* left, const node_t* right) {
@@ -1356,7 +1388,7 @@ const node_t* node_select(mod_t* mod, const node_t* cond, const node_t* if_true,
     });
 }
 
-const node_t* node_fn(mod_t* mod, const type_t* type, fn_flags_t flags, const dbg_t* dbg) {
+const node_t* node_fn(mod_t* mod, const type_t* type, uint32_t fn_flags, const dbg_t* dbg) {
     assert(type->tag == TYPE_FN);
     const node_t* ops[] = { node_bottom(mod, type->ops[1]), node_bool(mod, false) };
     return make_node(mod, (node_t) {
@@ -1364,7 +1396,8 @@ const node_t* node_fn(mod_t* mod, const type_t* type, fn_flags_t flags, const db
         .nops = 2,
         .ops = ops,
         .type = type,
-        .data = { .fn_flags = flags },
+        .data = { .fn_flags = fn_flags },
+        .dsize = sizeof(uint32_t),
         .dbg = dbg
     });
 }

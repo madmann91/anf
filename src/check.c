@@ -1,6 +1,6 @@
 #include "check.h"
 
-static inline fp_flags_t default_fp_flags() {
+static inline uint32_t default_fp_flags() {
     return fp_flags_relaxed();
 }
 

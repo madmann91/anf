@@ -49,8 +49,6 @@ typedef struct loc_s loc_t;
 typedef struct dbg_s dbg_t;
 typedef struct use_s use_t;
 
-typedef struct fn_flags_s fn_flags_t;
-
 enum node_tag_e {
 #define NODE(name, str) name,
     NODE_LIST(NODE)
@@ -90,10 +88,10 @@ struct use_s {
     use_t* next;
 };
 
-struct fn_flags_s {
-    bool exported  : 1;
-    bool imported  : 1;
-    bool intrinsic : 1;
+enum fn_flags_e {
+    FN_EXPORTED = 0x01,  // The function is visible in other modules
+    FN_IMPORTED = 0x02,  // The function is from another module
+    FN_INTRINSIC = 0x04  // The function is a built-in intrinsic
 };
 
 struct node_s {
@@ -101,10 +99,10 @@ struct node_s {
     size_t   nops;
     use_t*   uses;
     union {
-        box_t      box;
-        fn_flags_t fn_flags;
+        box_t    box;
+        uint32_t fn_flags;
     } data;
-
+    size_t dsize;
     const node_t*  rep;
     const node_t** ops;
     const type_t*  type;
@@ -133,8 +131,8 @@ const node_t* node_u8(mod_t*, uint8_t);
 const node_t* node_u16(mod_t*, uint16_t);
 const node_t* node_u32(mod_t*, uint32_t);
 const node_t* node_u64(mod_t*, uint64_t);
-const node_t* node_f32(mod_t*, float, fp_flags_t);
-const node_t* node_f64(mod_t*, double, fp_flags_t);
+const node_t* node_f32(mod_t*, float, uint32_t);
+const node_t* node_f64(mod_t*, double, uint32_t);
 const node_t* node_literal(mod_t*, const type_t*, box_t);
 
 bool node_is_unit(const node_t*);
@@ -185,7 +183,7 @@ const node_t* node_store(mod_t*, const node_t*, const node_t*, const node_t*, co
 const node_t* node_known(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 
-const node_t* node_fn(mod_t*, const type_t*, fn_flags_t, const dbg_t*);
+const node_t* node_fn(mod_t*, const type_t*, uint32_t, const dbg_t*);
 const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
 

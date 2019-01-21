@@ -28,21 +28,14 @@
     f(TYPE_FN,     "fn") \
     f(TYPE_VAR,    "var") \
 
-typedef struct fp_flags_s   fp_flags_t;
 typedef struct struct_def_s struct_def_t;
-typedef struct struct_mb_s  struct_mb_t;
 typedef struct enum_def_s   enum_def_t;
 
-struct fp_flags_s {
-    bool associative_math : 1;   // Assume associativity of floating point operations
-    bool reciprocal_math  : 1;   // Allow the use of reciprocal for 1/x
-    bool finite_math      : 1;   // Assume no infs
-    bool no_nan_math      : 1;   // Assume no NaNs
-};
-
-struct struct_mb_s {
-    const char* name;
-    const type_t* type;
+enum fp_flags_e {
+    FP_ASSOCIATIVE_MATH = 0x01,  // Assume associativity of floating point operations
+    FP_RECIPROCAL_MATH  = 0x02,  // Allow the use of reciprocal for 1/x
+    FP_FINITE_MATH      = 0x04,  // Assume no infs
+    FP_NO_NAN_MATH      = 0x08   // Assume no NaNs
 };
 
 struct struct_def_s {
@@ -69,14 +62,15 @@ struct type_s {
     union {
         uint32_t      dim;
         uint32_t      var;
-        fp_flags_t    fp_flags;
+        uint32_t      fp_flags;
         struct_def_t* struct_def;
         enum_def_t*   enum_def;
     } data;
+    size_t dsize;
 };
 
-fp_flags_t fp_flags_strict();
-fp_flags_t fp_flags_relaxed();
+#define fp_flags_strict()  (0)
+#define fp_flags_relaxed() (FP_ASSOCIATIVE_MATH | FP_RECIPROCAL_MATH | FP_FINITE_MATH | FP_NO_NAN_MATH)
 
 size_t type_bitwidth(const type_t*);
 bool type_is_unit(const type_t*);
@@ -100,14 +94,14 @@ const type_t* type_u8(mod_t*);
 const type_t* type_u16(mod_t*);
 const type_t* type_u32(mod_t*);
 const type_t* type_u64(mod_t*);
-const type_t* type_f32(mod_t*, fp_flags_t);
-const type_t* type_f64(mod_t*, fp_flags_t);
+const type_t* type_f32(mod_t*, uint32_t);
+const type_t* type_f64(mod_t*, uint32_t);
 
 const type_t* type_top(mod_t*);
 const type_t* type_bottom(mod_t*);
 
 const type_t* type_prim(mod_t*, uint32_t);
-const type_t* type_prim_fp(mod_t*, uint32_t, fp_flags_t);
+const type_t* type_prim_fp(mod_t*, uint32_t, uint32_t);
 const type_t* type_mem(mod_t*);
 const type_t* type_ptr(mod_t*, const type_t*);
 const type_t* type_unit(mod_t*);

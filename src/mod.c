@@ -5,17 +5,13 @@
 #include "util.h"
 #include "mpool.h"
 
-// Note that these hash functions rely on the assumption
-// that the padding bytes in the data field of a node/type
-// is initialized to zero
-
 bool node_cmp(const void* ptr1, const void* ptr2) {
     const node_t* node1 = *(const node_t**)ptr1;
     const node_t* node2 = *(const node_t**)ptr2;
     if (node1->tag  != node2->tag  ||
         node1->nops != node2->nops ||
         node1->type != node2->type ||
-        memcmp(&node1->data, &node2->data, sizeof(node1->data)))
+        memcmp(&node1->data, &node2->data, node1->dsize))
         return false;
     for (size_t i = 0; i < node1->nops; ++i) {
         if (node1->ops[i] != node2->ops[i])
@@ -31,7 +27,7 @@ uint32_t node_hash(const void* ptr) {
     h = hash_ptr(h, node->type);
     for (size_t i = 0; i < node->nops; ++i)
         h = hash_ptr(h, node->ops[i]);
-    for (size_t i = 0; i < sizeof(node->data); ++i)
+    for (size_t i = 0; i < node->dsize; ++i)
         h = hash_uint8(h, ((uint8_t*)&node->data)[i]);
     return h;
 }
@@ -41,7 +37,7 @@ bool type_cmp(const void* ptr1, const void* ptr2) {
     const type_t* type2 = *(const type_t**)ptr2;
     if (type1->tag  != type2->tag ||
         type1->nops != type2->nops ||
-        memcmp(&type1->data, &type2->data, sizeof(type1->data)))
+        memcmp(&type1->data, &type2->data, type1->dsize))
         return false;
     for (size_t i = 0; i < type1->nops; ++i) {
         if (type1->ops[i] != type2->ops[i])
@@ -56,7 +52,7 @@ uint32_t type_hash(const void* ptr) {
     h = hash_uint32(h, type->tag);
     for (size_t i = 0; i < type->nops; ++i)
         h = hash_ptr(h, type->ops[i]);
-    for (size_t i = 0; i < sizeof(type->data); ++i)
+    for (size_t i = 0; i < type->dsize; ++i)
         h = hash_uint8(h, ((uint8_t*)&type->data)[i]);
     return h;
 }
