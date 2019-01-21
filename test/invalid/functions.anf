@@ -1,0 +1,5 @@
+mod functions {
+    def f() = g()
+    def g() = h()
+    def h() = f()
+}
