@@ -35,7 +35,10 @@ enum fp_flags_e {
     FP_ASSOCIATIVE_MATH = 0x01,  // Assume associativity of floating point operations
     FP_RECIPROCAL_MATH  = 0x02,  // Allow the use of reciprocal for 1/x
     FP_FINITE_MATH      = 0x04,  // Assume no infs
-    FP_NO_NAN_MATH      = 0x08   // Assume no NaNs
+    FP_NO_NAN_MATH      = 0x08,  // Assume no NaNs
+
+    FP_STRICT_MATH  = 0,
+    FP_RELAXED_MATH = FP_ASSOCIATIVE_MATH | FP_RECIPROCAL_MATH | FP_FINITE_MATH | FP_NO_NAN_MATH
 };
 
 struct struct_def_s {
@@ -68,9 +71,6 @@ struct type_s {
     } data;
     size_t dsize;
 };
-
-#define fp_flags_strict()  (0)
-#define fp_flags_relaxed() (FP_ASSOCIATIVE_MATH | FP_RECIPROCAL_MATH | FP_FINITE_MATH | FP_NO_NAN_MATH)
 
 size_t type_bitwidth(const type_t*);
 bool type_is_unit(const type_t*);

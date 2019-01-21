@@ -1,7 +1,7 @@
 #include "check.h"
 
 static inline uint32_t default_fp_flags() {
-    return fp_flags_relaxed();
+    return FP_RELAXED_MATH;
 }
 
 static inline const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, const type_t* type, const type_t* expected) {
@@ -234,7 +234,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 case TYPE_F32:
                 case TYPE_F64:
                     // TODO: Use proper FP flags
-                    return type_prim_fp(checker->mod, ast->data.prim.tag, fp_flags_relaxed());
+                    return type_prim_fp(checker->mod, ast->data.prim.tag, default_fp_flags());
                 default:
                     return type_prim(checker->mod, ast->data.prim.tag);
             }

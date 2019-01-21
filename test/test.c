@@ -104,10 +104,10 @@ bool test_types(void) {
     CHECK(type_u16(mod)  == type_u16(mod));
     CHECK(type_u32(mod)  == type_u32(mod));
     CHECK(type_u64(mod)  == type_u64(mod));
-    CHECK(type_f32(mod, fp_flags_relaxed()) == type_f32(mod, fp_flags_relaxed()));
-    CHECK(type_f64(mod, fp_flags_relaxed()) == type_f64(mod, fp_flags_relaxed()));
-    CHECK(type_fn(mod, type_i32(mod), type_f32(mod, fp_flags_relaxed())) ==
-          type_fn(mod, type_i32(mod), type_f32(mod, fp_flags_relaxed())));
+    CHECK(type_f32(mod, FP_RELAXED_MATH) == type_f32(mod, FP_RELAXED_MATH));
+    CHECK(type_f64(mod, FP_RELAXED_MATH) == type_f64(mod, FP_RELAXED_MATH));
+    CHECK(type_fn(mod, type_i32(mod), type_f32(mod, FP_RELAXED_MATH)) ==
+          type_fn(mod, type_i32(mod), type_f32(mod, FP_RELAXED_MATH)));
     ops[0] = type_i64(mod);
     ops[1] = type_i32(mod);
     ops[2] = type_i16(mod);
@@ -126,8 +126,8 @@ bool test_types(void) {
     CHECK(type_bitwidth(type_u16(mod))  == 16);
     CHECK(type_bitwidth(type_u32(mod))  == 32);
     CHECK(type_bitwidth(type_u64(mod))  == 64);
-    CHECK(type_bitwidth(type_f32(mod, fp_flags_strict())) == 32);
-    CHECK(type_bitwidth(type_f64(mod, fp_flags_strict())) == 64);
+    CHECK(type_bitwidth(type_f32(mod, FP_STRICT_MATH)) == 32);
+    CHECK(type_bitwidth(type_f64(mod, FP_STRICT_MATH)) == 64);
 
     CHECK(type_is_prim(type_bool(mod)));
     CHECK(type_is_prim(type_i8(mod)));
@@ -138,8 +138,8 @@ bool test_types(void) {
     CHECK(type_is_prim(type_u16(mod)));
     CHECK(type_is_prim(type_u32(mod)));
     CHECK(type_is_prim(type_u64(mod)));
-    CHECK(type_is_prim(type_f32(mod, fp_flags_strict())));
-    CHECK(type_is_prim(type_f64(mod, fp_flags_strict())));
+    CHECK(type_is_prim(type_f32(mod, FP_STRICT_MATH)));
+    CHECK(type_is_prim(type_f64(mod, FP_STRICT_MATH)));
 
 cleanup:
     mod_destroy(mod);
@@ -182,13 +182,13 @@ bool test_literals(void) {
     CHECK(node_i32(mod, 0) != node_u32(mod, 0));
     CHECK(node_i64(mod, 0) != node_u64(mod, 0));
 
-    CHECK(node_f32(mod, 1.0f, fp_flags_strict()) == node_f32(mod,  1.0f, fp_flags_strict()));
-    CHECK(node_f32(mod, 0.0f, fp_flags_strict()) == node_f32(mod,  0.0f, fp_flags_strict()));
-    CHECK(node_f32(mod, 0.0f, fp_flags_strict()) != node_f32(mod, -0.0f, fp_flags_strict()));
+    CHECK(node_f32(mod, 1.0f, FP_STRICT_MATH) == node_f32(mod,  1.0f, FP_STRICT_MATH));
+    CHECK(node_f32(mod, 0.0f, FP_STRICT_MATH) == node_f32(mod,  0.0f, FP_STRICT_MATH));
+    CHECK(node_f32(mod, 0.0f, FP_STRICT_MATH) != node_f32(mod, -0.0f, FP_STRICT_MATH));
 
-    CHECK(node_f64(mod, 1.0, fp_flags_strict()) == node_f64(mod,  1.0, fp_flags_strict()));
-    CHECK(node_f64(mod, 0.0, fp_flags_strict()) == node_f64(mod,  0.0, fp_flags_strict()));
-    CHECK(node_f64(mod, 0.0, fp_flags_strict()) != node_f64(mod, -0.0, fp_flags_strict()));
+    CHECK(node_f64(mod, 1.0, FP_STRICT_MATH) == node_f64(mod,  1.0, FP_STRICT_MATH));
+    CHECK(node_f64(mod, 0.0, FP_STRICT_MATH) == node_f64(mod,  0.0, FP_STRICT_MATH));
+    CHECK(node_f64(mod, 0.0, FP_STRICT_MATH) != node_f64(mod, -0.0, FP_STRICT_MATH));
 
 cleanup:
     mod_destroy(mod);
@@ -211,11 +211,11 @@ bool test_tuples(void) {
 
     ops1[0] = node_i32(mod, 1);
     ops1[1] = node_i8(mod, 2);
-    ops1[2] = node_f32(mod, 3.0f, fp_flags_relaxed());
+    ops1[2] = node_f32(mod, 3.0f, FP_RELAXED_MATH);
     tuple1 = node_tuple(mod, 3, ops1, NULL);
     ops2[0] = node_i32(mod, 4);
     ops2[1] = node_i8(mod, 5);
-    ops2[2] = node_f32(mod, 6.0f, fp_flags_relaxed());
+    ops2[2] = node_f32(mod, 6.0f, FP_RELAXED_MATH);
     tuple2 = node_tuple(mod, 3, ops2, NULL);
 
     CHECK(node_tuple(mod, 1, ops1, NULL) == ops1[0]);
@@ -336,7 +336,7 @@ bool test_bitcast(void) {
     CHECK(
         node_bitcast(mod,
             node_bitcast(mod,
-                node_bitcast(mod, param, type_f32(mod, fp_flags_strict()), NULL),
+                node_bitcast(mod, param, type_f32(mod, FP_STRICT_MATH), NULL),
                 type_u32(mod), NULL),
             type_i32(mod), NULL)
         == param);
@@ -345,10 +345,10 @@ bool test_bitcast(void) {
     CHECK(node_bitcast(mod, node_u32(mod, 32), type_i32(mod), NULL) == node_i32(mod, 32));
     CHECK(node_bitcast(mod, node_u64(mod, 32), type_i64(mod), NULL) == node_i64(mod, 32));
 
-    CHECK(node_bitcast(mod, node_f32(mod,  0.0f, fp_flags_strict()), type_i32(mod), NULL) == node_i32(mod, 0));
-    CHECK(node_bitcast(mod, node_f32(mod, -0.0f, fp_flags_strict()), type_u32(mod), NULL) == node_u32(mod, 0x80000000u));
+    CHECK(node_bitcast(mod, node_f32(mod,  0.0f, FP_STRICT_MATH), type_i32(mod), NULL) == node_i32(mod, 0));
+    CHECK(node_bitcast(mod, node_f32(mod, -0.0f, FP_STRICT_MATH), type_u32(mod), NULL) == node_u32(mod, 0x80000000u));
 
-    CHECK(node_bitcast(mod, node_bottom(mod, type_i32(mod)), type_f32(mod, fp_flags_strict()), NULL) == node_bottom(mod, type_f32(mod, fp_flags_strict())));
+    CHECK(node_bitcast(mod, node_bottom(mod, type_i32(mod)), type_f32(mod, FP_STRICT_MATH), NULL) == node_bottom(mod, type_f32(mod, FP_STRICT_MATH)));
 
 cleanup:
     mod_destroy(mod);
@@ -416,18 +416,18 @@ bool test_binops(void) {
     CHECK(node_add(mod, node_u32(mod, 1), node_u32(mod, 1), NULL) == node_u32(mod, 2));
     CHECK(node_add(mod, node_u64(mod, 1), node_u64(mod, 1), NULL) == node_u64(mod, 2));
 
-    CHECK(node_add(mod, node_f32(mod, 1.0f, fp_flags_strict()), node_f32(mod, 1.0f, fp_flags_strict()), NULL) == node_f32(mod, 2.0f, fp_flags_strict()));
-    CHECK(node_add(mod, node_f64(mod, 1.0, fp_flags_strict()), node_f64(mod, 1.0, fp_flags_strict()), NULL) == node_f64(mod, 2.0, fp_flags_strict()));
+    CHECK(node_add(mod, node_f32(mod, 1.0f, FP_STRICT_MATH), node_f32(mod, 1.0f, FP_STRICT_MATH), NULL) == node_f32(mod, 2.0f, FP_STRICT_MATH));
+    CHECK(node_add(mod, node_f64(mod, 1.0, FP_STRICT_MATH), node_f64(mod, 1.0, FP_STRICT_MATH), NULL) == node_f64(mod, 2.0, FP_STRICT_MATH));
 
     CHECK(
         node_bitcast(mod,
             node_mul(mod,
-                node_bitcast(mod, node_f32(mod, 1.0f, fp_flags_strict()), type_i32(mod), NULL),
+                node_bitcast(mod, node_f32(mod, 1.0f, FP_STRICT_MATH), type_i32(mod), NULL),
                 node_i32(mod, 1),
                 NULL),
-            type_f32(mod, fp_flags_strict()),
+            type_f32(mod, FP_STRICT_MATH),
             NULL)
-        == node_f32(mod, 1.0f, fp_flags_strict()));
+        == node_f32(mod, 1.0f, FP_STRICT_MATH));
 
     fn = node_fn(mod, type_fn(mod, type_tuple_from_args(mod, 2, type_i32(mod), type_i32(mod)), type_i32(mod)), FN_EXPORTED, NULL);
     param = node_param(mod, fn, NULL);
