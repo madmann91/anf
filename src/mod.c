@@ -129,8 +129,11 @@ const node_t* mod_insert_node(mod_t* mod, const node_t* node) {
     // Functions are not hashed
     if (node->tag != NODE_FN) {
         const node_t** lookup = internal_node_set_lookup(&mod->nodes, node);
-        if (lookup)
+        if (lookup) {
+            if (node->dbg && !(*lookup)->dbg)
+                (*(node_t**)lookup)->dbg = node->dbg;
             return *lookup;
+        }
     }
 
     node_t* node_ptr = mpool_alloc(&mod->pool, sizeof(node_t));

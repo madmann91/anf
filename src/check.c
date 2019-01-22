@@ -6,25 +6,24 @@ static inline uint32_t default_fp_flags() {
 
 static inline const type_t* expect(checker_t* checker, ast_t* ast, const char* msg, const type_t* type, const type_t* expected) {
     assert(expected);
-    if (!type || !type_is_subtype(type, expected)) {
-        // When a type contains top, this is an error that has already been logged before
-        if (type && type_contains(type, type_top(checker->mod)))
-            return expected;
-        static const char* fmts[] = {
-            "expected type '{2:t}', but got {0:s} with type '{1:t}'",
-            "expected type '{2:t}', but got {0:s}",
-            "expected type '{2:t}', but got type '{1:t}'"
-        };
-        size_t i = msg && type ? 0 : (msg ? 1 : 2);
-        log_error(checker->log, &ast->loc, fmts[i], { .s = msg }, { .t = type }, { .t = expected });
+    if (type == expected || expected->tag == TYPE_TOP || (type && type->tag == TYPE_BOTTOM))
+        return type;
+    // When a type contains top, this is an error that has already been logged before
+    if (type && type_contains(type, type_top(checker->mod)))
         return expected;
-    }
-    return type;
+    static const char* fmts[] = {
+        "expected type '{2:t}', but got {0:s} with type '{1:t}'",
+        "expected type '{2:t}', but got {0:s}",
+        "expected type '{2:t}', but got type '{1:t}'"
+    };
+    size_t i = msg && type ? 0 : (msg ? 1 : 2);
+    log_error(checker->log, &ast->loc, fmts[i], { .s = msg }, { .t = type }, { .t = expected });
+    return expected;
 }
 
 static inline bool expect_args(checker_t* checker, ast_t* ast, const char* msg, size_t nargs, size_t nparams, const type_t* expected) {
     if (nargs != nparams) {
-        if (expected && nparams == 1) {
+        if (expected && expected->tag != TYPE_TOP && nparams == 1) {
             log_error(checker->log, &ast->loc, "expected type '{0:t}', but got {1:s} with {2:u32} arguments",
                 { .t = expected },
                 { .s = msg },
@@ -162,6 +161,26 @@ static bool infer_names(checker_t* checker, ast_t* ast) {
     return status;
 }
 
+static inline const type_t* check_tuple(checker_t* checker, ast_t* ast, const char* msg, const type_t* expected) {
+    assert(ast->tag == AST_TUPLE);
+    size_t nargs = ast_list_length(ast->data.tuple.args);
+    // Named tuples must have the same number of arguments as the expected type
+    if (nargs == 1 && (!ast->data.tuple.named || expected->tag != TYPE_TUPLE))
+        return check(checker, ast->data.tuple.args->ast, expected);
+    if (!expect_args(checker, ast, msg, nargs, type_arg_count(expected), expected))
+        return expected;
+    size_t nops = 0;
+    TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
+    FORALL_AST(ast->data.tuple.args, arg, {
+        bool name = arg->tag == AST_FIELD && arg->data.field.name;
+        size_t index = name ? arg->data.field.index : nops++;
+        type_ops[index] = check(checker, name ? arg->data.field.arg : arg, expected->ops[index]);
+    });
+    const type_t* type = type_tuple(checker->mod, nops, type_ops);
+    TMP_BUF_FREE(type_ops)
+    return type;
+}
+
 static const type_t* infer_call(checker_t* checker, ast_t* ast) {
     if (!infer_names(checker, ast))
         return type_top(checker->mod);
@@ -177,18 +196,18 @@ static const type_t* infer_call(checker_t* checker, ast_t* ast) {
                 FORALL_AST(args, arg, {
                     const type_t* arg_type = infer(checker, arg);
                     if (!type_is_i(arg_type) && !type_is_u(arg_type)) {
-                        log_error(checker->log, &arg->loc, "expected integer type as array index, but got '{0:t}'",
-                            { .t = arg_type });
+                        if (arg_type->tag != TYPE_TOP)
+                            log_error(checker->log, &arg->loc, "expected integer type as array index, but got '{0:t}'", { .t = arg_type });
                         return type_top(checker->mod);
                     }
                 })
                 return callee_type->ops[0];
             }
         case TYPE_STRUCT:
-            check(checker, ast->data.call.arg, type_tuple_from_struct(checker->mod, callee_type));
+            check_tuple(checker, ast->data.call.arg, "structure", type_tuple_from_struct(checker->mod, callee_type));
             return callee_type;
         case TYPE_FN:
-            check(checker, ast->data.call.arg, callee_type->ops[0]);
+            check_tuple(checker, ast->data.call.arg, "function call", callee_type->ops[0]);
             return callee_type->ops[1];
         default:
             if (callee_type->tag != TYPE_TOP)
@@ -268,7 +287,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                     }
                     if (elem_type->tag == TYPE_ARRAY)
                         return type_array(checker->mod, elem_type->data.dim + 1, elem_type->ops[0]);
-                    log_error(checker->log, &ast->loc, "array type expected in regular array expression, but got '{0:t}'", { .t = elem_type });
+                    if (elem_type->tag != TYPE_TOP)
+                        log_error(checker->log, &ast->loc, "array type expected in regular array expression, but got '{0:t}'", { .t = elem_type });
                     return type_top(checker->mod);
                 }
                 return type_array(checker->mod, 1, elem_type);
@@ -309,7 +329,9 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 const type_t* param_type = infer(checker, ast->data.def.param);
                 if (ast->data.def.ret) {
                     // Set the type immediately to allow checking recursive calls
-                    ast->type = type_fn(checker->mod, param_type, infer(checker, ast->data.def.ret));
+                    const type_t* ret_type = infer(checker, ast->data.def.ret);
+                    ast->type = type_fn(checker->mod, param_type, ret_type);
+                    check(checker, ast->data.def.value, ret_type);
                 } else if (ast_set_insert(checker->defs, ast)) {
                     ast->type = type_fn(checker->mod, param_type, infer(checker, ast->data.def.value));
                     ast_set_remove(checker->defs, ast);
@@ -439,24 +461,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
             check(checker, ast->data.while_.body, type_unit(checker->mod));
             return type_unit(checker->mod);
         case AST_TUPLE:
-            {
-                size_t nargs = ast_list_length(ast->data.tuple.args);
-                // Named tuples must have the same number of arguments as the expected type
-                if (nargs == 1 && (!ast->data.tuple.named || expected->tag != TYPE_TUPLE))
-                    return check(checker, ast->data.tuple.args->ast, expected);
-                if (!expect_args(checker, ast, "tuple", nargs, type_arg_count(expected), expected))
-                    return expected;
-                size_t nops = 0;
-                TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
-                FORALL_AST(ast->data.tuple.args, arg, {
-                    bool name = arg->tag == AST_FIELD && arg->data.field.name;
-                    size_t index = name ? arg->data.field.index : nops++;
-                    type_ops[index] = check(checker, name ? arg->data.field.arg : arg, expected->ops[index]);
-                });
-                const type_t* type = type_tuple(checker->mod, nops, type_ops);
-                TMP_BUF_FREE(type_ops)
-                return type;
-            }
+            return check_tuple(checker, ast, "tuple", expected);
         case AST_ARRAY:
             {
                 assert(!ast->data.array.dim);

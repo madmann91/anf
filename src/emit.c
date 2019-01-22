@@ -3,16 +3,12 @@
 
 #include "emit.h"
 
-static inline const dbg_t* dbg_from_name(emitter_t* emitter, const char* name, loc_t loc) {
+static inline const dbg_t* make_dbg(emitter_t* emitter, const char* name, loc_t loc) {
     dbg_t* dbg = mpool_alloc(&emitter->mod->pool, sizeof(dbg_t));
     dbg->name = name;
     dbg->file = emitter->file;
     dbg->loc  = loc;
     return dbg;
-}
-
-static inline const dbg_t* dbg_from_loc(emitter_t* emitter, loc_t loc) {
-    return dbg_from_name(emitter, NULL, loc);
 }
 
 static inline const type_t* continuation_type(emitter_t* emitter, const type_t* fn_type) {
@@ -30,6 +26,7 @@ static inline const type_t* basic_block_type(emitter_t* emitter, const type_t* a
 }
 
 static inline void jump(emitter_t* emitter, const node_t* fn, const node_t* arg, bool cond, const dbg_t* dbg) {
+    assert(emitter->bb);
     node_bind(emitter->mod, emitter->bb, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, cond), dbg));
 }
 
@@ -51,29 +48,50 @@ static inline void check_flt_lit(emitter_t* emitter, ast_t* ast, double min, dou
     }
 }
 
-static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node) {
+static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool var) {
     switch (ast->tag) {
         case AST_TUPLE:
             {
                 size_t nops = 0;
                 FORALL_AST(ast->data.tuple.args, arg, {
-                    const dbg_t*  arg_dbg  = dbg_from_loc(emitter, arg->loc);
-                    const node_t* arg_node = node_extract(emitter->mod, node, node_i32(emitter->mod, nops++), arg_dbg);
-                    emit_ptrn(emitter, arg, arg_node);
+                    const node_t* arg_node = node_extract(emitter->mod, node, node_i32(emitter->mod, nops++), NULL);
+                    emit_ptrn(emitter, arg, arg_node, var);
                 })
             }
             break;
         case AST_ID:
-            ((dbg_t*)node->dbg)->name = ast->data.id.str;
-            ast->node = node;
+            if (var) {
+                const node_t* alloc = node_alloc(emitter->mod, emitter->mem, ast->type, NULL);
+                emitter->mem = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 0), NULL);
+                ast->node = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 1), NULL);
+            } else {
+                ast->node = node;
+            }
+            if (!ast->node->dbg)
+                ((node_t*)ast->node)->dbg = make_dbg(emitter, ast->data.id.str, ast->loc);
             break;
         case AST_ANNOT:
-            emit_ptrn(emitter, ast->data.annot.ast, node);
+            emit_ptrn(emitter, ast->data.annot.ast, node, var);
             break;
         default:
             assert(false);
             break;
     }
+}
+
+static const node_t* emit_fn(emitter_t* emitter, ast_t* ast_fn, ast_t* ast_param, ast_t* ast_value, const char* name) {
+    const node_t* fn = node_fn(emitter->mod, continuation_type(emitter, ast_fn->type), 0, make_dbg(emitter, name, ast_fn->loc));
+    const node_t* param = node_param(emitter->mod, fn, make_dbg(emitter, NULL, ast_param->loc));
+    const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
+    const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast_param->loc));
+    const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
+    emit_ptrn(emitter, ast_param, ptrn, false);
+    emitter->mem = mem;
+    emitter->bb  = fn;
+    ast_fn->node = fn;
+    const node_t* value = emit(emitter, ast_value);
+    jump(emitter, ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, value), false, NULL);
+    return fn;
 }
 
 static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
@@ -85,8 +103,16 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             FORALL_AST(ast->data.mod.decls, decl, { emit(emitter, decl); })
             return NULL;
         case AST_ID:
-            assert(ast->data.id.to && ast->data.id.to->node);
-            return ast->data.id.to->node;
+            {
+                assert(ast->data.id.to);
+                const node_t* node = ast->data.id.to->node ? ast->data.id.to->node : emit(emitter, (ast_t*)ast->data.id.to);
+                if (node->type->tag == TYPE_PTR) {
+                    const node_t* load = node_load(emitter->mod, emitter->mem, node, NULL);
+                    emitter->mem = node_extract(emitter->mod, load, node_i32(emitter->mod, 0), NULL);
+                    return node_extract(emitter->mod, load, node_i32(emitter->mod, 1), make_dbg(emitter, ast->data.id.str, ast->loc));
+                }
+                return node;
+            }
         case AST_TUPLE:
             {
                 size_t nargs = ast_list_length(ast->data.tuple.args);
@@ -97,9 +123,23 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                     size_t index = name ? arg->data.field.index : nops++;
                     node_ops[index] = emit(emitter, name ? arg->data.field.arg : arg);
                 })
-                const node_t* node = node_tuple(emitter->mod, nargs, node_ops, dbg_from_loc(emitter, ast->loc));
+                const node_t* node = node_tuple(emitter->mod, nargs, node_ops, make_dbg(emitter, NULL, ast->loc));
                 TMP_BUF_FREE(node_ops)
                 return node;
+            }
+            break;
+        case AST_CALL:
+            {
+                const node_t* callee = emit(emitter, ast->data.call.callee);
+                const node_t* arg = emit(emitter, ast->data.call.arg);
+                const type_t* cont_type = basic_block_type(emitter, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), ast->type));
+                const node_t* cont = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "call_cont", ast->loc));
+                jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->mem, arg, cont), false, make_dbg(emitter, NULL, ast->loc));
+
+                const node_t* param = node_param(emitter->mod, cont, NULL);
+                emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
+                emitter->bb = cont;
+                return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
             }
             break;
         case AST_BLOCK:
@@ -110,13 +150,15 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 })
                 return last;
             }
+        case AST_FN:
+            return emit_fn(emitter, ast, ast->data.fn.param, ast->data.fn.body, NULL);
         case AST_IF:
             {
                 const type_t* bb_type = basic_block_type(emitter, type_unit(emitter->mod));
                 const type_t* join_type = basic_block_type(emitter, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), ast->type));
-                const node_t* if_true = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "if_true", ast->data.if_.if_true->loc));
-                const node_t* if_false = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "if_false", ast->data.if_.if_false ? ast->data.if_.if_false->loc : ast->loc));
-                const node_t* join = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "if_join", ast->loc));
+                const node_t* if_true = node_fn(emitter->mod, bb_type, 0, make_dbg(emitter, "if_true", ast->data.if_.if_true->loc));
+                const node_t* if_false = node_fn(emitter->mod, bb_type, 0, make_dbg(emitter, "if_false", ast->data.if_.if_false ? ast->data.if_.if_false->loc : ast->loc));
+                const node_t* join = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "if_join", ast->loc));
 
                 const node_t* cond = emit(emitter, ast->data.if_.cond);
                 const node_t* next = node_select(emitter->mod, cond, if_true, if_false, NULL);
@@ -135,16 +177,16 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 const node_t* param = node_param(emitter->mod, join, NULL);
                 emitter->bb = join;
                 emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-                return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), dbg_from_loc(emitter, ast->loc));
+                return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast->loc));
             }
         case AST_WHILE:
             {
                 const type_t* bb_type = basic_block_type(emitter, type_unit(emitter->mod));
                 const type_t* join_type = basic_block_type(emitter, type_mem(emitter->mod));
-                const node_t* while_head = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "while_head", ast->data.while_.cond->loc));
-                const node_t* while_exit = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "while_exit", ast->loc));
-                const node_t* while_body = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "while_body", ast->data.while_.body->loc));
-                const node_t* join = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "while_join", ast->loc));
+                const node_t* while_head = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "while_head", ast->data.while_.cond->loc));
+                const node_t* while_exit = node_fn(emitter->mod, bb_type, 0, make_dbg(emitter, "while_exit", ast->loc));
+                const node_t* while_body = node_fn(emitter->mod, bb_type, 0, make_dbg(emitter, "while_body", ast->data.while_.body->loc));
+                const node_t* join = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "while_join", ast->loc));
 
                 jump(emitter, while_head, emitter->mem, false, NULL);
 
@@ -165,23 +207,12 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 emitter->mem = node_param(emitter->mod, join, NULL);
                 return node_unit(emitter->mod);
             }
+        case AST_VAL:
+        case AST_VAR:
+            emit_ptrn(emitter, ast->data.varl.ptrn, emit(emitter, ast->data.varl.value), ast->tag == AST_VAR);
+            return node_unit(emitter->mod);
         case AST_DEF:
-            {
-                const dbg_t* dbg = dbg_from_name(emitter, ast->data.def.id->data.id.str, ast->loc);
-                const node_t* fn = node_fn(emitter->mod, continuation_type(emitter, ast->type), 0, dbg);
-                const node_t* param = node_param(emitter->mod, fn, dbg_from_loc(emitter, ast->data.def.param->loc));
-                const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-                const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), dbg_from_loc(emitter, ast->data.def.param->loc));
-                const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
-
-                emit_ptrn(emitter, ast->data.def.param, ptrn);
-
-                emitter->mem = mem;
-                emitter->bb  = fn;
-                const node_t* value = emit(emitter, ast->data.def.value);
-                jump(emitter, ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, value), false, NULL);
-                return fn;
-            }
+            return emit_fn(emitter, ast, ast->data.def.param, ast->data.def.value, ast->data.def.id->data.id.str);
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:
@@ -206,7 +237,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 case LIT_CHR:
                     return node_u8(emitter->mod, ast->data.lit.str[0]);
                 case LIT_STR:
-                    return node_string(emitter->mod, ast->data.lit.str, dbg_from_loc(emitter, ast->loc));
+                    return node_string(emitter->mod, ast->data.lit.str, make_dbg(emitter, NULL, ast->loc));
                 default:
                     assert(false);
                     return NULL;

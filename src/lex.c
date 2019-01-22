@@ -122,7 +122,7 @@ static tok_t parse_num(lexer_t* lexer, size_t brow, size_t bcol) {
     errno = 0;
     if (exp || fract) {
         double fval = strtod(beg, NULL);
-        if (errno = ERANGE) {
+        if (errno == ERANGE) {
             loc_t loc = make_loc(lexer, lexer->row, lexer->col);
             log_error(lexer->log, &loc, "literal is out of range for any floating point type");
         }

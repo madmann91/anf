@@ -9,5 +9,5 @@ mod literals {
     val h = 't'
     val i = "āãäâàáēẽëêèéīĩïîìíōõöôòóūũüûùúỹÿŷỳý€¥ß"
     val j = 0b1001001010
-    val k = 0xABCDEF98
+    val k = 0x7BCDEF98
 }
