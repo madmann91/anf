@@ -26,8 +26,8 @@ static inline const type_t* basic_block_type(emitter_t* emitter, const type_t* a
 }
 
 static inline void jump(emitter_t* emitter, const node_t* fn, const node_t* arg, bool cond, const dbg_t* dbg) {
-    assert(emitter->bb);
-    node_bind(emitter->mod, emitter->bb, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, cond), dbg));
+    assert(emitter->cur);
+    node_bind(emitter->mod, emitter->cur, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, cond), dbg));
 }
 
 static inline const node_t* mem_param(emitter_t* emitter, const node_t* fn) {
@@ -93,15 +93,17 @@ static const node_t* emit_fn(emitter_t* emitter, ast_t* ast_fn, ast_t* ast_param
     const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast_param->loc));
     const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
     const node_t* return_ = emitter->return_;
+    const node_t* cur = emitter->cur;
     emit_ptrn(emitter, ast_param, ptrn, false);
-    emitter->mem = mem;
-    emitter->bb  = fn;
+    emitter->cur = fn;
     emitter->return_ = ret;
+    emitter->mem = mem;
     ast_fn->node = fn;
     const node_t* value = emit(emitter, ast_value);
     // Do not return if the body of the function has a call to return()
     if (value->type->tag != TYPE_BOTTOM)
         jump(emitter, ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, value), false, NULL);
+    emitter->cur = cur;
     emitter->return_ = return_;
     return fn;
 }
@@ -120,12 +122,12 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 if (!ast->data.id.to->node) {
                     // If the identifier is referring to a function,
                     // we need to save the current continuations
-                    const node_t* bb = emitter->bb;
+                    const node_t* cur = emitter->cur;
                     const node_t* break_ = emitter->break_;
                     const node_t* continue_ = emitter->continue_;
                     const node_t* return_ = emitter->return_;
                     emit(emitter, (ast_t*)ast->data.id.to);
-                    emitter->bb = bb;
+                    emitter->cur = cur;
                     emitter->break_ = break_;
                     emitter->continue_ = continue_;
                     emitter->return_ = return_;
@@ -173,7 +175,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 if (ast->type->tag == TYPE_BOTTOM) {
                     // Call to a continuation (like break, continue, or return)
                     jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, arg), false, make_dbg(emitter, NULL, ast->loc));
-                    emitter->bb = NULL;
+                    emitter->cur = NULL;
                     return node_bottom(emitter->mod, ast->type);
                 } else {
                     // Standard call
@@ -183,7 +185,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
 
                     const node_t* param = node_param(emitter->mod, cont, NULL);
                     emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-                    emitter->bb = cont;
+                    emitter->cur = cont;
                     return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
                 }
             }
@@ -212,17 +214,17 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 jump(emitter, next, node_unit(emitter->mod), true, NULL);
 
                 const node_t* mem = emitter->mem;
-                emitter->bb  = if_true;
+                emitter->cur  = if_true;
                 const node_t* true_val = emit(emitter, ast->data.if_.if_true);
                 jump(emitter, join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, true_val), false, NULL);
 
                 emitter->mem = mem;
-                emitter->bb  = if_false;
+                emitter->cur  = if_false;
                 const node_t* false_val = ast->data.if_.if_false ? emit(emitter, ast->data.if_.if_false) : node_unit(emitter->mod);
                 jump(emitter, join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, false_val), false, NULL);
 
                 const node_t* param = node_param(emitter->mod, join, NULL);
-                emitter->bb = join;
+                emitter->cur = join;
                 emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
                 return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast->loc));
             }
@@ -238,16 +240,16 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 jump(emitter, while_head, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), false, NULL);
 
                 emitter->mem = node_param(emitter->mod, while_head, NULL);
-                emitter->bb  = while_head;
+                emitter->cur = while_head;
                 const node_t* cond = emit(emitter, ast->data.while_.cond);
                 const node_t* next = node_select(emitter->mod, cond, while_body, while_exit, NULL);
                 jump(emitter, next, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), true, NULL);
 
-                emitter->bb = while_exit;
+                emitter->cur = while_exit;
                 emitter->mem = mem_param(emitter, while_exit);
                 jump(emitter, join, emitter->mem, false, NULL);
 
-                emitter->bb = while_body;
+                emitter->cur = while_body;
                 emitter->mem = mem_param(emitter, while_body);
                 const node_t* break_ = emitter->break_;
                 const node_t* continue_ = emitter->continue_;
@@ -258,7 +260,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 emitter->break_ = break_;
                 emitter->continue_ = continue_;
 
-                emitter->bb = join;
+                emitter->cur = join;
                 emitter->mem = node_param(emitter->mod, join, NULL);
                 return node_unit(emitter->mod);
             }

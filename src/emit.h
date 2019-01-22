@@ -12,7 +12,7 @@ struct emitter_s {
     mod_t* mod;
     log_t* log;
     const node_t* mem;
-    const node_t* bb;
+    const node_t* cur;
     const node_t* break_;
     const node_t* continue_;
     const node_t* return_;
