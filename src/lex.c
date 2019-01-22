@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "lex.h"
 
@@ -118,17 +119,28 @@ static tok_t parse_num(lexer_t* lexer, size_t brow, size_t bcol) {
     lexer->tmp = *lexer->str;
     *lexer->str = 0;
 
+    errno = 0;
     if (exp || fract) {
+        double fval = strtod(beg, NULL);
+        if (errno = ERANGE) {
+            loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+            log_error(lexer->log, &loc, "literal is out of range for any floating point type");
+        }
         return (tok_t) {
             .tag = TOK_FLT,
-            .lit = { .fval = strtod(beg, NULL) },
+            .lit = { .fval = fval },
             .str = beg,
             .loc = make_loc(lexer, brow, bcol)
         };
     }
+    uint64_t ival = strtoull(beg, NULL, base);
+    if (errno == ERANGE) {
+        loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+        log_error(lexer->log, &loc, "literal is out of range for any integer type");
+    }
     return (tok_t) {
         .tag = TOK_INT,
-        .lit = { .ival = strtoull(beg, NULL, base) },
+        .lit = { .ival = ival },
         .str = beg,
         .loc = make_loc(lexer, brow, bcol)
     };

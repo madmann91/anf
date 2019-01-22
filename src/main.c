@@ -115,9 +115,11 @@ static bool process_file(const char* file) {
     if (ok) {
         emitter_t emitter = {
             .mod = mod,
+            .log = &file_log.log,
             .file = file
         };
         emit(&emitter, ast);
+        ok &= !file_log.log.errs;
     }
 
     // Display program on success

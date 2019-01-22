@@ -335,10 +335,12 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_IF:
             {
                 check(checker, ast->data.if_.cond, type_bool(checker->mod));
-                const type_t* type = infer(checker, ast->data.if_.if_true);
-                if (ast->data.if_.if_false)
-                    check(checker, ast->data.if_.if_false, type);
-                return type;
+                if (ast->data.if_.if_false) {
+                    const type_t* type = infer(checker, ast->data.if_.if_true);
+                    return check(checker, ast->data.if_.if_false, type);
+                } else {
+                    return check(checker, ast->data.if_.if_true, type_unit(checker->mod));
+                }
             }
         case AST_MATCH:
             {

@@ -4,11 +4,13 @@
 #include "mod.h"
 #include "node.h"
 #include "ast.h"
+#include "log.h"
 
 typedef struct emitter_s emitter_t;
 
 struct emitter_s {
     mod_t* mod;
+    log_t* log;
     const node_t* mem;
     const node_t* bb;
     const char* file;
