@@ -62,6 +62,10 @@ static inline void invalid_member_or_param(checker_t* checker, ast_t* ast, const
         { .s = member_name });
 }
 
+static inline void unreachable_code(checker_t* checker, ast_t* ast) {
+    log_error(checker->log, &ast->loc, "unreachable code after this statement");
+}
+
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
     switch (ptrn->tag) {
         case AST_TUPLE:
@@ -166,9 +170,9 @@ static inline const type_t* check_tuple(checker_t* checker, ast_t* ast, const ch
     size_t nargs = ast_list_length(ast->data.tuple.args);
     // Named tuples must have the same number of arguments as the expected type
     if (nargs == 1 && (!ast->data.tuple.named || expected->tag != TYPE_TUPLE))
-        return check(checker, ast->data.tuple.args->ast, expected);
+        return ast->type = check(checker, ast->data.tuple.args->ast, expected);
     if (!expect_args(checker, ast, msg, nargs, type_arg_count(expected), expected))
-        return expected;
+        return ast->type = expected;
     size_t nops = 0;
     TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
     FORALL_AST(ast->data.tuple.args, arg, {
@@ -176,9 +180,9 @@ static inline const type_t* check_tuple(checker_t* checker, ast_t* ast, const ch
         size_t index = name ? arg->data.field.index : nops++;
         type_ops[index] = check(checker, name ? arg->data.field.arg : arg, expected->ops[index]);
     });
-    const type_t* type = type_tuple(checker->mod, nops, type_ops);
+    ast->type = type_tuple(checker->mod, nops, type_ops);
     TMP_BUF_FREE(type_ops)
-    return type;
+    return ast->type;
 }
 
 static const type_t* infer_call(checker_t* checker, ast_t* ast) {
@@ -345,7 +349,11 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_BLOCK:
             {
                 const type_t* last = type_unit(checker->mod);
-                FORALL_AST(ast->data.block.stmts, stmt, { last = infer(checker, stmt); })
+                for (ast_list_t* cur = ast->data.block.stmts; cur; cur = cur->next) {
+                    last = infer(checker, cur->ast);
+                    if (cur->next && last->tag == TYPE_BOTTOM)
+                        unreachable_code(checker, cur->ast);
+                }
                 return last;
             }
         case AST_FN:
@@ -422,9 +430,10 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
         case AST_BLOCK:
             for (ast_list_t* cur = ast->data.block.stmts; cur; cur = cur->next) {
                 // Check last element, infer every other one
-                if (cur->next)
-                    infer(checker, cur->ast);
-                else {
+                if (cur->next) {
+                    if (infer(checker, cur->ast)->tag == TYPE_BOTTOM)
+                        unreachable_code(checker, cur->ast);
+                } else {
                     check(checker, cur->ast, expected);
                     return cur->ast->type;
                 }

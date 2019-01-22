@@ -33,6 +33,10 @@ bool ast_is_refutable(const ast_t* ast) {
     }
 }
 
+bool ast_list_is_single(const ast_list_t* list) {
+    return list && !list->next;
+}
+
 size_t ast_list_length(const ast_list_t* list) {
     size_t len = 0;
     while (list) {

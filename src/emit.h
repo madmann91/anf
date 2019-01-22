@@ -13,6 +13,9 @@ struct emitter_s {
     log_t* log;
     const node_t* mem;
     const node_t* bb;
+    const node_t* break_;
+    const node_t* continue_;
+    const node_t* return_;
     const char* file;
 };
 

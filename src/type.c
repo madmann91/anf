@@ -71,10 +71,6 @@ bool type_is_f(const type_t* type) {
     }
 }
 
-bool type_is_subtype(const type_t* src, const type_t* dst) {
-    return src == dst || src->tag == TYPE_BOTTOM || dst->tag == TYPE_TOP;
-}
-
 bool type_contains(const type_t* type, const type_t* op) {
     if (type == op)
         return true;

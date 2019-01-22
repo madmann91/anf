@@ -227,6 +227,7 @@ HSET_DEFAULT(ast_set, ast_t*)
 bool ast_is_ptrn(const ast_t*);
 bool ast_is_refutable(const ast_t*);
 
+bool ast_list_is_single(const ast_list_t*);
 size_t ast_list_length(const ast_list_t*);
 
 const char* prim2str(uint32_t);
