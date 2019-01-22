@@ -116,7 +116,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 const type_t* join_type = basic_block_type(emitter, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), ast->type));
                 const node_t* if_true = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "if_true", ast->data.if_.if_true->loc));
                 const node_t* if_false = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "if_false", ast->data.if_.if_false ? ast->data.if_.if_false->loc : ast->loc));
-                const node_t* join = node_fn(emitter->mod, join_type, 0, NULL);
+                const node_t* join = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "if_join", ast->loc));
 
                 const node_t* cond = emit(emitter, ast->data.if_.cond);
                 const node_t* next = node_select(emitter->mod, cond, if_true, if_false, NULL);
@@ -141,10 +141,10 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             {
                 const type_t* bb_type = basic_block_type(emitter, type_unit(emitter->mod));
                 const type_t* join_type = basic_block_type(emitter, type_mem(emitter->mod));
-                const node_t* while_head = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "while_head", ast->loc));
+                const node_t* while_head = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "while_head", ast->data.while_.cond->loc));
                 const node_t* while_exit = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "while_exit", ast->loc));
-                const node_t* while_body = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "while_body", ast->loc));
-                const node_t* join = node_fn(emitter->mod, join_type, 0, NULL);
+                const node_t* while_body = node_fn(emitter->mod, bb_type, 0, dbg_from_name(emitter, "while_body", ast->data.while_.body->loc));
+                const node_t* join = node_fn(emitter->mod, join_type, 0, dbg_from_name(emitter, "while_join", ast->loc));
 
                 jump(emitter, while_head, emitter->mem, false, NULL);
 
