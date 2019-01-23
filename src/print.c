@@ -180,8 +180,9 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             break;
         case AST_DEF:
             print(printer, "{$key}def{$} {0:s}", { .s = ast->data.mod.id->data.id.str });
-            if (ast->data.def.param)
-                print_ast(printer, ast->data.def.param);
+            FORALL_AST(ast->data.def.params, param, {
+                print_ast(printer, param);
+            })
             if (ast->data.def.ret) {
                 print(printer, " : ");
                 print_ast(printer, ast->data.def.ret);
@@ -257,7 +258,9 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             break;
         case AST_CALL:
             print_ast(printer, ast->data.call.callee);
-            print_ast(printer, ast->data.call.arg);
+            FORALL_AST(ast->data.call.args, arg, {
+                print_ast(printer, arg);
+            })
             break;
         case AST_IF:
             print(printer, "{$key}if{$} (");

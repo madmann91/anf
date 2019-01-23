@@ -131,7 +131,7 @@ struct ast_s {
         } struct_;
         struct {
             ast_t*      id;
-            ast_t*      param;
+            ast_list_t* params;
             ast_t*      ret;
             ast_t*      value;
         } def;
@@ -180,7 +180,7 @@ struct ast_s {
         } fn;
         struct {
             ast_t*      callee;
-            ast_t*      arg;
+            ast_list_t* args;
         } call;
         struct {
             ast_t*      cond;

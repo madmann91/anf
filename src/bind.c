@@ -153,14 +153,18 @@ void bind(binder_t* binder, ast_t* ast) {
             {
                 if (ast->data.def.ret)
                     bind(binder, ast->data.def.ret);
-                push_env(binder);
-                if (ast->data.def.param)
-                    bind_ptrn(binder, ast->data.def.param);
+                FORALL_AST(ast->data.def.params, param, {
+                    push_env(binder);
+                    bind_ptrn(binder, param);
+                })
                 ast_t* fn = binder->fn;
                 binder->fn = ast;
                 bind(binder, ast->data.def.value);
                 binder->fn = fn;
-                pop_env(binder);
+                FORALL_AST(ast->data.def.params, param, {
+                    pop_env(binder);
+                    (void)param;
+                })
             }
             break;
         case AST_TUPLE:
@@ -211,12 +215,15 @@ void bind(binder_t* binder, ast_t* ast) {
             break;
         case AST_CALL:
             bind(binder, ast->data.call.callee);
-            bind(binder, ast->data.call.arg);
+            FORALL_AST(ast->data.call.args, arg, {
+                bind(binder, arg);
+            })
             break;
         case AST_IF:
             bind(binder, ast->data.if_.cond);
             bind(binder, ast->data.if_.if_true);
-            bind(binder, ast->data.if_.if_false);
+            if (ast->data.if_.if_false)
+                bind(binder, ast->data.if_.if_false);
             break;
         case AST_FOR:
             {

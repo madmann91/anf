@@ -3,4 +3,6 @@ mod array {
     val b = [[1, 2]; [3, 4]]
     val c = [a ; a]
     val d : [i32] = []
+    val e = a(0)
+    val f = b(0, 1)
 }

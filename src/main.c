@@ -112,7 +112,7 @@ static bool process_file(const char* file) {
         ok &= !file_log.log.errs;
     }
 
-    if (ok) {
+    /*if (ok) {
         emitter_t emitter = {
             .mod = mod,
             .log = &file_log.log,
@@ -120,7 +120,7 @@ static bool process_file(const char* file) {
         };
         emit(&emitter, ast);
         ok &= !file_log.log.errs;
-    }
+    }*/
 
     // Display program on success
     if (ok) {

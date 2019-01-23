@@ -2,4 +2,5 @@ mod lambda {
     val x : f32 => i32 = y => 33
     val y = (x : f32, y : i8) => (x, y)
     val z : (f32, i8) => (f32, i8) = (x) => y(x)
+    val w : f32 => i8 => (f32, i8) = x => y => z(x, y)
 }

@@ -345,7 +345,11 @@ static ast_t* parse_pre_unop(parser_t* parser, uint32_t tag) {
 static ast_t* parse_call(parser_t* parser, ast_t* callee) {
     ast_t* ast = ast_create_with_loc(parser, AST_CALL, callee->loc);
     ast->data.call.callee = callee;
-    ast->data.call.arg    = parse_args(parser);
+    ast_list_t** cur = &ast->data.call.args;
+    while (parser->ahead.tag == TOK_LPAREN) {
+        ast_t* arg = parse_args(parser);
+        cur = ast_list_add(parser, cur, arg);
+    }
     return ast_finalize(ast, parser);
 }
 
@@ -669,14 +673,16 @@ static ast_t* parse_def(parser_t* parser) {
     eat_nl(parser);
     ast->data.def.id = parse_id(parser);
     eat_nl(parser);
-    if (parser->ahead.tag == TOK_LPAREN) {
-        ast->data.def.param = parse_tuple(parser, "function parameters", parse_param);
-        if (ast_is_refutable(ast->data.def.param))
-            log_error(parser->log, &ast->data.def.param->loc, "invalid function parameters");
-    } else {
-        ast->data.def.param = parse_err(parser, "function parameter list");
+    ast_list_t** cur = &ast->data.def.params;
+    while (parser->ahead.tag == TOK_LPAREN) {
+        ast_t* param = parse_tuple(parser, "function parameters", parse_param);
+        if (ast_is_refutable(param))
+            log_error(parser->log, &param->loc, "invalid function parameters");
+        eat_nl(parser);
+        cur = ast_list_add(parser, cur, param);
     }
-    eat_nl(parser);
+    if (!ast->data.def.params)
+        log_error(parser->log, &parser->ahead.loc, "missing function parameters");
     if (accept(parser, TOK_COLON)) {
         eat_nl(parser);
         ast->data.def.ret = parse_type(parser);

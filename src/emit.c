@@ -170,7 +170,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             }
         case AST_CALL:
             {
-                const node_t* callee = emit(emitter, ast->data.call.callee);
+                /*const node_t* callee = emit(emitter, ast->data.call.callee);
                 const node_t* arg = emit(emitter, ast->data.call.arg);
                 if (ast->type->tag == TYPE_BOTTOM) {
                     // Call to a continuation (like break, continue, or return)
@@ -187,7 +187,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                     emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
                     emitter->cur = cont;
                     return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
-                }
+                }*/
             }
         case AST_ANNOT:
             return emit(emitter, ast->data.annot.ast);
@@ -269,7 +269,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             emit_ptrn(emitter, ast->data.varl.ptrn, emit(emitter, ast->data.varl.value), ast->tag == AST_VAR);
             return node_unit(emitter->mod);
         case AST_DEF:
-            return emit_fn(emitter, ast, ast->data.def.param, ast->data.def.value, ast->data.def.id->data.id.str);
+            return node_unit(emitter->mod);//emit_fn(emitter, ast, ast->data.def.param, ast->data.def.value, ast->data.def.id->data.id.str);
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:
