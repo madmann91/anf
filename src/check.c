@@ -191,7 +191,7 @@ static inline const type_t* check_tuple(checker_t* checker, ast_t* ast, const ch
     // Named tuples must have the same number of arguments as the expected type
     if (nargs == 1 && (!ast->data.tuple.named || expected->tag != TYPE_TUPLE))
         return ast->type = check(checker, ast->data.tuple.args->ast, expected);
-    if (!expect_args(checker, ast, msg, nargs, type_arg_count(expected)))
+    if (!expect_args(checker, ast, msg, nargs, type_member_count(expected)))
         return ast->type = expected;
     size_t nops = 0;
     TMP_BUF_ALLOC(type_ops, const type_t*, nargs)
@@ -328,12 +328,11 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 }
                 ast_t* struct_ast = struct_type->data.struct_def->ast;
                 const char* member_name = ast->data.field.id->data.id.str;
-                size_t member_index = 0;
-                if (!find_member_or_param(struct_ast->data.struct_.members->data.tuple.args, member_name, &member_index)) {
+                if (!find_member_or_param(struct_ast->data.struct_.members->data.tuple.args, member_name, &ast->data.field.index)) {
                     invalid_member_or_param(checker, ast, struct_ast->data.struct_.id->data.id.str, member_name, true);
                     return type_top(checker->mod);
                 }
-                return type_member(checker->mod, struct_type, member_index);
+                return type_member(checker->mod, struct_type, ast->data.field.index);
             }
         case AST_CALL:
             {

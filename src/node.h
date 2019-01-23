@@ -142,7 +142,7 @@ bool node_implies(mod_t*, const node_t*, const node_t*, bool, bool);
 const node_t* node_unit(mod_t*);
 const node_t* node_tuple(mod_t*, size_t, const node_t**, const dbg_t*);
 const node_t* node_array(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
-const node_t* node_struct(mod_t*, size_t, const node_t**, const type_t*, const dbg_t*);
+const node_t* node_struct(mod_t*, const node_t*, const type_t*, const dbg_t*);
 const node_t* node_tuple_from_args(mod_t*, size_t, const dbg_t*, ...);
 const node_t* node_array_from_args(mod_t*, size_t, const type_t*, const dbg_t*, ...);
 const node_t* node_string(mod_t*, const char*, const dbg_t*);
@@ -192,7 +192,7 @@ const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*, ui
 void node_replace(const node_t*, const node_t*);
 
 const use_t* use_find(const use_t*, size_t, const node_t*);
-size_t node_count_uses(const node_t*);
+size_t use_count(const use_t*);
 
 void node_dump(const node_t*);
 

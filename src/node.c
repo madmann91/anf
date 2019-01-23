@@ -469,13 +469,13 @@ const node_t* node_array(mod_t* mod, size_t nops, const node_t** ops, const type
     });
 }
 
-const node_t* node_struct(mod_t* mod, size_t nops, const node_t** ops, const type_t* type, const dbg_t* dbg) {
+const node_t* node_struct(mod_t* mod, const node_t* op, const type_t* type, const dbg_t* dbg) {
     assert(type->tag == TYPE_STRUCT);
     // Reminder: The operands of a struct type are *not* the types of its members
     return make_node(mod, (node_t) {
         .tag  = NODE_STRUCT,
-        .nops = nops,
-        .ops  = ops,
+        .nops = 1,
+        .ops  = &op,
         .type = type,
         .dbg  = dbg
     });
@@ -535,10 +535,12 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
     uint64_t index_value = index->tag == NODE_LITERAL ? node_value_u(index) : 0;
     if (value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_STRUCT) {
         assert(index->tag == NODE_LITERAL);
-        assert(index_value < value->type->nops);
-        elem_type = value->type->ops[index_value];
+        assert(index_value < type_member_count(value->type));
+        elem_type = type_member(mod, value->type, index_value);
         if (value->tag == NODE_TUPLE)
             return value->ops[index_value];
+        else if (value->tag == NODE_STRUCT)
+            return node_extract(mod, value->ops[0], index, dbg);
     } else if (value->type->tag == TYPE_ARRAY) {
         elem_type = value->type->ops[0];
         if (value->tag == NODE_ARRAY && index->tag == NODE_LITERAL && index_value < value->nops) {
@@ -568,14 +570,16 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
     uint64_t index_value = index->tag == NODE_LITERAL ? node_value_u(index) : 0;
     if (value->type->tag == TYPE_TUPLE || value->type->tag == TYPE_STRUCT) {
         assert(index->tag == NODE_LITERAL);
-        assert(index_value < value->type->nops);
-        assert(elem->type == value->type->ops[index_value]);
-        if (value->tag == NODE_TUPLE || value->tag == NODE_STRUCT) {
+        assert(index_value < type_member_count(value->type));
+        assert(elem->type == type_member(mod, value->type, index_value));
+        if (value->tag == NODE_TUPLE) {
             const node_t* ops[value->nops];
             for (size_t i = 0; i < value->nops; ++i)
                 ops[i] = value->ops[i];
             ops[index_value] = elem;
             return node_tuple(mod, value->nops, ops, dbg);
+        } else if (value->tag == NODE_STRUCT) {
+            return node_struct(mod, node_insert(mod, value->ops[0], index, elem, dbg), value->type, dbg);
         }
     } else if (value->type->tag == TYPE_ARRAY) {
         assert(elem->type == value->type->ops[0]);
@@ -1436,7 +1440,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_STORE:   return node_store(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_TUPLE:   return node_tuple(mod, node->nops, ops, node->dbg);
         case NODE_ARRAY:   return node_array(mod, node->nops, ops, type->ops[0], node->dbg);
-        case NODE_STRUCT:  return node_struct(mod, node->nops, ops, type, node->dbg);
+        case NODE_STRUCT:  return node_struct(mod, ops[0], type, node->dbg);
         case NODE_EXTRACT: return node_extract(mod, ops[0], ops[1], node->dbg);
         case NODE_INSERT:  return node_insert(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_BITCAST: return node_bitcast(mod, ops[0], type, node->dbg);
@@ -1497,9 +1501,8 @@ const use_t* use_find(const use_t* use, size_t index, const node_t* user) {
     return NULL;
 }
 
-size_t node_count_uses(const node_t* node) {
+size_t use_count(const use_t* use) {
     size_t i = 0;
-    const use_t* use = node->uses;
     while (use) {
         i++;
         use = use->next;

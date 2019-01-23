@@ -3,6 +3,7 @@
 
 #include "mod.h"
 #include "node.h"
+#include "type.h"
 #include "ast.h"
 #include "log.h"
 
@@ -16,6 +17,7 @@ struct emitter_s {
     const node_t* break_;
     const node_t* continue_;
     const node_t* return_;
+    type2type_t* types;
     const char* file;
 };
 

@@ -569,7 +569,7 @@ bool test_io() {
     fn2 = loaded_mod->fns.elems[1];
     param1 = node_param(loaded_mod, fn1, NULL);
     param2 = node_param(loaded_mod, fn2, NULL);
-    if (node_count_uses(param2) != 0) {
+    if (use_count(param2->uses) != 0) {
         const node_t* param = param2;
         const node_t* fn = fn2;
         param2 = param1;

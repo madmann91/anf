@@ -11,23 +11,53 @@ static inline const dbg_t* make_dbg(emitter_t* emitter, const char* name, loc_t 
     return dbg;
 }
 
-static inline const type_t* continuation_type(emitter_t* emitter, const type_t* fn_type) {
-    assert(fn_type->tag == TYPE_FN);
-    const type_t* ret    = type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), fn_type->ops[1]);
-    const type_t* param  = type_tuple_from_args(emitter->mod, 3,
-        type_mem(emitter->mod),
-        fn_type->ops[0],
-        type_fn(emitter->mod, ret, type_bottom(emitter->mod)));
+static inline const type_t* continuation_type(emitter_t* emitter, const type_t* from, const type_t* to) {
+    const type_t* ret   = type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), to);
+    const type_t* param = type_tuple_from_args(emitter->mod, 3, type_mem(emitter->mod), from, type_fn(emitter->mod, ret, type_bottom(emitter->mod)));
     return type_fn(emitter->mod, param, type_bottom(emitter->mod));
+}
+
+static const type_t* convert(emitter_t* emitter, const type_t* type) {
+    const type_t** found = type2type_lookup(emitter->types, type);
+    if (found)
+        return *found;
+
+    const type_t* converted = type;
+    if (type->tag == TYPE_FN) {
+        converted = continuation_type(emitter, convert(emitter, type->ops[0]), convert(emitter, type->ops[1]));
+    } else if (type->nops != 0) {
+        TMP_BUF_ALLOC(type_ops, const type_t*, type->nops)
+        for (size_t i = 0; i < type->nops; ++i)
+            type_ops[i] = convert(emitter, type->ops[i]);
+        converted = type_rebuild(emitter->mod, type, type_ops);
+        TMP_BUF_FREE(type_ops)
+    }
+    type2type_insert(emitter->types, type, converted);
+    return converted;
 }
 
 static inline const type_t* basic_block_type(emitter_t* emitter, const type_t* arg) {
     return type_fn(emitter->mod, arg, type_bottom(emitter->mod));
 }
 
-static inline void jump(emitter_t* emitter, const node_t* fn, const node_t* arg, bool cond, const dbg_t* dbg) {
+static inline void jump_from(emitter_t* emitter, const node_t* from, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
+    bool cond = fn->tag == NODE_SELECT; // Always inline selections
+    node_bind(emitter->mod, from, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, cond), dbg));
+}
+
+static inline void jump(emitter_t* emitter, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
     assert(emitter->cur);
-    node_bind(emitter->mod, emitter->cur, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, cond), dbg));
+    jump_from(emitter, emitter->cur, fn, arg, dbg);
+}
+
+static inline void return_from(emitter_t* emitter, const node_t* ret, const node_t* value) {
+    if (emitter->cur)
+        jump(emitter, ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, value), ret->dbg);
+}
+
+static inline void always_inline(emitter_t* emitter, const node_t* fn) {
+    assert(fn->tag == NODE_FN);
+    node_bind(emitter->mod, fn, 1, node_bool(emitter->mod, true));
 }
 
 static inline const node_t* mem_param(emitter_t* emitter, const node_t* fn) {
@@ -86,26 +116,50 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
     }
 }
 
-static const node_t* emit_fn(emitter_t* emitter, ast_t* ast_fn, ast_t* ast_param, ast_t* ast_value, const char* name) {
-    const node_t* fn = node_fn(emitter->mod, continuation_type(emitter, ast_fn->type), 0, make_dbg(emitter, name, ast_fn->loc));
+static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, ast_t* ast_param, const char* name, loc_t loc) {
+    const node_t* fn = node_fn(emitter->mod, convert(emitter, fn_type), 0, make_dbg(emitter, name, loc));
     const node_t* param = node_param(emitter->mod, fn, make_dbg(emitter, NULL, ast_param->loc));
     const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
     const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast_param->loc));
     const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
-    const node_t* return_ = emitter->return_;
-    const node_t* cur = emitter->cur;
     emit_ptrn(emitter, ast_param, ptrn, false);
     emitter->cur = fn;
     emitter->return_ = ret;
     emitter->mem = mem;
-    ast_fn->node = fn;
-    const node_t* value = emit(emitter, ast_value);
-    // Do not return if the body of the function has a call to return()
-    if (value->type->tag != TYPE_BOTTOM)
-        jump(emitter, ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, value), false, NULL);
-    emitter->cur = cur;
-    emitter->return_ = return_;
     return fn;
+}
+
+static const node_t* emit_curried_fn(emitter_t* emitter, const type_t* fn_type, ast_list_t* params, const char* name, loc_t loc) {
+    const node_t* fn = emit_fn(emitter, fn_type, params->ast, name, loc);
+    if (params->next) {
+        assert(fn_type->ops[1]->tag == TYPE_FN);
+        const node_t* ret = emitter->return_;
+        const node_t* mem = emitter->mem;
+        const node_t* child = emit_curried_fn(emitter, fn_type->ops[1], params->next, name, loc);
+        jump_from(emitter, fn, ret, node_tuple_from_args(emitter->mod, 2, NULL, mem, child), make_dbg(emitter, NULL, loc));
+    }
+    return fn;
+}
+
+static const node_t* emit_call(emitter_t* emitter, const node_t* callee, const node_t* arg, loc_t loc) {
+    assert(callee->type->tag == TYPE_FN && callee->type->ops[1]->tag == TYPE_BOTTOM);
+    const type_t* from = callee->type->ops[0];
+    assert(from->tag == TYPE_TUPLE);
+    if (from->nops == 2) {
+        // Call to a continuation (like break, continue, or return)
+        jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, arg), make_dbg(emitter, NULL, loc));
+        emitter->cur = NULL;
+        return node_bottom(emitter->mod, type_bottom(emitter->mod));
+    } else {
+        // Standard call
+        const node_t* cont = node_fn(emitter->mod, from->ops[2], 0, make_dbg(emitter, "call_cont", loc));
+        jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->mem, arg, cont), make_dbg(emitter, NULL, loc));
+
+        const node_t* param = node_param(emitter->mod, cont, NULL);
+        emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
+        emitter->cur = cont;
+        return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
+    }
 }
 
 static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
@@ -116,6 +170,23 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
         case AST_MOD:
             FORALL_AST(ast->data.mod.decls, decl, { emit(emitter, decl); })
             return NULL;
+        case AST_STRUCT:
+            {
+                assert(ast->type->tag == TYPE_STRUCT);
+                struct_def_t* struct_def = mpool_alloc(&emitter->mod->pool, sizeof(struct_def_t));
+                *struct_def = *ast->type->data.struct_def;
+                struct_def->members = convert(emitter, struct_def->members);
+                const type_t* struct_type = type_struct(emitter->mod, struct_def, ast->type->nops, ast->type->ops);
+                const type_t* constr_type = continuation_type(emitter, struct_def->members, struct_type);
+                const node_t* constr = node_fn(emitter->mod, constr_type, 0, make_dbg(emitter, ast->data.struct_.id->data.id.str, ast->loc));
+                const node_t* param = node_param(emitter->mod, constr, NULL);
+                const node_t* mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
+                const node_t* arg = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast->data.struct_.members->loc));
+                const node_t* ret = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
+                always_inline(emitter, constr);
+                jump_from(emitter, constr, ret, node_tuple_from_args(emitter->mod, 2, NULL, mem, node_struct(emitter->mod, arg, struct_type, constr->dbg)), NULL);
+                return constr;
+            }
         case AST_ID:
             {
                 assert(ast->data.id.to);
@@ -168,26 +239,16 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 TMP_BUF_FREE(node_ops)
                 return node;
             }
+        case AST_FIELD:
+            return node_extract(emitter->mod, emit(emitter, ast->data.field.arg), node_i32(emitter->mod, ast->data.field.index), make_dbg(emitter, NULL, ast->loc));
         case AST_CALL:
             {
-                /*const node_t* callee = emit(emitter, ast->data.call.callee);
-                const node_t* arg = emit(emitter, ast->data.call.arg);
-                if (ast->type->tag == TYPE_BOTTOM) {
-                    // Call to a continuation (like break, continue, or return)
-                    jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, arg), false, make_dbg(emitter, NULL, ast->loc));
-                    emitter->cur = NULL;
-                    return node_bottom(emitter->mod, ast->type);
-                } else {
-                    // Standard call
-                    const type_t* cont_type = basic_block_type(emitter, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), ast->type));
-                    const node_t* cont = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "call_cont", ast->loc));
-                    jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->mem, arg, cont), false, make_dbg(emitter, NULL, ast->loc));
-
-                    const node_t* param = node_param(emitter->mod, cont, NULL);
-                    emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-                    emitter->cur = cont;
-                    return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
-                }*/
+                const node_t* callee = emit(emitter, ast->data.call.callee);
+                FORALL_AST(ast->data.call.args, arg, {
+                    const node_t* arg_node = emit(emitter, arg);
+                    callee = emit_call(emitter, callee, arg_node, ast->loc);
+                })
+                return callee;
             }
         case AST_ANNOT:
             return emit(emitter, ast->data.annot.ast);
@@ -200,7 +261,13 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 return last;
             }
         case AST_FN:
-            return emit_fn(emitter, ast, ast->data.fn.param, ast->data.fn.body, NULL);
+            {
+                const node_t* fn = emit_fn(emitter, ast->type, ast->data.fn.param, NULL, ast->loc);
+                const node_t* ret = emitter->return_;
+                const node_t* value = emit(emitter, ast->data.fn.body);
+                return_from(emitter, ret, value);
+                return fn;
+            }
         case AST_IF:
             {
                 const type_t* branch_type = basic_block_type(emitter, type_unit(emitter->mod));
@@ -211,17 +278,17 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
 
                 const node_t* cond = emit(emitter, ast->data.if_.cond);
                 const node_t* next = node_select(emitter->mod, cond, if_true, if_false, NULL);
-                jump(emitter, next, node_unit(emitter->mod), true, NULL);
+                jump(emitter, next, node_unit(emitter->mod), NULL);
 
                 const node_t* mem = emitter->mem;
                 emitter->cur  = if_true;
                 const node_t* true_val = emit(emitter, ast->data.if_.if_true);
-                jump(emitter, join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, true_val), false, NULL);
+                jump(emitter, join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, true_val), NULL);
 
                 emitter->mem = mem;
                 emitter->cur  = if_false;
                 const node_t* false_val = ast->data.if_.if_false ? emit(emitter, ast->data.if_.if_false) : node_unit(emitter->mod);
-                jump(emitter, join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, false_val), false, NULL);
+                jump(emitter, join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, false_val), NULL);
 
                 const node_t* param = node_param(emitter->mod, join, NULL);
                 emitter->cur = join;
@@ -237,17 +304,17 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 const node_t* while_body = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "while_body", ast->data.while_.body->loc));
                 const node_t* join = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "while_join", ast->loc));
 
-                jump(emitter, while_head, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), false, NULL);
+                jump(emitter, while_head, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), NULL);
 
                 emitter->mem = node_param(emitter->mod, while_head, NULL);
                 emitter->cur = while_head;
                 const node_t* cond = emit(emitter, ast->data.while_.cond);
                 const node_t* next = node_select(emitter->mod, cond, while_body, while_exit, NULL);
-                jump(emitter, next, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), true, NULL);
+                jump(emitter, next, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), NULL);
 
                 emitter->cur = while_exit;
                 emitter->mem = mem_param(emitter, while_exit);
-                jump(emitter, join, emitter->mem, false, NULL);
+                jump(emitter, join, emitter->mem, NULL);
 
                 emitter->cur = while_body;
                 emitter->mem = mem_param(emitter, while_body);
@@ -256,7 +323,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 emitter->break_ = while_exit;
                 emitter->continue_ = while_head;
                 emit(emitter, ast->data.while_.body);
-                jump(emitter, while_head, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), false, NULL);
+                jump(emitter, while_head, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, node_unit(emitter->mod)), NULL);
                 emitter->break_ = break_;
                 emitter->continue_ = continue_;
 
@@ -269,7 +336,13 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             emit_ptrn(emitter, ast->data.varl.ptrn, emit(emitter, ast->data.varl.value), ast->tag == AST_VAR);
             return node_unit(emitter->mod);
         case AST_DEF:
-            return node_unit(emitter->mod);//emit_fn(emitter, ast, ast->data.def.param, ast->data.def.value, ast->data.def.id->data.id.str);
+            {
+                const node_t* fn = emit_curried_fn(emitter, ast->type, ast->data.def.params, ast->data.def.id->data.id.str, ast->loc);
+                const node_t* ret = emitter->return_;
+                const node_t* value = emit(emitter, ast->data.def.value);
+                return_from(emitter, ret, value);
+                return fn;
+            }
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:

@@ -112,15 +112,18 @@ static bool process_file(const char* file) {
         ok &= !file_log.log.errs;
     }
 
-    /*if (ok) {
+    if (ok) {
+        type2type_t types = type2type_create();
         emitter_t emitter = {
             .mod = mod,
             .log = &file_log.log,
+            .types = &types,
             .file = file
         };
         emit(&emitter, ast);
+        type2type_destroy(&types);
         ok &= !file_log.log.errs;
-    }*/
+    }
 
     // Display program on success
     if (ok) {

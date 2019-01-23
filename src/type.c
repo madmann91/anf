@@ -81,10 +81,6 @@ bool type_contains(const type_t* type, const type_t* op) {
     return false;
 }
 
-size_t type_arg_count(const type_t* type) {
-    return type->tag == TYPE_TUPLE ? type->nops : 1;
-}
-
 size_t type_order(const type_t* type) {
     if (type->tag == TYPE_FN) {
         size_t dom   = type_order(type->ops[0]);
@@ -102,24 +98,37 @@ size_t type_order(const type_t* type) {
     }
 }
 
-const type_t* type_arg(const type_t* type, size_t index) {
-    assert(index == 0 || (type->tag == TYPE_TUPLE && index < type->nops));
-    return type->tag == TYPE_TUPLE ? type->ops[index] : type;
+size_t type_member_count(const type_t* type) {
+    if (type->tag == TYPE_TUPLE) {
+        return type->nops;
+    } else if (type->tag == TYPE_STRUCT) {
+        return type_member_count(type->data.struct_def->members);
+    } else {
+        return 1;
+    }
 }
 
 const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
-    assert(type->tag == TYPE_STRUCT);
-    if (type->nops == 0)
-        return type_arg(type->data.struct_def->members, index);
-    type2type_t type2type = type2type_create();
-    for (size_t i = 0; i < type->nops; ++i) {
-        const type_t* var = type_var(mod, i);
-        if (var != type->ops[i])
-            type2type_insert(&type2type, var, type->ops[i]);
+    if (type->tag == TYPE_TUPLE) {
+        assert(index < type->nops);
+        return type->ops[index];
+    } else if (type->tag == TYPE_STRUCT) {
+        const type_t* member = type_member(mod, type->data.struct_def->members, index);
+        if (type->nops == 0)
+            return member;
+        type2type_t type2type = type2type_create();
+        for (size_t i = 0; i < type->nops; ++i) {
+            const type_t* var = type_var(mod, i);
+            if (var != type->ops[i])
+                type2type_insert(&type2type, var, type->ops[i]);
+        }
+        member = type_rewrite(mod, member, &type2type);
+        type2type_destroy(&type2type);
+        return member;
+    } else {
+        assert(index == 0);
+        return type;
     }
-    const type_t* member = type_rewrite(mod, type_arg(type->data.struct_def->members, index), &type2type);
-    type2type_destroy(&type2type);
-    return member;
 }
 
 static inline const type_t* make_type(mod_t* mod, type_t type) {
@@ -223,7 +232,7 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
         case TYPE_FN:     return type_fn(mod, ops[0], ops[1]);
         default:
             assert(type->nops == 0);
-            return make_type(mod, (type_t) { .nops = 0, .tag = type->tag, .data = type->data, .dsize = type->dsize });
+            return make_type(mod, (type_t) { .tag = type->tag, .nops = 0, .data = type->data, .dsize = type->dsize });
     }
 }
 
