@@ -5,13 +5,21 @@ mod loops {
 
     def main() = {
         for (i <- range(0, 5)) {
+            val b = break
+            var c = continue
+            for (i <- range(1, 7)) {
+                print(i)
+                c()
+            }
+            while (false) {
+                println(42)
+                b()
+            }
+            while (true) {
+                break()
+            }
             print(i)
             continue()
-        }
-        for (i <- range(1, 7)) print(i)
-        while (false) println(42)
-        while (true) {
-            break()
         }
     }
 }

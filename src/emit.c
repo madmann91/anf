@@ -97,9 +97,10 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
             break;
         case AST_ID:
             if (var) {
-                const node_t* alloc = node_alloc(emitter->mod, emitter->mem, ast->type, NULL);
+                const node_t* alloc = node_alloc(emitter->mod, emitter->mem, node->type, NULL);
                 emitter->mem = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 0), NULL);
                 ast->node = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 1), NULL);
+                emitter->mem = node_store(emitter->mod, emitter->mem, ast->node, node, NULL);
             } else {
                 ast->node = node;
             }
