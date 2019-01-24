@@ -194,8 +194,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             {
                 assert(ast->data.id.to);
                 if (!ast->data.id.to->node) {
-                    // If the identifier is referring to a function,
-                    // we need to save the current continuations and memory object
+                    // If the identifier is referring to a function, we need to save the current state
                     const node_t* cur = emitter->cur;
                     const node_t* mem = emitter->mem;
                     const node_t* break_ = emitter->break_;

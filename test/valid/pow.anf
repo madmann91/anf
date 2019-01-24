@@ -1,10 +1,10 @@
 mod pow {
-    def pow(x, n) {
+    def pow(x: i32, n: i32) = {
         n match {
             case 0 => 1
             case _ =>
                 if (n % 2 == 0) {
-                    def y = pow(x, n / 2)
+                    val y = pow(x, n / 2)
                     y * y
                 } else {
                     x * pow(x, n - 1)
