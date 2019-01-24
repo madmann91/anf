@@ -25,6 +25,8 @@ static const type_t* convert(emitter_t* emitter, const type_t* type) {
     const type_t* converted = type;
     if (type->tag == TYPE_FN) {
         converted = continuation_type(emitter, convert(emitter, type->ops[0]), convert(emitter, type->ops[1]));
+    } else if (type->tag == TYPE_STRUCT) {
+        type->data.struct_def->members = convert(emitter, type->data.struct_def->members);
     } else if (type->nops != 0) {
         TMP_BUF_ALLOC(type_ops, const type_t*, type->nops)
         for (size_t i = 0; i < type->nops; ++i)
@@ -117,7 +119,7 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
 }
 
 static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, ast_t* ast_param, const char* name, loc_t loc) {
-    const node_t* fn = node_fn(emitter->mod, convert(emitter, fn_type), 0, make_dbg(emitter, name, loc));
+    const node_t* fn = node_fn(emitter->mod, fn_type, 0, make_dbg(emitter, name, loc));
     const node_t* param = node_param(emitter->mod, fn, make_dbg(emitter, NULL, ast_param->loc));
     const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
     const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast_param->loc));
@@ -173,19 +175,14 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
         case AST_STRUCT:
             {
                 assert(ast->type->tag == TYPE_STRUCT);
-                // The structure type has to be rewritten in case the members contain functions!
-                struct_def_t* struct_def = mpool_alloc(&emitter->mod->pool, sizeof(struct_def_t));
-                *struct_def = *ast->type->data.struct_def;
-                struct_def->members = convert(emitter, struct_def->members);
-                const type_t* struct_type = type_struct(emitter->mod, struct_def, ast->type->nops, ast->type->ops);
-                const type_t* constr_type = continuation_type(emitter, struct_def->members, struct_type);
+                const type_t* constr_type = continuation_type(emitter, ast->type->data.struct_def->members, ast->type);
                 const node_t* constr = node_fn(emitter->mod, constr_type, 0, make_dbg(emitter, ast->data.struct_.id->data.id.str, ast->loc));
                 const node_t* param = node_param(emitter->mod, constr, NULL);
                 const node_t* mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
                 const node_t* arg = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast->data.struct_.members->loc));
                 const node_t* ret = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
                 always_inline(emitter, constr);
-                jump_from(emitter, constr, ret, node_tuple_from_args(emitter->mod, 2, NULL, mem, node_struct(emitter->mod, arg, struct_type, constr->dbg)), NULL);
+                jump_from(emitter, constr, ret, node_tuple_from_args(emitter->mod, 2, NULL, mem, node_struct(emitter->mod, arg, ast->type, constr->dbg)), NULL);
                 return constr;
             }
         case AST_ID:
@@ -263,10 +260,15 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             }
         case AST_FN:
             {
-                const node_t* fn = emit_fn(emitter, ast->type, ast->data.fn.param, NULL, ast->loc);
+                const node_t* mem = emitter->mem;
+                const node_t* cur = emitter->cur;
                 const node_t* ret = emitter->return_;
+                const node_t* fn = emit_fn(emitter, ast->type, ast->data.fn.param, NULL, ast->loc);
                 const node_t* value = emit(emitter, ast->data.fn.body);
-                return_from(emitter, ret, value);
+                return_from(emitter, emitter->return_, value);
+                emitter->mem = mem;
+                emitter->cur = cur;
+                emitter->return_ = ret;
                 return fn;
             }
         case AST_IF:
@@ -355,11 +357,16 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             return node_unit(emitter->mod);
         case AST_DEF:
             {
-                const node_t* fn = emit_curried_fn(emitter, ast->type, ast->data.def.params, ast->data.def.id->data.id.str, ast->loc);
+                const node_t* mem = emitter->mem;
+                const node_t* cur = emitter->cur;
                 const node_t* ret = emitter->return_;
+                const node_t* fn = emit_curried_fn(emitter, ast->type, ast->data.def.params, ast->data.def.id->data.id.str, ast->loc);
                 ast->node = fn; // Allow recursive calls
                 const node_t* value = emit(emitter, ast->data.def.value);
-                return_from(emitter, ret, value);
+                return_from(emitter, emitter->return_, value);
+                emitter->mem = mem;
+                emitter->cur = cur;
+                emitter->return_ = ret;
                 return fn;
             }
         case AST_LIT:
@@ -409,5 +416,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
 const node_t* emit(emitter_t* emitter, ast_t* ast) {
     if (ast->node)
         return ast->node;
+    if (ast->type)
+        ast->type = convert(emitter, ast->type);
     return ast->node = emit_internal(emitter, ast);
 }
