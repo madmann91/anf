@@ -17,17 +17,6 @@ static inline const type_t* continuation_type(emitter_t* emitter, const type_t* 
     return type_cn(emitter->mod, param);
 }
 
-static inline const type_t* return_type(const type_t* type) {
-    assert(type_is_cn(type));
-    const type_t* from = type->ops[0];
-    assert(from->tag == TYPE_TUPLE && from->nops == 3);
-    const type_t* ret = from->ops[2];
-    assert(type_is_cn(ret));
-    const type_t* ret_from = ret->ops[0];
-    assert(ret_from->tag == TYPE_TUPLE && ret_from->nops == 2);
-    return ret_from->ops[1];
-}
-
 static const type_t* convert(emitter_t* emitter, const type_t* type) {
     const type_t** found = type2type_lookup(emitter->types, type);
     if (found)
@@ -142,7 +131,7 @@ static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, a
 static const node_t* emit_curried_fn(emitter_t* emitter, const type_t* fn_type, ast_list_t* params, const char* name, loc_t loc) {
     const node_t* fn = emit_fn(emitter, fn_type, params->ast, name, loc);
     if (params->next) {
-        const type_t* child_type = return_type(fn_type);
+        const type_t* child_type = type_cn_to(fn_type);
         const node_t* ret = emitter->return_;
         const node_t* mem = emitter->mem;
         const node_t* child = emit_curried_fn(emitter, child_type, params->next, name, loc);
@@ -152,23 +141,27 @@ static const node_t* emit_curried_fn(emitter_t* emitter, const type_t* fn_type, 
 }
 
 static const node_t* emit_call(emitter_t* emitter, const node_t* callee, const node_t* arg, loc_t loc) {
-    assert(type_is_cn(callee->type));
-    const type_t* from = callee->type->ops[0];
-    assert(from->tag == TYPE_TUPLE);
-    if (from->nops == 2) {
-        // Call to a continuation (like break, continue, or return)
-        jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, arg), make_dbg(emitter, NULL, loc));
-        emitter->cur = NULL;
-        return node_bottom(emitter->mod, type_bottom(emitter->mod));
-    } else {
-        // Standard call
-        const node_t* cont = node_fn(emitter->mod, from->ops[2], 0, make_dbg(emitter, "call_cont", loc));
-        jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->mem, arg, cont), make_dbg(emitter, NULL, loc));
+    if (type_is_cn(callee->type)) {
+        const type_t* from = callee->type->ops[0];
+        assert(from->tag == TYPE_TUPLE);
+        if (from->nops == 2) {
+            // Call to a continuation (like break, continue, or return)
+            jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, arg), make_dbg(emitter, NULL, loc));
+            emitter->cur = NULL;
+            return node_bottom(emitter->mod, type_bottom(emitter->mod));
+        } else {
+            // Standard call
+            const node_t* cont = node_fn(emitter->mod, from->ops[2], 0, make_dbg(emitter, "call_cont", loc));
+            jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->mem, arg, cont), make_dbg(emitter, NULL, loc));
 
-        const node_t* param = node_param(emitter->mod, cont, NULL);
-        emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-        emitter->cur = cont;
-        return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
+            const node_t* param = node_param(emitter->mod, cont, NULL);
+            emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
+            emitter->cur = cont;
+            return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
+        }
+    } else {
+        assert(callee->type->tag == TYPE_ARRAY);
+        return node_extract(emitter->mod, callee, arg, make_dbg(emitter, NULL, loc));
     }
 }
 
@@ -233,7 +226,6 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             }
         case AST_ARRAY:
             {
-                assert(!ast->data.array.regular);
                 const type_t* elem_type = ast->type->ops[0];
                 size_t nelems = ast_list_length(ast->data.array.elems);
                 TMP_BUF_ALLOC(node_ops, const node_t*, nelems)

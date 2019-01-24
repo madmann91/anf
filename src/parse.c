@@ -445,25 +445,15 @@ static ast_t* parse_array(parser_t* parser) {
     eat(parser, TOK_LBRACKET);
     eat_nl(parser);
     ast_list_t** cur = &ast->data.array.elems;
-    bool regular = false, first = true;
     while (parser->ahead.tag != TOK_RBRACKET) {
         ast_t* elem = parse_expr(parser);
         cur = ast_list_add(parser, cur, elem);
 
         eat_nl(parser);
-        loc_t loc = parser->ahead.loc;
-        bool comma = accept(parser, TOK_COMMA);
-        bool semi  = !comma && accept(parser, TOK_SEMI);
-        if (!comma && !semi)
+        if (!accept(parser, TOK_COMMA))
             break;
-        if (!first && regular != semi)
-            log_error(parser->log, &loc, "cannot mix regular and irregular arrays");
-        first   = false;
-        regular = semi;
         eat_nl(parser);
     }
-    ast->data.array.dim = false;
-    ast->data.array.regular = regular;
     expect(parser, "array", TOK_RBRACKET);
     return ast_finalize(ast, parser);
 }
@@ -621,19 +611,9 @@ static ast_t* parse_fn_type(parser_t* parser, ast_t* from) {
 static ast_t* parse_array_type(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_ARRAY);
     eat(parser, TOK_LBRACKET);
-    bool regular = false;
     ast_list_t** cur = &ast->data.array.elems;
     cur = ast_list_add(parser, cur, parse_type(parser));
-    if (accept(parser, TOK_SEMI)) {
-        regular = true;
-        if (parser->ahead.tag == TOK_INT)
-            cur = ast_list_add(parser, cur, parse_lit(parser));
-        else
-            expect(parser, "array dimensions", TOK_INT);
-    }
     expect(parser, "array type", TOK_RBRACKET);
-    ast->data.array.dim = true;
-    ast->data.array.regular = regular;
     return ast_finalize(ast, parser);
 }
 

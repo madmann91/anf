@@ -63,7 +63,6 @@ struct type_s {
     size_t   nops;
     const type_t** ops;
     union {
-        uint32_t      dim;
         uint32_t      var;
         uint32_t      fp_flags;
         struct_def_t* struct_def;
@@ -82,6 +81,8 @@ bool type_is_cn(const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
 size_t type_member_count(const type_t*);
+const type_t* type_cn_from(const type_t*);
+const type_t* type_cn_to(const type_t*);
 const type_t* type_member(mod_t*, const type_t*, size_t);
 
 const type_t* type_bool(mod_t*);
@@ -107,7 +108,7 @@ const type_t* type_unit(mod_t*);
 const type_t* type_tuple(mod_t*, size_t, const type_t**);
 const type_t* type_tuple_from_args(mod_t*, size_t, ...);
 const type_t* type_tuple_from_struct(mod_t*, const type_t*);
-const type_t* type_array(mod_t*, uint32_t, const type_t*);
+const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_struct(mod_t*, struct_def_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 const type_t* type_cn(mod_t*, const type_t*);

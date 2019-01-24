@@ -154,8 +154,6 @@ struct ast_s {
             ast_list_t* args;
         } tuple;
         struct {
-            bool        regular;
-            bool        dim;
             ast_list_t* elems;
         } array;
         struct {

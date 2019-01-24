@@ -1,8 +1,8 @@
 mod array {
     val a = [1, 2, 3]
-    val b = [[1, 2]; [3, 4]]
-    val c = [a ; a]
+    val b = [[1, 2], [3, 4]]
+    val c = [a, a]
     val d : [i32] = []
     val e = a(0)
-    val f = b(0, 1)
+    val f = b(0)(1)
 }

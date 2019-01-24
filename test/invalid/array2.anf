@@ -1,7 +1,0 @@
-mod array1 {
-    val a = [1, 2, 3]
-    val b = a("hello")
-    val c = a(1, 2)
-    val d = [[1, 2] ; [3, 4]]
-    val e = d(1)
-}

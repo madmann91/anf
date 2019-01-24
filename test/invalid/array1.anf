@@ -1,3 +1,0 @@
-mod array1 {
-    val a = [1, 2; 3]
-}

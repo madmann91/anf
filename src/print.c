@@ -34,7 +34,7 @@ static void print_type(printer_t* printer, const type_t* type) {
         case TYPE_ARRAY:
             print(printer, "[");
             print_type(printer, type->ops[0]);
-            print(printer, type->data.dim > 1 ? " ; {0:u32}]" : "]", { .u32 = type->data.dim });
+            print(printer, "]");
             break;
         case TYPE_FN:
             if (type->ops[0]->tag == TYPE_FN) print(printer, "(");
@@ -222,7 +222,7 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             break;
         case AST_ARRAY:
             print(printer, "[");
-            print_ast_list(printer, ast->data.array.elems, ast->data.array.regular ? "; " : ", ", false);
+            print_ast_list(printer, ast->data.array.elems, ", ", false);
             print(printer, "]");
             break;
         case AST_FIELD:

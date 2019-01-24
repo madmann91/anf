@@ -112,6 +112,24 @@ size_t type_member_count(const type_t* type) {
     }
 }
 
+const type_t* type_cn_from(const type_t* type) {
+    assert(type_is_cn(type));
+    const type_t* from = type->ops[0];
+    assert(from->tag == TYPE_TUPLE && from->nops == 3);
+    return from->ops[1];
+}
+
+const type_t* type_cn_to(const type_t* type) {
+    assert(type_is_cn(type));
+    const type_t* from = type->ops[0];
+    assert(from->tag == TYPE_TUPLE && from->nops == 3);
+    const type_t* ret = from->ops[2];
+    assert(type_is_cn(ret));
+    const type_t* ret_from = ret->ops[0];
+    assert(ret_from->tag == TYPE_TUPLE && ret_from->nops == 2);
+    return ret_from->ops[1];
+}
+
 const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
     if (type->tag == TYPE_TUPLE) {
         assert(index < type->nops);
@@ -170,7 +188,6 @@ const type_t* type_mem(mod_t* mod) {
 }
 
 const type_t* type_ptr(mod_t* mod, const type_t* pointee) {
-    assert(pointee->tag != TYPE_MEM);
     return make_type(mod, (type_t) { .tag = TYPE_PTR, .nops = 1, .ops = &pointee });
 }
 
@@ -209,9 +226,8 @@ const type_t* type_tuple_from_struct(mod_t* mod, const type_t* type) {
     return tuple_type;
 }
 
-const type_t* type_array(mod_t* mod, uint32_t dim, const type_t* elem_type) {
-    assert(elem_type->tag != TYPE_MEM);
-    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type, .data = { .dim = dim }, .dsize = sizeof(uint32_t) });
+const type_t* type_array(mod_t* mod, const type_t* elem_type) {
+    return make_type(mod, (type_t) { .tag = TYPE_ARRAY, .nops = 1, .ops = &elem_type });
 }
 
 const type_t* type_struct(mod_t* mod, struct_def_t* struct_def, size_t nops, const type_t** ops) {
@@ -235,7 +251,7 @@ const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {
     switch (type->tag) {
         case TYPE_PTR:    return type_ptr(mod, ops[0]);
         case TYPE_TUPLE:  return type_tuple(mod, type->nops, ops);
-        case TYPE_ARRAY:  return type_array(mod, type->data.dim, ops[0]);
+        case TYPE_ARRAY:  return type_array(mod, ops[0]);
         case TYPE_STRUCT: return type_struct(mod, type->data.struct_def, type->nops, ops);
         case TYPE_FN:     return type_fn(mod, ops[0], ops[1]);
         default:

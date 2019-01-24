@@ -206,19 +206,12 @@ static inline const type_t* check_tuple(checker_t* checker, ast_t* ast, const ch
 }
 
 static const type_t* check_index(checker_t* checker, ast_t* index, const type_t* array_type) {
-    ast_list_t* args = index->data.tuple.args;
-    size_t nargs = ast_list_length(args);
-    size_t dim   = array_type->data.dim;
-    if (!expect_args(checker, index, "array indexing expression", nargs, dim))
+    const type_t* index_type = infer(checker, index);
+    if (!type_is_i(index_type) && !type_is_u(index_type)) {
+        if (index_type->tag != TYPE_TOP)
+            log_error(checker->log, &index->loc, "expected integer type as array index, but got '{0:t}'", { .t = index_type });
         return type_top(checker->mod);
-    FORALL_AST(args, arg, {
-        const type_t* arg_type = infer(checker, arg);
-        if (!type_is_i(arg_type) && !type_is_u(arg_type)) {
-            if (arg_type->tag != TYPE_TOP)
-                log_error(checker->log, &arg->loc, "expected integer type as array index, but got '{0:t}'", { .t = arg_type });
-            return type_top(checker->mod);
-        }
-    })
+    }
     return array_type->ops[0];
 }
 
@@ -298,23 +291,10 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 return type_top(checker->mod);
             } else {
                 const type_t* elem_type = infer(checker, ast->data.array.elems->ast);
-                if (!ast->data.array.dim) {
-                    FORALL_AST(ast->data.array.elems->next, elem, {
-                        check(checker, elem, elem_type);
-                    });
-                }
-                if (ast->data.array.regular) {
-                    if (ast->data.array.dim) {
-                        ast_t* dim = ast->data.array.elems->next->ast;
-                        return type_array(checker->mod, dim->data.lit.value.ival, elem_type);
-                    }
-                    if (elem_type->tag == TYPE_ARRAY)
-                        return type_array(checker->mod, elem_type->data.dim + 1, elem_type->ops[0]);
-                    if (elem_type->tag != TYPE_TOP)
-                        log_error(checker->log, &ast->loc, "array type expected in regular array expression, but got '{0:t}'", { .t = elem_type });
-                    return type_top(checker->mod);
-                }
-                return type_array(checker->mod, 1, elem_type);
+                FORALL_AST(ast->data.array.elems->next, elem, {
+                    check(checker, elem, elem_type);
+                });
+                return type_array(checker->mod, elem_type);
             }
         case AST_FIELD:
             if (ast->data.field.name) {
@@ -420,7 +400,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             switch (ast->data.lit.tag) {
                 case LIT_INT:  return type_i32(checker->mod);
                 case LIT_FLT:  return type_f32(checker->mod, default_fp_flags());
-                case LIT_STR:  return type_array(checker->mod, 1, type_u8(checker->mod));
+                case LIT_STR:  return type_array(checker->mod, type_u8(checker->mod));
                 case LIT_CHR:  return type_u8(checker->mod);
                 case LIT_BOOL: return type_bool(checker->mod);
                 default:
@@ -501,35 +481,13 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
             return check_tuple(checker, ast, "tuple", expected);
         case AST_ARRAY:
             {
-                assert(!ast->data.array.dim);
                 if (expected->tag != TYPE_ARRAY)
                     return expect(checker, ast, "array", NULL, expected);
-                if (ast->data.array.regular) {
-                    if (expected->data.dim <= 1) {
-                        log_error(checker->log, &ast->loc,
-                            "expected array of type '{0:t}' with one dimension, but got regular array with more than one dimension",
-                            { .t = expected });
-                        return expected;
-                    }
-                    const type_t* array_type = type_array(checker->mod, expected->data.dim - 1, expected->ops[0]);
-                    FORALL_AST(ast->data.array.elems, elem, {
-                        array_type = check(checker, elem, array_type);
-                    })
-                    return type_array(checker->mod, array_type->data.dim + 1, array_type->ops[0]);
-                } else {
-                    if (expected->data.dim != 1) {
-                        log_error(checker->log, &ast->loc,
-                            "expected array of type '{0:t}' with {1:u32} dimensions, but got array with only one dimension",
-                            { .t = expected },
-                            { .u32 = expected->data.dim });
-                        return expected;
-                    }
-                    const type_t* elem_type = expected->ops[0];
-                    FORALL_AST(ast->data.array.elems, elem, {
-                        check(checker, elem, expected->ops[0]);
-                    })
-                    return type_array(checker->mod, 1, elem_type);
-                }
+                const type_t* elem_type = expected->ops[0];
+                FORALL_AST(ast->data.array.elems, elem, {
+                    check(checker, elem, elem_type);
+                })
+                return type_array(checker->mod, elem_type);
             }
         case AST_FIELD:
             if (ast->data.field.name)
@@ -546,7 +504,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                         return expected;
                     return expect(checker, ast, "floating point literal", NULL, expected);
                 case LIT_STR:
-                    return expect(checker, ast, "string literal", type_array(checker->mod, 1, type_u8(checker->mod)), expected);
+                    return expect(checker, ast, "string literal", type_array(checker->mod, type_u8(checker->mod)), expected);
                 case LIT_CHR:
                     return expect(checker, ast, "character literal", type_u8(checker->mod), expected);
                 case LIT_BOOL:
