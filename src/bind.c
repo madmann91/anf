@@ -227,14 +227,16 @@ void bind(binder_t* binder, ast_t* ast) {
             break;
         case AST_FOR:
             {
-                bind(binder, ast->data.for_.expr);
-                push_env(binder);
-                bind_ptrn(binder, ast->data.for_.vars);
+                ast_list_t* args = ast->data.for_.call->data.call.args;
+                ast_t* callee = ast->data.for_.call->data.call.callee;
+                bind(binder, callee);
                 ast_t* loop = binder->loop;
                 binder->loop = ast;
-                bind(binder, ast->data.for_.body);
+                bind(binder, args->ast);
                 binder->loop = loop;
-                pop_env(binder);
+                FORALL_AST(args->next, arg, {
+                    bind(binder, arg);
+                })
             }
             break;
         case AST_WHILE:

@@ -279,12 +279,22 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print_ast(printer, ast->data.while_.body);
             break;
         case AST_FOR:
-            print(printer, "{$key}for{$} (");
-            print_ast(printer, ast->data.for_.vars);
-            print(printer, " <- ");
-            print_ast(printer, ast->data.for_.expr);
-            print(printer, ") ");
-            print_ast(printer, ast->data.for_.body);
+            if (ast->data.for_.call->tag == AST_CALL) {
+                ast_list_t* args = ast->data.for_.call->data.call.args;
+                ast_t* callee = ast->data.for_.call->data.call.callee;
+                ast_t* fn = args->ast->data.tuple.args->ast;
+                print(printer, "{$key}for{$} (");
+                print_ast(printer, fn->data.fn.param);
+                print(printer, " <- ");
+                print_ast(printer, callee);
+                FORALL_AST(args->next, arg, {
+                    print_ast(printer, arg);
+                })
+                print(printer, ") ");
+                print_ast(printer, fn->data.fn.body);
+            } else {
+                print(printer, "{$key}for{$} ({$err}<syntax error>{$})");
+            }
             break;
         case AST_MATCH:
             print_ast(printer, ast->data.match.arg);

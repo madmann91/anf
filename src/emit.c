@@ -140,7 +140,7 @@ static const node_t* emit_curried_fn(emitter_t* emitter, const type_t* fn_type, 
     return fn;
 }
 
-static const node_t* emit_call(emitter_t* emitter, const node_t* callee, const node_t* arg, loc_t loc) {
+static const node_t* emit_call(emitter_t* emitter, const node_t* callee, const node_t* arg, const node_t** cont_ptr, loc_t loc) {
     if (type_is_cn(callee->type)) {
         const type_t* from = callee->type->ops[0];
         assert(from->tag == TYPE_TUPLE);
@@ -157,6 +157,8 @@ static const node_t* emit_call(emitter_t* emitter, const node_t* callee, const n
             const node_t* param = node_param(emitter->mod, cont, NULL);
             emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
             emitter->cur = cont;
+            if (cont_ptr)
+                *cont_ptr = cont;
             return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
         }
     } else {
@@ -193,13 +195,15 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 assert(ast->data.id.to);
                 if (!ast->data.id.to->node) {
                     // If the identifier is referring to a function,
-                    // we need to save the current continuations
+                    // we need to save the current continuations and memory object
                     const node_t* cur = emitter->cur;
+                    const node_t* mem = emitter->mem;
                     const node_t* break_ = emitter->break_;
                     const node_t* continue_ = emitter->continue_;
                     const node_t* return_ = emitter->return_;
                     emit(emitter, (ast_t*)ast->data.id.to);
                     emitter->cur = cur;
+                    emitter->mem = mem;
                     emitter->break_ = break_;
                     emitter->continue_ = continue_;
                     emitter->return_ = return_;
@@ -246,7 +250,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 const node_t* callee = emit(emitter, ast->data.call.callee);
                 FORALL_AST(ast->data.call.args, arg, {
                     const node_t* arg_node = emit(emitter, arg);
-                    callee = emit_call(emitter, callee, arg_node, ast->loc);
+                    callee = emit_call(emitter, callee, arg_node, NULL, ast->loc);
                 })
                 return callee;
             }
@@ -344,7 +348,8 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 emitter->break_ = while_break;
                 emitter->continue_ = while_continue;
                 emit(emitter, ast->data.while_.body);
-                jump(emitter, while_head, emitter->mem, NULL);
+                if (emitter->cur)
+                    jump(emitter, while_head, emitter->mem, NULL);
                 emitter->break_ = break_;
                 emitter->continue_ = continue_;
 
@@ -352,6 +357,52 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 emitter->cur = while_join;
                 emitter->mem = node_param(emitter->mod, while_join, NULL);
                 return node_unit(emitter->mod);
+            }
+        case AST_FOR:
+            {
+                const node_t* callee = emit(emitter, ast->data.for_.call->data.call.callee);
+                ast_list_t* args = ast->data.for_.call->data.call.args;
+                ast_t* fn = args->ast->data.tuple.args->ast;
+
+                // Emit a function for the loop body
+                const node_t* cur = emitter->cur;
+                const node_t* mem = emitter->mem;
+                const node_t* return_ = emitter->return_;
+                fn->type = convert(emitter, fn->type);
+                fn->node = emit_fn(emitter, fn->type, fn->data.fn.param, "for_body", fn->loc);
+                const node_t* fn_cur = emitter->cur;
+                const node_t* fn_mem = emitter->mem;
+                const node_t* for_continue = emitter->return_;
+                emitter->cur = cur;
+                emitter->mem = mem;
+                emitter->return_ = return_;
+
+                // Emit call to iteration function
+                const node_t* for_break = NULL;
+                FORALL_AST(args, arg, {
+                    const node_t* arg_node = emit(emitter, arg);
+                    callee = emit_call(emitter, callee, arg_node, &for_break, ast->loc);
+                })
+                cur = emitter->cur;
+                mem = emitter->mem;
+                const node_t* continue_ = emitter->continue_;
+                const node_t* break_ = emitter->break_;
+
+                // Emit the body of the function
+                emitter->cur = fn_cur;
+                emitter->mem = fn_mem;
+                emitter->break_ = for_break;
+                emitter->continue_ = for_continue;
+                const node_t* value = emit(emitter, fn->data.fn.body);
+                return_from(emitter, for_continue, value);
+                ((node_t*)for_break)->dbg = make_dbg(emitter, "for_break", ast->loc);
+                ((node_t*)for_continue)->dbg = make_dbg(emitter, "for_continue", ast->loc);
+
+                emitter->cur = cur;
+                emitter->mem = mem;
+                emitter->break_ = break_;
+                emitter->continue_ = continue_;
+                return callee;
             }
         case AST_VAL:
         case AST_VAR:

@@ -192,9 +192,7 @@ struct ast_s {
             ast_t*      body;
         } while_;
         struct {
-            ast_t*      vars;
-            ast_t*      expr;
-            ast_t*      body;
+            ast_t*      call;
         } for_;
         struct {
             ast_t*      arg;

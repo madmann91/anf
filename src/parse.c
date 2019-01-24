@@ -243,7 +243,7 @@ static ast_t* parse_id(parser_t* parser) {
     char* str = "";
     if (parser->ahead.tag != TOK_ID) {
         char buf[TOK2STR_BUF_SIZE + 2];
-        log_error(parser->log, &parser->ahead.loc, "identifier expected, but got {0:s}", { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
+        log_error(parser->log, &parser->ahead.loc, "expected identifier, but got {0:s}", { .s = tok2str_with_quotes(parser->ahead.tag, buf) });
     } else {
         str = mpool_alloc(parser->pool, strlen(parser->ahead.str) + 1);
         strcpy(str, parser->ahead.str);
@@ -533,15 +533,36 @@ static ast_t* parse_for(parser_t* parser) {
     eat_nl(parser);
     expect(parser, "for loop", TOK_LPAREN);
     eat_nl(parser);
-    ast->data.for_.vars = parse_ptrn(parser);
+    ast_t* ptrn = parse_ptrn(parser);
     eat_nl(parser);
     expect(parser, "for loop", TOK_LARROW);
     eat_nl(parser);
-    ast->data.for_.expr = parse_expr(parser);
+    ast_t* call = parse_expr(parser);
     eat_nl(parser);
     expect(parser, "for loop", TOK_RPAREN);
     eat_nl(parser);
-    ast->data.for_.body = parse_expr(parser);
+    ast_t* body = parse_expr(parser);
+
+    ast->data.for_.call = call;
+    if (call->tag != AST_CALL) {
+        log_error(parser->log, &call->loc, "invalid for loop expression");
+    } else {
+        if (ast_is_refutable(ptrn))
+            log_error(parser->log, &ptrn->loc, "invalid for loop arguments");
+
+        ast_t* arg = ast_create_with_loc(parser, AST_TUPLE, body->loc);
+        ast_t* fn = ast_create_with_loc(parser, AST_FN, body->loc);
+        ast_list_add(parser, &arg->data.tuple.args, fn);
+        fn->data.fn.lambda = true;
+        fn->data.fn.param = ptrn;
+        fn->data.fn.body = body;
+        ast_finalize(fn, parser);
+        ast_finalize(arg, parser);
+        ast_list_t* front = mpool_alloc(parser->pool, sizeof(ast_list_t));
+        front->ast = arg;
+        front->next = call->data.call.args;
+        call->data.call.args = front;
+    }
     return ast_finalize(ast, parser);
 }
 

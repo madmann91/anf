@@ -342,15 +342,18 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 FORALL_AST(ast->data.def.params, param, {
                     infer(checker, param);
                 })
+                const type_t* ret_type = NULL;
                 if (ast->data.def.ret) {
                     // Set the type immediately to allow checking recursive calls
-                    const type_t* ret_type = infer(checker, ast->data.def.ret);
+                    ret_type = infer(checker, ast->data.def.ret);
                     ast->type = curried_type(checker, ast->data.def.params, ret_type);
                     check(checker, ast->data.def.value, ret_type);
                 } else if (ast_set_insert(checker->defs, ast)) {
-                    ast->type = curried_type(checker, ast->data.def.params, infer(checker, ast->data.def.value));
+                    ret_type = infer(checker, ast->data.def.value);
+                    ast->type = curried_type(checker, ast->data.def.params, ret_type);
                     ast_set_remove(checker->defs, ast);
-                } else {
+                }
+                if (!ret_type) {
                     log_error(checker->log, &ast->loc, "cannot infer return type for recursive function '{0:s}'",
                         { .s = ast->data.def.id->data.id.str });
                     ast->type = type_top(checker->mod);
@@ -398,7 +401,11 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             }
         case AST_WHILE:
             check(checker, ast->data.while_.cond, type_bool(checker->mod));
-            return infer(checker, ast->data.while_.body);
+            check(checker, ast->data.while_.body, type_unit(checker->mod));
+            return type_unit(checker->mod);
+        case AST_FOR:
+            check(checker, ast->data.for_.call, type_unit(checker->mod));
+            return type_unit(checker->mod);
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_INT:  return type_i32(checker->mod);
@@ -414,8 +421,12 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             {
                 switch (ast->data.cont.tag) {
                     case CONT_RETURN:
-                        assert(ast->data.cont.parent && ast->data.cont.parent->type);
+                        assert(ast->data.cont.parent);
                         const type_t* parent_type = ast->data.cont.parent->type;
+                        if (!parent_type) {
+                            log_error(checker->log, &ast->loc, "cannot infer type for '{$key}return{$}'");
+                            return type_top(checker->mod);
+                        }
                         assert(parent_type->tag == TYPE_FN);
                         return type_fn(checker->mod, parent_type->ops[1], type_bottom(checker->mod));
                     case CONT_CONTINUE:
@@ -445,8 +456,7 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                     if (infer(checker, cur->ast)->tag == TYPE_BOTTOM)
                         unreachable_code(checker, cur->ast);
                 } else {
-                    check(checker, cur->ast, expected);
-                    return cur->ast->type;
+                    return check(checker, cur->ast, expected);
                 }
             }
             return expect(checker, ast, "block", type_unit(checker->mod), expected);
@@ -455,9 +465,9 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 assert(ast->data.fn.lambda);
                 if (expected->tag != TYPE_FN)
                     return expect(checker, ast, "anonymous function", NULL, expected);
-                const type_t* param_type = check(checker, ast->data.fn.param, expected->ops[0]);
-                const type_t* body_type  = check(checker, ast->data.fn.body, expected->ops[1]);
-                return type_fn(checker->mod, param_type, body_type);
+                check(checker, ast->data.fn.param, expected->ops[0]);
+                check(checker, ast->data.fn.body, expected->ops[1]);
+                return expected;
             }
         case AST_IF:
             check(checker, ast->data.if_.cond, type_bool(checker->mod));
@@ -476,10 +486,6 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
                 });
                 return expected;
             }
-        case AST_WHILE:
-            check(checker, ast->data.while_.cond, type_bool(checker->mod));
-            check(checker, ast->data.while_.body, type_unit(checker->mod));
-            return type_unit(checker->mod);
         case AST_TUPLE:
             return check_tuple(checker, ast, "tuple", expected);
         case AST_ARRAY:

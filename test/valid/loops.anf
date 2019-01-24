@@ -1,9 +1,9 @@
 mod loops {
-    def print(i) {}
-    def println(i) {}
-    def range(a, b) {}
+    def print(i: i32) = {}
+    def println(i: i32) = {}
+    def range(body: i32 => ())(a: i32, b: i32) = {}
 
-    def main() {
+    def main() = {
         for (i <- range(0, 5)) {
             print(i)
             continue()
