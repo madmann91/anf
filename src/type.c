@@ -71,6 +71,10 @@ bool type_is_f(const type_t* type) {
     }
 }
 
+bool type_is_cn(const type_t* type) {
+    return type->tag == TYPE_FN && type->ops[1]->tag == TYPE_BOTTOM;
+}
+
 bool type_contains(const type_t* type, const type_t* op) {
     if (type == op)
         return true;
@@ -217,6 +221,10 @@ const type_t* type_struct(mod_t* mod, struct_def_t* struct_def, size_t nops, con
 const type_t* type_fn(mod_t* mod, const type_t* from, const type_t* to) {
     const type_t* ops[] = { from, to };
     return make_type(mod, (type_t) { .tag = TYPE_FN, .nops = 2, .ops = ops });
+}
+
+const type_t* type_cn(mod_t* mod, const type_t* from) {
+    return type_fn(mod, from, type_bottom(mod));
 }
 
 const type_t* type_var(mod_t* mod, uint32_t var) {
