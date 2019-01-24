@@ -5,8 +5,8 @@
 
 static inline const dbg_t* make_dbg(emitter_t* emitter, const char* name, loc_t loc) {
     dbg_t* dbg = mpool_alloc(&emitter->mod->pool, sizeof(dbg_t));
-    dbg->name = name;
     dbg->file = emitter->file;
+    dbg->name = name;
     dbg->loc  = loc;
     return dbg;
 }
@@ -117,7 +117,7 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
 
 static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, ast_t* ast_param, const char* name, loc_t loc) {
     const node_t* fn = node_fn(emitter->mod, fn_type, 0, make_dbg(emitter, name, loc));
-    const node_t* param = node_param(emitter->mod, fn, make_dbg(emitter, NULL, ast_param->loc));
+    const node_t* param = node_param(emitter->mod, fn, NULL);
     const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
     const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast_param->loc));
     const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
@@ -171,7 +171,9 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             FORALL_AST(ast->data.prog.mods, mod, { emit(emitter, mod); })
             return NULL;
         case AST_MOD:
+            emitter->mod = ast->data.mod.mod;
             FORALL_AST(ast->data.mod.decls, decl, { emit(emitter, decl); })
+            emitter->mod = NULL;
             return NULL;
         case AST_STRUCT:
             {

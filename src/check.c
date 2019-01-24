@@ -238,6 +238,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             FORALL_AST(ast->data.prog.mods, mod, { infer(checker, mod); })
             return NULL;
         case AST_MOD:
+            ast->data.mod.mod = mod_create();
+            checker->mod = ast->data.mod.mod;
             FORALL_AST(ast->data.mod.decls, decl, { infer(checker, decl); })
             return NULL;
         case AST_STRUCT:

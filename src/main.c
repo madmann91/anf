@@ -98,14 +98,12 @@ static bool process_file(const char* file) {
         ok &= !file_log.log.errs;
     }
 
-    mod_t* mod = mod_create();
     if (ok) {
         // Perform type checking
         ast_set_t defs = ast_set_create();
         checker_t checker = {
             .log = &file_log.log,
-            .defs = &defs,
-            .mod = mod
+            .defs = &defs
         };
         infer(&checker, ast);
         ast_set_destroy(&defs);
@@ -113,9 +111,9 @@ static bool process_file(const char* file) {
     }
 
     if (ok) {
+        // Emit IR
         type2type_t types = type2type_create();
         emitter_t emitter = {
-            .mod = mod,
             .log = &file_log.log,
             .types = &types,
             .file = file
@@ -130,18 +128,21 @@ static bool process_file(const char* file) {
         file_printer_t file_printer = printer_from_file(stdout);
         file_printer.printer.colorize = global_log.log.colorize;
         print(&file_printer.printer, "{0:a}\n", { .a = ast });
-
-        FORALL_FNS(mod, fn, {
-            node_dump(fn);
-            printf("\t");
-            if (fn->ops[0]) node_dump(fn->ops[0]);
-        })
-
     }
+
+    FORALL_AST(ast->data.prog.mods, mod, {
+        if (mod->data.mod.mod) {
+            FORALL_FNS(mod->data.mod.mod, fn, {
+                node_dump(fn);
+                printf("\t");
+                if (fn->ops[0]) node_dump(fn->ops[0]);
+            })
+            mod_destroy(mod->data.mod.mod);
+        }
+    });
 
     free(file_data);
     mpool_destroy(pool);
-    mod_destroy(mod);
     return ok;
 }
 

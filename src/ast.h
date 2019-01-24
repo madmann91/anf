@@ -1,8 +1,9 @@
 #ifndef AST_H
 #define AST_H
 
-#include "type.h"
 #include "node.h"
+#include "type.h"
+#include "mod.h"
 #include "lex.h"
 #include "adt.h"
 
@@ -123,6 +124,7 @@ struct ast_s {
         struct {
             ast_t*      id;
             ast_list_t* decls;
+            mod_t*      mod;
         } mod;
         struct {
             bool        byref;
