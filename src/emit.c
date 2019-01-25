@@ -17,7 +17,7 @@ static inline const type_t* continuation_type(emitter_t* emitter, const type_t* 
     return type_cn(emitter->mod, param);
 }
 
-const type_t* continuation_return_type(const type_t* type) {
+static inline const type_t* continuation_return_type(const type_t* type) {
     assert(type_is_cn(type));
     const type_t* from = type->ops[0];
     assert(from->tag == TYPE_TUPLE && from->nops == 3);
@@ -28,8 +28,9 @@ const type_t* continuation_return_type(const type_t* type) {
     return ret_from->ops[1];
 }
 
-
 static const type_t* convert(emitter_t* emitter, const type_t* type) {
+    // Perform CPS-conversion: Functions with type T => U are converted to (mem, T, (mem, U) => bottom) => bottom
+    // This process is recursive and also affects aggregate members.
     const type_t** found = type2type_lookup(emitter->types, type);
     if (found)
         return *found;
