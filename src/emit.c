@@ -94,6 +94,9 @@ static inline void check_flt_lit(emitter_t* emitter, ast_t* ast, double min, dou
 }
 
 static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool var) {
+    assert(!ast->node);
+    if (ast->type)
+        ast->type = convert(emitter, ast->type);
     switch (ast->tag) {
         case AST_TUPLE:
             // Tuples with one element are not deconstructing patterns
