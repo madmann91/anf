@@ -81,8 +81,6 @@ bool type_is_cn(const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
 size_t type_member_count(const type_t*);
-const type_t* type_cn_from(const type_t*);
-const type_t* type_cn_to(const type_t*);
 const type_t* type_member(mod_t*, const type_t*, size_t);
 
 const type_t* type_bool(mod_t*);

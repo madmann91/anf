@@ -17,6 +17,18 @@ static inline const type_t* continuation_type(emitter_t* emitter, const type_t* 
     return type_cn(emitter->mod, param);
 }
 
+const type_t* continuation_return_type(const type_t* type) {
+    assert(type_is_cn(type));
+    const type_t* from = type->ops[0];
+    assert(from->tag == TYPE_TUPLE && from->nops == 3);
+    const type_t* ret = from->ops[2];
+    assert(type_is_cn(ret));
+    const type_t* ret_from = ret->ops[0];
+    assert(ret_from->tag == TYPE_TUPLE && ret_from->nops == 2);
+    return ret_from->ops[1];
+}
+
+
 static const type_t* convert(emitter_t* emitter, const type_t* type) {
     const type_t** found = type2type_lookup(emitter->types, type);
     if (found)
@@ -132,7 +144,7 @@ static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, a
 static const node_t* emit_curried_fn(emitter_t* emitter, const type_t* fn_type, ast_list_t* params, const char* name, loc_t loc) {
     const node_t* fn = emit_fn(emitter, fn_type, params->ast, name, loc);
     if (params->next) {
-        const type_t* child_type = type_cn_to(fn_type);
+        const type_t* child_type = continuation_return_type(fn_type);
         const node_t* ret = emitter->return_;
         const node_t* mem = emitter->mem;
         const node_t* child = emit_curried_fn(emitter, child_type, params->next, name, loc);

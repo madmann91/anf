@@ -112,24 +112,6 @@ size_t type_member_count(const type_t* type) {
     }
 }
 
-const type_t* type_cn_from(const type_t* type) {
-    assert(type_is_cn(type));
-    const type_t* from = type->ops[0];
-    assert(from->tag == TYPE_TUPLE && from->nops == 3);
-    return from->ops[1];
-}
-
-const type_t* type_cn_to(const type_t* type) {
-    assert(type_is_cn(type));
-    const type_t* from = type->ops[0];
-    assert(from->tag == TYPE_TUPLE && from->nops == 3);
-    const type_t* ret = from->ops[2];
-    assert(type_is_cn(ret));
-    const type_t* ret_from = ret->ops[0];
-    assert(ret_from->tag == TYPE_TUPLE && ret_from->nops == 2);
-    return ret_from->ops[1];
-}
-
 const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
     if (type->tag == TYPE_TUPLE) {
         assert(index < type->nops);
