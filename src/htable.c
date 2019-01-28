@@ -137,10 +137,9 @@ void htable_remove_by_index(htable_t* table, size_t index) {
     assert(table->hashes[index] & OCCUPIED_HASH_MASK);
 
     // Count number of buckets until an empty bucket or bucket with DIB=0 is found
-    size_t prev  = index;
+    size_t prev = index;
     while (true) {
-        index++;
-        index = index >= table->cap ? 0 : index;
+        index = htable_index(index + 1, table->cap);
 
         uint32_t next_hash = table->hashes[index];
         if (!(next_hash & OCCUPIED_HASH_MASK))
@@ -164,10 +163,10 @@ void htable_remove_by_index(htable_t* table, size_t index) {
         // The index has wrapped around
         memmove(htable_elem(table->elems, prev,     table->esize),
                 htable_elem(table->elems, prev + 1, table->esize),
-                table->esize * (table->cap - prev));
+                table->esize * (table->cap - 1 - prev));
         memmove(table->hashes + prev,
                 table->hashes + prev + 1,
-                sizeof(uint32_t) * (table->cap - prev));
+                sizeof(uint32_t) * (table->cap - 1 - prev));
         if (index > 0) {
             memcpy(htable_elem(table->elems, table->cap - 1, table->esize),
                    htable_elem(table->elems, 0, table->esize),
