@@ -537,10 +537,14 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
         assert(index->tag == NODE_LITERAL);
         assert(index_value < type_member_count(value->type));
         elem_type = type_member(mod, value->type, index_value);
+        // Constant folding
         if (value->tag == NODE_TUPLE)
             return value->ops[index_value];
         else if (value->tag == NODE_STRUCT)
             return node_extract(mod, value->ops[0], index, dbg);
+        // Normalization of index types for tuples/structs
+        if (index->type->tag != TYPE_U64)
+            index = node_u64(mod, index_value);
     } else if (value->type->tag == TYPE_ARRAY) {
         elem_type = value->type->ops[0];
         if (value->tag == NODE_ARRAY && index->tag == NODE_LITERAL && index_value < value->nops) {
@@ -572,6 +576,7 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
         assert(index->tag == NODE_LITERAL);
         assert(index_value < type_member_count(value->type));
         assert(elem->type == type_member(mod, value->type, index_value));
+        // Constant folding
         if (value->tag == NODE_TUPLE) {
             const node_t* ops[value->nops];
             for (size_t i = 0; i < value->nops; ++i)
@@ -581,6 +586,9 @@ const node_t* node_insert(mod_t* mod, const node_t* value, const node_t* index, 
         } else if (value->tag == NODE_STRUCT) {
             return node_struct(mod, node_insert(mod, value->ops[0], index, elem, dbg), value->type, dbg);
         }
+        // Normalization of index types for tuples/structs
+        if (index->type->tag != TYPE_U64)
+            index = node_u64(mod, index_value);
     } else if (value->type->tag == TYPE_ARRAY) {
         assert(elem->type == value->type->ops[0]);
         if (value->tag == NODE_ARRAY && index->tag == NODE_LITERAL && index_value < value->nops) {
