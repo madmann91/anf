@@ -526,6 +526,9 @@ const node_t* node_extract(mod_t* mod, const node_t* value, const node_t* index,
     if (value->tag == NODE_INSERT && index->tag == NODE_LITERAL) {
         const node_t* insert = value;
         do {
+            // Only valid if the insertion index is a literal
+            if (insert->ops[1]->tag != NODE_LITERAL)
+                break;
             if (insert->ops[1] == index)
                 return insert->ops[2];
             insert = insert->ops[0];
