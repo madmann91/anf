@@ -149,8 +149,18 @@ void bind(binder_t* binder, ast_t* ast) {
             bind_ptrn(binder, ast->data.varl.ptrn);
             bind(binder, ast->data.varl.value);
             break;
+        case AST_TVAR:
+            insert_env(binder, ast->data.tvar.id, ast);
+            FORALL_AST(ast->data.tvar.traits, trait, {
+                bind(binder, trait);
+            })
+            break;
         case AST_DEF:
             {
+                push_env(binder);
+                FORALL_AST(ast->data.def.tvars, tvar, {
+                    bind(binder, tvar);
+                })
                 if (ast->data.def.ret)
                     bind(binder, ast->data.def.ret);
                 FORALL_AST(ast->data.def.params, param, {
@@ -165,6 +175,7 @@ void bind(binder_t* binder, ast_t* ast) {
                     pop_env(binder);
                     (void)param;
                 })
+                pop_env(binder);
             }
             break;
         case AST_TUPLE:

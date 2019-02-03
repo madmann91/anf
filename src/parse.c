@@ -139,6 +139,8 @@ static ast_t* parse_array_type(parser_t*);
 static ast_t* parse_member_or_param(parser_t*, const char* msg);
 static ast_t* parse_member(parser_t*);
 static ast_t* parse_param(parser_t*);
+static ast_t* parse_tvar(parser_t*);
+static ast_list_t* parse_tvars(parser_t*);
 static ast_t* parse_struct(parser_t*);
 static ast_t* parse_def(parser_t*);
 static ast_t* parse_var_or_val(parser_t*, bool);
@@ -656,12 +658,47 @@ static ast_t* parse_param(parser_t* parser) {
     return parse_member_or_param(parser, "function parameter");
 }
 
+static ast_t* parse_tvar(parser_t* parser) {
+    ast_t* ast = ast_create(parser, AST_TVAR);
+    ast->data.tvar.id = parse_id(parser);
+    eat_nl(parser);
+    if (accept(parser, TOK_COLON)) {
+        eat_nl(parser);
+        ast_list_t** cur = &ast->data.tvar.traits;
+        while (true) {
+            cur = ast_list_add(parser, cur, parse_type(parser));
+            eat_nl(parser);
+            if (!accept(parser, TOK_ADD))
+                break;
+            eat_nl(parser);
+        }
+    }
+    return ast_finalize(ast, parser);
+}
+
+static ast_list_t* parse_tvars(parser_t* parser) {
+    if (!accept(parser, TOK_LBRACKET))
+        return NULL;
+    ast_list_t* first = NULL;
+    ast_list_t** cur = &first;
+    while (parser->ahead.tag != TOK_RBRACKET) {
+        cur = ast_list_add(parser, cur, parse_tvar(parser));
+        eat_nl(parser);
+        if (!accept(parser, TOK_COMMA))
+            break;
+        eat_nl(parser);
+    }
+    expect(parser, "type parameters", TOK_RBRACKET);
+    return first;
+}
+
 static ast_t* parse_struct(parser_t* parser) {
     ast_t* ast = ast_create(parser, AST_STRUCT);
     eat(parser, TOK_STRUCT);
     if (accept(parser, TOK_BYREF))
         ast->data.struct_.byref = true;
     ast->data.struct_.id = parse_id(parser);
+    ast->data.struct_.tvars = parse_tvars(parser);
     ast->data.struct_.members = parse_tuple(parser, "structure members", parse_member);
     if (ast_is_refutable(ast->data.struct_.members))
         log_error(parser->log, &ast->data.struct_.members->loc, "invalid structure definition");
@@ -673,6 +710,7 @@ static ast_t* parse_def(parser_t* parser) {
     eat(parser, TOK_DEF);
     eat_nl(parser);
     ast->data.def.id = parse_id(parser);
+    ast->data.def.tvars = parse_tvars(parser);
     eat_nl(parser);
     ast_list_t** cur = &ast->data.def.params;
     while (parser->ahead.tag == TOK_LPAREN) {

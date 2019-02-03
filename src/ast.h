@@ -27,6 +27,8 @@ enum ast_tag_e {
     AST_DEF,
     AST_VAR,
     AST_VAL,
+    AST_TVAR,
+    AST_TAPP,
     AST_ANNOT,
     AST_PRIM,
     AST_BLOCK,
@@ -129,10 +131,12 @@ struct ast_s {
         struct {
             bool        byref;
             ast_t*      id;
+            ast_list_t* tvars;
             ast_t*      members;
         } struct_;
         struct {
             ast_t*      id;
+            ast_list_t* tvars;
             ast_list_t* params;
             ast_t*      ret;
             ast_t*      value;
@@ -141,6 +145,14 @@ struct ast_s {
             ast_t*      ptrn;
             ast_t*      value;
         } varl;
+        struct {
+            ast_t*      id;
+            ast_list_t* traits;
+        } tvar;
+        struct {
+            ast_t*      ast;
+            ast_list_t* types;
+        } tapp;
         struct {
             ast_t*      ast;
             ast_t*      type;

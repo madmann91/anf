@@ -40,7 +40,7 @@ static const type_t* convert(emitter_t* emitter, const type_t* type) {
         converted = continuation_type(emitter, convert(emitter, type->ops[0]), convert(emitter, type->ops[1]));
     } else if (type->tag == TYPE_STRUCT) {
         type2type_insert(emitter->types, type, type);
-        type->data.struct_def->members = convert(emitter, type->data.struct_def->members);
+        type->data.struct_def->type = convert(emitter, type->data.struct_def->type);
     } else if (type->nops != 0) {
         TMP_BUF_ALLOC(type_ops, const type_t*, type->nops)
         for (size_t i = 0; i < type->nops; ++i)
@@ -197,7 +197,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
         case AST_STRUCT:
             {
                 assert(ast->type->tag == TYPE_STRUCT);
-                const type_t* constr_type = continuation_type(emitter, ast->type->data.struct_def->members, ast->type);
+                const type_t* constr_type = continuation_type(emitter, ast->type->data.struct_def->type, ast->type);
                 const node_t* constr = node_fn(emitter->mod, constr_type, 0, make_dbg(emitter, ast->data.struct_.id->data.id.str, ast->loc));
                 const node_t* param = node_param(emitter->mod, constr, NULL);
                 const node_t* mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);

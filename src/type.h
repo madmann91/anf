@@ -28,6 +28,7 @@
     f(TYPE_FN,     "fn") \
     f(TYPE_VAR,    "var") \
 
+typedef struct var_def_s    var_def_t;
 typedef struct struct_def_s struct_def_t;
 typedef struct enum_def_s   enum_def_t;
 
@@ -41,10 +42,17 @@ enum fp_flags_e {
     FP_RELAXED_MATH = FP_ASSOCIATIVE_MATH | FP_RECIPROCAL_MATH | FP_FINITE_MATH | FP_NO_NAN_MATH
 };
 
+struct var_def_s {
+    uint32_t id;
+    const char* name;
+    size_t ntraits;
+    const type_t** traits;
+};
+
 struct struct_def_s {
     const char* name;
-    struct ast_s* ast;
-    const type_t* members;
+    const char** members;
+    const type_t* type;
     bool byref;
 };
 
@@ -63,8 +71,8 @@ struct type_s {
     size_t   nops;
     const type_t** ops;
     union {
-        uint32_t      var;
         uint32_t      fp_flags;
+        var_def_t*    var_def;
         struct_def_t* struct_def;
         enum_def_t*   enum_def;
     } data;
@@ -80,6 +88,7 @@ bool type_is_f(const type_t*);
 bool type_is_cn(const type_t*);
 bool type_contains(const type_t*, const type_t*);
 size_t type_order(const type_t*);
+size_t type_find_member(const type_t*, const char*);
 size_t type_member_count(const type_t*);
 const type_t* type_member(mod_t*, const type_t*, size_t);
 
@@ -110,7 +119,7 @@ const type_t* type_array(mod_t*, const type_t*);
 const type_t* type_struct(mod_t*, struct_def_t*, size_t, const type_t**);
 const type_t* type_fn(mod_t*, const type_t*, const type_t*);
 const type_t* type_cn(mod_t*, const type_t*);
-const type_t* type_var(mod_t*, uint32_t);
+const type_t* type_var(mod_t*, var_def_t*);
 
 const type_t* type_rebuild(mod_t*, const type_t*, const type_t**);
 const type_t* type_rewrite(mod_t*, const type_t*, type2type_t*);

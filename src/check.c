@@ -247,15 +247,20 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             {
                 const char* name = ast->data.struct_.id->data.id.str;
                 struct_def_t* struct_def = mpool_alloc(&checker->mod->pool, sizeof(struct_def_t));
-                char* buf = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
-                strcpy(buf, name);
-                *struct_def = (struct_def_t) {
-                    .ast = ast,
-                    .name = ast->data.struct_.id->data.id.str,
-                    .byref = ast->data.struct_.byref,
-                };
+                struct_def->byref = ast->data.struct_.byref;
+                struct_def->name = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
+                strcpy((char*)struct_def->name, name);
+                size_t nmembers = ast_list_length(ast->data.struct_.members->data.tuple.args);
+                struct_def->members = mpool_alloc(&checker->mod->pool, sizeof(const char**) * nmembers);
+                nmembers = 0;
+                FORALL_AST(ast->data.struct_.members->data.tuple.args, arg, {
+                    const char* member = arg->data.annot.ast->data.id.str;
+                    struct_def->members[nmembers] = mpool_alloc(&checker->mod->pool, strlen(member));
+                    strcpy((char*)struct_def->members[nmembers], member);
+                    nmembers++;
+                })
                 ast->type = type_struct(checker->mod, struct_def, 0, NULL);
-                struct_def->members = infer(checker, ast->data.struct_.members);
+                struct_def->type = infer(checker, ast->data.struct_.members);
                 return ast->type;
             }
         case AST_ID:
@@ -309,10 +314,10 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                         log_error(checker->log, &ast->loc, "structure type expected in field expression, but got '{0:t}'", { .t = struct_type });
                     return type_top(checker->mod);
                 }
-                ast_t* struct_ast = struct_type->data.struct_def->ast;
                 const char* member_name = ast->data.field.id->data.id.str;
-                if (!find_member_or_param(struct_ast->data.struct_.members->data.tuple.args, member_name, &ast->data.field.index)) {
-                    invalid_member_or_param(checker, ast, struct_ast->data.struct_.id->data.id.str, member_name, true);
+                ast->data.field.index = type_find_member(struct_type, member_name);
+                if (ast->data.field.index == INVALID_INDEX) {
+                    invalid_member_or_param(checker, ast, struct_type->data.struct_def->name, member_name, true);
                     return type_top(checker->mod);
                 }
                 return type_member(checker->mod, struct_type, ast->data.field.index);

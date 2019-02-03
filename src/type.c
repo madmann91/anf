@@ -106,10 +106,20 @@ size_t type_member_count(const type_t* type) {
     if (type->tag == TYPE_TUPLE) {
         return type->nops;
     } else if (type->tag == TYPE_STRUCT) {
-        return type_member_count(type->data.struct_def->members);
+        return type_member_count(type->data.struct_def->type);
     } else {
         return 1;
     }
+}
+
+size_t type_find_member(const type_t* type, const char* member) {
+    assert(type->tag == TYPE_STRUCT);
+    const struct_def_t* struct_def = type->data.struct_def;
+    for (size_t i = 0, n = struct_def->type->nops; i < n; ++i) {
+        if (!strcmp(struct_def->members[i], member))
+            return i;
+    }
+    return INVALID_INDEX;
 }
 
 const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
@@ -117,7 +127,7 @@ const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
         assert(index < type->nops);
         return type->ops[index];
     } else if (type->tag == TYPE_STRUCT) {
-        const type_t* member = type_member(mod, type->data.struct_def->members, index);
+        const type_t* member = type_member(mod, type->data.struct_def->type, index);
         if (type->nops == 0)
             return member;
         type2type_t type2type = type2type_create();
@@ -196,14 +206,14 @@ const type_t* type_tuple_from_struct(mod_t* mod, const type_t* type) {
     assert(type->tag == TYPE_STRUCT);
     const struct_def_t* struct_def = type->data.struct_def;
     if (type->nops == 0)
-        return struct_def->members;
+        return struct_def->type;
     type2type_t type2type = type2type_create();
     for (size_t i = 0; i < type->nops; ++i) {
         const type_t* var = type_var(mod, i);
         if (var != type->ops[i])
             type2type_insert(&type2type, var, type->ops[i]);
     }
-    const type_t* tuple_type = type_rewrite(mod, struct_def->members, &type2type);
+    const type_t* tuple_type = type_rewrite(mod, struct_def->type, &type2type);
     type2type_destroy(&type2type);
     return tuple_type;
 }
@@ -225,8 +235,8 @@ const type_t* type_cn(mod_t* mod, const type_t* from) {
     return type_fn(mod, from, type_bottom(mod));
 }
 
-const type_t* type_var(mod_t* mod, uint32_t var) {
-    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .var = var }, .dsize = sizeof(uint32_t) });
+const type_t* type_var(mod_t* mod, var_def_t*) {
+    return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .var_def = var_def }, .dsize = sizeof(var_def_t*) });
 }
 
 const type_t* type_rebuild(mod_t* mod, const type_t* type, const type_t** ops) {

@@ -17,7 +17,7 @@ static void print_type(printer_t* printer, const type_t* type) {
         case TYPE_TOP:    print(printer, "{$key}top{$}");    break;
         case TYPE_BOTTOM: print(printer, "{$key}bottom{$}"); break;
         case TYPE_MEM:    print(printer, "{$key}mem{$}");    break;
-        case TYPE_VAR:    print(printer, "#{0:u32}", { .u32 = type->data.var }); break;
+        case TYPE_VAR:    print(printer, "{0:s}", { .s = type->data.var_def->name }); break;
         case TYPE_PTR:
             print_type(printer, type->ops[0]);
             print(printer, "*");
@@ -137,6 +137,14 @@ static inline void print_ast_list(printer_t* printer, const ast_list_t* list, co
     }
 }
 
+static inline void print_tvars(printer_t* printer, const ast_list_t* tvars) {
+    if (tvars) {
+        print(printer, "[");
+        print_ast_list(printer, tvars, ", ", false);
+        print(printer, "]");
+    } 
+}
+
 static inline void print_ast_binop_op(printer_t* printer, const ast_t* op, int prec) {
     bool needs_parens = op->tag == AST_BINOP && binop_precedence(op->data.binop.tag) > prec;
     if (needs_parens) print(printer, "(");
@@ -171,15 +179,21 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print_indent(printer);
             print(printer, "}");
             break;
+        case AST_TVAR:
+            print(printer, ast->data.tvar.traits ? "{0:s} : " : "{0:s}", { .s = ast->data.tvar.id->data.id.str });
+            print_ast_list(printer, ast->data.tvar.traits, " + ", false);
+            break;
         case AST_STRUCT:
             print(printer, "{$key}struct{$}{0:s}{$key}{1:s}{$} {2:s}",
                 { .s = ast->data.struct_.byref ? " " : ""},
                 { .s = ast->data.struct_.byref ? "byref" : ""},
                 { .s = ast->data.struct_.id->data.id.str });
+            print_tvars(printer, ast->data.struct_.tvars);
             print_ast(printer, ast->data.struct_.members);
             break;
         case AST_DEF:
             print(printer, "{$key}def{$} {0:s}", { .s = ast->data.mod.id->data.id.str });
+            print_tvars(printer, ast->data.def.tvars);
             FORALL_AST(ast->data.def.params, param, {
                 print_ast(printer, param);
             })
