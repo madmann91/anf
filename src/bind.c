@@ -66,7 +66,7 @@ static void bind_ptrn(binder_t* binder, ast_t* ast) {
             insert_env(binder, ast, ast);
             break;
         case AST_ANNOT:
-            bind_ptrn(binder, ast->data.annot.ast);
+            bind_ptrn(binder, ast->data.annot.arg);
             bind(binder, ast->data.annot.type);
             break;
         case AST_TUPLE:
@@ -155,6 +155,12 @@ void bind(binder_t* binder, ast_t* ast) {
                 bind(binder, trait);
             })
             break;
+        case AST_TAPP:
+            bind(binder, ast->data.tapp.arg);
+            FORALL_AST(ast->data.tapp.types, type, {
+                bind(binder, type);
+            })
+            break;
         case AST_DEF:
             {
                 push_env(binder);
@@ -184,7 +190,7 @@ void bind(binder_t* binder, ast_t* ast) {
             })
             break;
         case AST_ANNOT:
-            bind(binder, ast->data.annot.ast);
+            bind(binder, ast->data.annot.arg);
             bind(binder, ast->data.annot.type);
             break;
         case AST_ARRAY:

@@ -2,7 +2,7 @@
 
 bool ast_is_ptrn(const ast_t* ast) {
     switch (ast->tag) {
-        case AST_ANNOT: return ast_is_ptrn(ast->data.annot.ast);
+        case AST_ANNOT: return ast_is_ptrn(ast->data.annot.arg);
         case AST_ID:    return true;
         case AST_LIT:   return true;
         case AST_TUPLE:
@@ -18,7 +18,7 @@ bool ast_is_ptrn(const ast_t* ast) {
 
 bool ast_is_refutable(const ast_t* ast) {
     switch (ast->tag) {
-        case AST_ANNOT: return ast_is_refutable(ast->data.annot.ast);
+        case AST_ANNOT: return ast_is_refutable(ast->data.annot.arg);
         case AST_ID:    return false;
         case AST_LIT:   return true;
         case AST_TUPLE:

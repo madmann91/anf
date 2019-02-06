@@ -150,11 +150,11 @@ struct ast_s {
             ast_list_t* traits;
         } tvar;
         struct {
-            ast_t*      ast;
+            ast_t*      arg;
             ast_list_t* types;
         } tapp;
         struct {
-            ast_t*      ast;
+            ast_t*      arg;
             ast_t*      type;
         } annot;
         struct {

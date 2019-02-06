@@ -124,7 +124,7 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
                 ((node_t*)ast->node)->dbg = make_dbg(emitter, ast->data.id.str, ast->loc);
             break;
         case AST_ANNOT:
-            emit_ptrn(emitter, ast->data.annot.ast, node, var);
+            emit_ptrn(emitter, ast->data.annot.arg, node, var);
             break;
         default:
             assert(false);
@@ -271,7 +271,7 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 return callee;
             }
         case AST_ANNOT:
-            return emit(emitter, ast->data.annot.ast);
+            return emit(emitter, ast->data.annot.arg);
         case AST_BLOCK:
             {
                 const node_t* last = node_unit(emitter->mod);

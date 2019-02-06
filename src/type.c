@@ -235,7 +235,7 @@ const type_t* type_cn(mod_t* mod, const type_t* from) {
     return type_fn(mod, from, type_bottom(mod));
 }
 
-const type_t* type_var(mod_t* mod, var_def_t*) {
+const type_t* type_var(mod_t* mod, var_def_t* var_def) {
     return make_type(mod, (type_t) { .tag = TYPE_VAR, .nops = 0, .data = { .var_def = var_def }, .dsize = sizeof(var_def_t*) });
 }
 

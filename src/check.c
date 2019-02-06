@@ -45,8 +45,8 @@ static inline const type_t* find_member_or_param(ast_list_t* params, const char*
     size_t i = 0;
     FORALL_AST(params, param, {
         assert(param->tag == AST_ANNOT);
-        assert(param->data.annot.ast->tag == AST_ID);
-        if (!strcmp(name, param->data.annot.ast->data.id.str)) {
+        assert(param->data.annot.arg->tag == AST_ID);
+        if (!strcmp(name, param->data.annot.arg->data.id.str)) {
             *index = i;
             return param->type;
         }
@@ -90,7 +90,7 @@ static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
         case AST_ANNOT:
             {
                 const type_t* type = infer(checker, ptrn->data.annot.type);
-                check(checker, ptrn->data.annot.ast, type);
+                check(checker, ptrn->data.annot.arg, type);
                 return check(checker, value, type);
             }
         default:
@@ -254,7 +254,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 struct_def->members = mpool_alloc(&checker->mod->pool, sizeof(const char**) * nmembers);
                 nmembers = 0;
                 FORALL_AST(ast->data.struct_.members->data.tuple.args, arg, {
-                    const char* member = arg->data.annot.ast->data.id.str;
+                    const char* member = arg->data.annot.arg->data.id.str;
                     struct_def->members[nmembers] = mpool_alloc(&checker->mod->pool, strlen(member));
                     strcpy((char*)struct_def->members[nmembers], member);
                     nmembers++;
@@ -335,7 +335,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_ANNOT:
             {
                 const type_t* type = infer(checker, ast->data.annot.type);
-                check(checker, ast->data.annot.ast, type);
+                check(checker, ast->data.annot.arg, type);
                 return type;
             }
         case AST_VAR:

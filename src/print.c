@@ -183,6 +183,12 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print(printer, ast->data.tvar.traits ? "{0:s} : " : "{0:s}", { .s = ast->data.tvar.id->data.id.str });
             print_ast_list(printer, ast->data.tvar.traits, " + ", false);
             break;
+        case AST_TAPP:
+            print_ast(printer, ast->data.tapp.arg);
+            print(printer, "[");
+            print_ast_list(printer, ast->data.tapp.types, ", ", false);
+            print(printer, "]");
+            break;
         case AST_STRUCT:
             print(printer, "{$key}struct{$}{0:s}{$key}{1:s}{$} {2:s}",
                 { .s = ast->data.struct_.byref ? " " : ""},
@@ -212,7 +218,7 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
             print_ast(printer, ast->data.varl.value);
             break;
         case AST_ANNOT:
-            print_ast(printer, ast->data.annot.ast);
+            print_ast(printer, ast->data.annot.arg);
             print(printer, " : ");
             print_ast(printer, ast->data.annot.type);
             break;
