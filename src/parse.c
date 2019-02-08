@@ -743,9 +743,14 @@ static ast_t* parse_def(parser_t* parser) {
         ast->data.def.ret = parse_type(parser);
     }
     eat_nl(parser);
-    expect(parser, "function definition", TOK_EQ);
-    eat_nl(parser);
-    ast->data.def.value = parse_expr(parser);
+    if (accept(parser, TOK_EQ)) {
+        eat_nl(parser);
+        ast->data.def.value = parse_expr(parser);
+    } else if (parser->ahead.tag == TOK_LBRACE) {
+        ast->data.def.value = parse_block(parser);
+    } else {
+        ast->data.def.value = parse_err(parser, "function body");
+    }
     return ast_finalize(ast, parser);
 }
 
