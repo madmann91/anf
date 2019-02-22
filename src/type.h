@@ -43,10 +43,9 @@ enum fp_flags_e {
 };
 
 struct var_def_s {
-    uint32_t id;
-    const char* name;
     size_t ntraits;
     const type_t** traits;
+    const char* name;
 };
 
 struct struct_def_s {
