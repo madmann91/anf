@@ -53,6 +53,7 @@ struct struct_def_s {
     const char* name;
     const char** members;
     const type_t* type;
+    const type_t** vars;
     bool byref;
 };
 

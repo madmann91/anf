@@ -132,7 +132,7 @@ const type_t* type_member(mod_t* mod, const type_t* type, size_t index) {
             return member;
         type2type_t type2type = type2type_create();
         for (size_t i = 0; i < type->nops; ++i) {
-            const type_t* var = type_var(mod, i);
+            const type_t* var = type->data.struct_def->vars[i];
             if (var != type->ops[i])
                 type2type_insert(&type2type, var, type->ops[i]);
         }
@@ -209,7 +209,7 @@ const type_t* type_tuple_from_struct(mod_t* mod, const type_t* type) {
         return struct_def->type;
     type2type_t type2type = type2type_create();
     for (size_t i = 0; i < type->nops; ++i) {
-        const type_t* var = type_var(mod, i);
+        const type_t* var = type->data.struct_def->vars[i];
         if (var != type->ops[i])
             type2type_insert(&type2type, var, type->ops[i]);
     }
