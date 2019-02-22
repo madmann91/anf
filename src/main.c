@@ -132,11 +132,7 @@ static bool process_file(const char* file) {
 
     FORALL_AST(ast->data.prog.mods, mod, {
         if (mod->data.mod.mod) {
-            FORALL_FNS(mod->data.mod.mod, fn, {
-                node_dump(fn);
-                printf("\t");
-                if (fn->ops[0]) node_dump(fn->ops[0]);
-            })
+            mod_dump(mod->data.mod.mod);
             mod_destroy(mod->data.mod.mod);
         }
     });

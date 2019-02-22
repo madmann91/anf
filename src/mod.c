@@ -1,9 +1,12 @@
+#include <stdio.h>
+
 #include "mod.h"
 #include "node.h"
 #include "type.h"
 #include "adt.h"
 #include "util.h"
 #include "mpool.h"
+#include "scope.h"
 
 bool node_cmp(const void* ptr1, const void* ptr2) {
     const node_t* node1 = *(const node_t**)ptr1;
@@ -77,6 +80,52 @@ void mod_destroy(mod_t* mod) {
 void mod_opt(mod_t** mod) {
     // TODO
     (void)mod;
+}
+
+void mod_dump(mod_t* mod) {
+    scope_t scope = { .entry = NULL, .nodes = node_set_create() };
+    node_set_t fvs = node_set_create();
+    node_set_t seen = node_set_create();
+    node_vec_t stack = node_vec_create();
+    FORALL_FNS(mod, fn, {
+        node_set_clear(&scope.nodes);
+        node_set_clear(&fvs);
+        node_set_clear(&seen);
+        node_vec_clear(&stack);
+
+        scope.entry = fn;
+        scope_compute(mod, &scope);
+        scope_compute_fvs(&scope, &fvs);
+
+        node_dump(fn);
+        node_vec_push(&stack, fn->ops[0]);
+        // Post order walk over the body of the function
+        while (stack.nelems > 0) {
+            const node_t* node = stack.elems[stack.nelems - 1];
+            if (node->nops == 0 || node->tag == NODE_FN || node_set_lookup(&fvs, node))
+                goto done;
+            bool all_seen = true;
+            for (size_t i = 0; i < node->nops; ++i) {
+                if (!node_set_lookup(&seen, node->ops[i])) {
+                    node_vec_push(&stack, node->ops[i]);
+                    all_seen = false;
+                }
+            }
+            if (all_seen) {
+                printf("    ");
+                node_dump(node);
+                goto done;
+            }
+            continue;
+        done:
+            node_set_insert(&seen, node);
+            node_vec_pop(&stack);
+        }
+    });
+    node_vec_destroy(&stack);
+    node_set_destroy(&seen);
+    node_set_destroy(&fvs);
+    node_set_destroy(&scope.nodes);
 }
 
 static inline void register_use(mod_t* mod, size_t index, const node_t* used, const node_t* user) {

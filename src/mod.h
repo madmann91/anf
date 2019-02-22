@@ -37,6 +37,7 @@ struct mod_s {
 
 mod_t* mod_create(void);
 void mod_destroy(mod_t*);
+void mod_dump(mod_t*);
 
 void mod_opt(mod_t**);
 

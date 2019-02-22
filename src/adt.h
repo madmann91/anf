@@ -155,6 +155,9 @@
     static inline void vec##_destroy(vec##_t* vec) { \
         free(vec->elems); \
     } \
+    static inline void vec##_clear(vec##_t* vec) { \
+        vec->nelems = 0; \
+    } \
     static inline void vec##_push(vec##_t* vec, value_t v) { \
         if (vec->nelems >= vec->cap) { \
             vec->cap *= 2; \
