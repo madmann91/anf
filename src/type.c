@@ -115,7 +115,7 @@ size_t type_member_count(const type_t* type) {
 size_t type_find_member(const type_t* type, const char* member) {
     assert(type->tag == TYPE_STRUCT);
     const struct_def_t* struct_def = type->data.struct_def;
-    for (size_t i = 0, n = struct_def->type->nops; i < n; ++i) {
+    for (size_t i = 0, n = type_member_count(type); i < n; ++i) {
         if (!strcmp(struct_def->members[i], member))
             return i;
     }
