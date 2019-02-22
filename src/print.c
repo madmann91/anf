@@ -463,7 +463,7 @@ static size_t format(char* buf, size_t buf_len, const char* fmt, const fmt_arg_t
                         ptr++;
                         switch (*ptr) {
                             case '8':
-                                n = snprintf(buf + len, buf_len - len, "%"PRIi8, args[id].i8); ptr++;
+                                n = snprintf(buf + len, buf_len - len, "%"PRIi8, args[id].i8);
                                 break;
                             case '1':
                                 ptr++; assert(*ptr == '6');
