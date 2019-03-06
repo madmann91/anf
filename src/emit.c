@@ -136,7 +136,7 @@ static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, a
     const node_t* fn = node_fn(emitter->mod, fn_type, 0, make_dbg(emitter, name, loc));
     const node_t* param = node_param(emitter->mod, fn, NULL);
     const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-    const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast_param->loc));
+    const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
     const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
     emit_ptrn(emitter, ast_param, ptrn, false);
     emitter->cur = fn;
