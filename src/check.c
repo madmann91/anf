@@ -493,8 +493,13 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
     assert(expected);
     switch (ast->tag) {
         case AST_ID:
-            assert(!ast->data.id.to || ast->data.id.to->type);
-            return ast->data.id.to ? expect(checker, ast, "identifier", ast->data.id.to->type, expected) : expected;
+            if (!ast->data.id.to || ast->data.id.to->type) {
+                // This is a definition or a use of an already typed identifier
+                return ast->data.id.to ? expect(checker, ast, "identifier", ast->data.id.to->type, expected) : expected;
+            } else {
+                assert(ast->data.id.to);
+                return check(checker, (ast_t*)ast->data.id.to, expected);
+            }
         case AST_BLOCK:
             for (ast_list_t* cur = ast->data.block.stmts; cur; cur = cur->next) {
                 // Check last element, infer every other one
