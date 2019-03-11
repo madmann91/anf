@@ -383,6 +383,17 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
         case AST_VAL:
             infer_ptrn(checker, ast->data.varl.ptrn, ast->data.varl.value);
             return type_unit(checker->mod);
+        case AST_TVAR:
+            {
+                const char* name = ast->data.tvar.id->data.id.str;
+                var_def_t* var_def = mpool_alloc(&checker->mod->pool, sizeof(var_def_t));
+                // TODO
+                var_def->ntraits = 0;
+                var_def->traits = NULL;
+                var_def->name = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
+                strcpy((char*)var_def->name, name);
+                return type_var(checker->mod, var_def);
+            }
         case AST_DEF:
             {
                 FORALL_AST(ast->data.def.params, param, {
