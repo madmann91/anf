@@ -28,7 +28,6 @@ enum ast_tag_e {
     AST_VAR,
     AST_VAL,
     AST_TVAR,
-    AST_TAPP,
     AST_ANNOT,
     AST_PRIM,
     AST_BLOCK,
@@ -117,6 +116,7 @@ struct ast_s {
         struct {
             const char*  str;
             const ast_t* to;
+            ast_list_t*  types;
         } id;
         struct {
             uint32_t    tag;
@@ -149,10 +149,6 @@ struct ast_s {
             ast_t*      id;
             ast_list_t* traits;
         } tvar;
-        struct {
-            ast_t*      arg;
-            ast_list_t* types;
-        } tapp;
         struct {
             ast_t*      arg;
             ast_t*      type;

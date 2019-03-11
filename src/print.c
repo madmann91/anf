@@ -154,7 +154,14 @@ static inline void print_ast_binop_op(printer_t* printer, const ast_t* op, int p
 
 static void print_ast(printer_t* printer, const ast_t* ast) {
     switch (ast->tag) {
-        case AST_ID: print(printer, "{0:s}", { .s = ast->data.id.str }); break;
+        case AST_ID:
+            print(printer, "{0:s}", { .s = ast->data.id.str });
+            if (ast->data.id.types) {
+                print(printer, "[");
+                print_ast_list(printer, ast->data.id.types, ", ", false);
+                print(printer, "]");
+            }
+            break;
         case AST_LIT:
             switch (ast->data.lit.tag) {
                 case LIT_FLT:
@@ -182,12 +189,6 @@ static void print_ast(printer_t* printer, const ast_t* ast) {
         case AST_TVAR:
             print(printer, ast->data.tvar.traits ? "{0:s} : " : "{0:s}", { .s = ast->data.tvar.id->data.id.str });
             print_ast_list(printer, ast->data.tvar.traits, " + ", false);
-            break;
-        case AST_TAPP:
-            print_ast(printer, ast->data.tapp.arg);
-            print(printer, "[");
-            print_ast_list(printer, ast->data.tapp.types, ", ", false);
-            print(printer, "]");
             break;
         case AST_STRUCT:
             print(printer, "{$key}struct{$}{0:s}{$key}{1:s}{$} {2:s}",

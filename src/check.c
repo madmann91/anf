@@ -70,6 +70,30 @@ static inline void unreachable_code(checker_t* checker, ast_t* ast) {
     log_error(checker->log, &ast->loc, "unreachable code after this statement");
 }
 
+static inline const type_t* instantiate(checker_t* checker, const ast_t* ast, const type_t* type, ast_list_t* params, ast_list_t* args) {
+    type2type_t type2type = type2type_create();
+    size_t n = 0;
+    while (params && args) {
+        assert(params->ast->type && args->ast->type);
+        type2type_insert(&type2type, params->ast->type, args->ast->type);
+        params = params->next;
+        args = args->next;
+        n++;
+    }
+    if (params || args) {
+        size_t nparams = n + ast_list_length(params);
+        size_t nargs   = n + ast_list_length(args);
+        log_error(checker->log, &ast->loc, "expected {0:u32} type argument{1:s}, but got {2:u32}",
+            { .u32 = nparams },
+            { .s = nparams >= 2 ? "s" : "" },
+            { .u32 = nargs });
+        return type_top(checker->mod);
+    }
+    type = type_rewrite(checker->mod, type, &type2type);
+    type2type_destroy(&type2type);
+    return type;
+}
+
 static inline const type_t* check_lit(checker_t* checker, ast_t* ast, const type_t* expected) {
     assert(ast->tag == AST_LIT);
     if (ast->data.lit.tag == LIT_INT) {
@@ -106,6 +130,15 @@ static inline const type_t* check_lit(checker_t* checker, ast_t* ast, const type
         assert(false);
     }
     return expected;
+}
+
+static void infer_tvars(checker_t* checker, ast_list_t* tvars) {
+    FORALL_AST(tvars, tvar, {
+        bool used = tvar->type;
+        const type_t* type = infer(checker, tvar);
+        if (!used)
+            log_error(checker->log, &tvar->loc, "unused type variable '{0:t}'", { .t = type });
+    })
 }
 
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
@@ -302,13 +335,33 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 })
                 ast->type = type_struct(checker->mod, struct_def, 0, NULL);
                 struct_def->type = infer(checker, ast->data.struct_.members);
+                infer_tvars(checker, ast->data.struct_.tvars);
                 return ast->type;
             }
         case AST_ID:
             if (ast->data.id.to) {
                 // This identifier is refering to some other, previously declared identifier
                 ast_t* to = (ast_t*)ast->data.id.to;
-                return to->type ? to->type : infer(checker, to);
+                const type_t* type = to->type ? to->type : infer(checker, to);
+                // Instantiate the type according to type arguments
+                ast_list_t* params = NULL;
+                switch (to->tag) {
+                    case AST_DEF:    params = to->data.def.tvars;     break;
+                    case AST_STRUCT: params = to->data.struct_.tvars; break;
+                    default:
+                        if (ast->data.id.types) {
+                            log_error(checker->log, &ast->loc, "type arguments are not allowed here");
+                            return type;
+                        }
+                        break;
+                }
+                if (ast->data.id.types) {
+                    FORALL_AST(ast->data.id.types, type, { infer(checker, type); })
+                    type = instantiate(checker, ast, type, params, ast->data.id.types);
+                } else if (params) {
+                    log_error(checker->log, &ast->loc, "missing type arguments after '{0:s}'", { .s = ast->data.id.str });
+                }
+                return type;
             }
             log_error(checker->log, &ast->loc, "cannot infer type for identifier '{0:s}'", { .s = ast->data.id.str });
             return type_top(checker->mod);
@@ -396,9 +449,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             }
         case AST_DEF:
             {
-                FORALL_AST(ast->data.def.params, param, {
-                    infer(checker, param);
-                })
+                FORALL_AST(ast->data.def.params, param, { infer(checker, param); })
                 const type_t* ret_type = NULL;
                 if (ast->data.def.ret) {
                     // Set the type immediately to allow checking recursive calls
@@ -415,6 +466,7 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                         { .s = ast->data.def.id->data.id.str });
                     ast->type = type_top(checker->mod);
                 }
+                infer_tvars(checker, ast->data.def.tvars);
                 return ast->type;
             }
         case AST_BLOCK:

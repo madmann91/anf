@@ -137,6 +137,9 @@ void bind(binder_t* binder, ast_t* ast) {
                     return;
                 }
                 ast->data.id.to = to;
+                FORALL_AST(ast->data.id.types, type, {
+                    bind(binder, type);
+                })
             }
             break;
         case AST_STRUCT:
@@ -153,12 +156,6 @@ void bind(binder_t* binder, ast_t* ast) {
             insert_env(binder, ast->data.tvar.id, ast);
             FORALL_AST(ast->data.tvar.traits, trait, {
                 bind(binder, trait);
-            })
-            break;
-        case AST_TAPP:
-            bind(binder, ast->data.tapp.arg);
-            FORALL_AST(ast->data.tapp.types, type, {
-                bind(binder, type);
             })
             break;
         case AST_DEF:
