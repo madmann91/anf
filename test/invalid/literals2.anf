@@ -1,0 +1,4 @@
+mod literals {
+    val a = 'ab'
+    val b = 'ŷ'
+}

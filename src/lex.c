@@ -42,8 +42,8 @@ static inline void eat(lexer_t* lexer) {
         size_t n = 0;
         while (c & 0x80 && n <= MAX_UTF8_BYTES) c <<= 1, n++;
         n = check_utf8(lexer, n);
-        lexer->str += n;
-        lexer->size -=n;
+        lexer->str  += n;
+        lexer->size -= n;
         lexer->col++;
     } else {
         // Other characters
