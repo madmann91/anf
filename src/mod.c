@@ -121,6 +121,7 @@ void mod_dump(mod_t* mod) {
             node_set_insert(&seen, node);
             node_vec_pop(&stack);
         }
+        printf("\n");
     });
     node_vec_destroy(&stack);
     node_set_destroy(&seen);

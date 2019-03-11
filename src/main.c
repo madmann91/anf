@@ -114,7 +114,6 @@ static bool process_file(const char* file) {
         // Emit IR
         type2type_t types = type2type_create();
         emitter_t emitter = {
-            .log = &file_log.log,
             .types = &types,
             .file = file
         };

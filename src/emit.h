@@ -5,13 +5,11 @@
 #include "node.h"
 #include "type.h"
 #include "ast.h"
-#include "log.h"
 
 typedef struct emitter_s emitter_t;
 
 struct emitter_s {
     mod_t* mod;
-    log_t* log;
     const node_t* mem;
     const node_t* cur;
     const node_t* break_;
