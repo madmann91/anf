@@ -40,3 +40,5 @@ add_test(NAME invalid_comment   COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/te
 add_test(NAME invalid_utf8      COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/utf8.anf)
 add_test(NAME invalid_patterns  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/patterns.anf)
 add_test(NAME invalid_bind      COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/bind.anf)
+add_test(NAME invalid_unused    COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/unused.anf)
+add_test(NAME invalid_args      COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/args.anf)

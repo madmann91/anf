@@ -1,0 +1,8 @@
+mod args {
+    struct S[T](t: T)
+    def test[T, U](t: T, u: U) = (t, u)
+    val x = test[i32](1, 2)
+    val y = S[i32, i64](1)
+    val z = S[](3)
+    val w = S(3)
+}

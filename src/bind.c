@@ -144,6 +144,9 @@ void bind(binder_t* binder, ast_t* ast) {
             break;
         case AST_STRUCT:
             push_env(binder);
+            FORALL_AST(ast->data.struct_.tvars, tvar, {
+                bind(binder, tvar);
+            })
             bind_ptrn(binder, ast->data.struct_.members);
             pop_env(binder);
             break;

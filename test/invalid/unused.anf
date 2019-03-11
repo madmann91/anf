@@ -1,0 +1,4 @@
+mod unused {
+    struct S[T, U](x : T)
+    def test[T]() = 1
+}

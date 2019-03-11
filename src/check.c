@@ -356,10 +356,13 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                         break;
                 }
                 if (ast->data.id.types) {
-                    FORALL_AST(ast->data.id.types, type, { infer(checker, type); })
+                    FORALL_AST(ast->data.id.types, type, {
+                        infer(checker, type);
+                    })
                     type = instantiate(checker, ast, type, params, ast->data.id.types);
                 } else if (params) {
                     log_error(checker->log, &ast->loc, "missing type arguments after '{0:s}'", { .s = ast->data.id.str });
+                    return type_top(checker->mod);
                 }
                 return type;
             }
@@ -449,7 +452,9 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             }
         case AST_DEF:
             {
-                FORALL_AST(ast->data.def.params, param, { infer(checker, param); })
+                FORALL_AST(ast->data.def.params, param, {
+                    infer(checker, param);
+                })
                 const type_t* ret_type = NULL;
                 if (ast->data.def.ret) {
                     // Set the type immediately to allow checking recursive calls
