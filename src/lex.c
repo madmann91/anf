@@ -148,13 +148,19 @@ static tok_t parse_num(lexer_t* lexer, size_t brow, size_t bcol) {
 
 static tok_t parse_str_or_chr(lexer_t* lexer, bool str, int brow, int bcol) {
     const char* beg = lexer->str;
-    if (!str) eat(lexer);
-    else while (lexer->size > 0 && *lexer->str != '\"') eat(lexer);
+    char term = str ? '\"' : '\'';
+    while (lexer->size > 0 && *lexer->str != term) eat(lexer);
     char* end = lexer->str;
-    if (lexer->size == 0 || !accept(lexer, str ? '\"' : '\'')) {
-        loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+
+    loc_t loc = make_loc(lexer, lexer->row, lexer->col);
+    if (lexer->size == 0 || !accept(lexer, str ? '\"' : '\''))
         log_error(lexer->log, &loc, str ? "unterminated string literal" : "unterminated character literal");
+    else if (!str && end - beg > 1) {
+        log_error(lexer->log, &loc, "too long character literal");
+        if (*beg & 0x80)
+            log_note(lexer->log, &loc, "use strings for UTF-8 characters");
     }
+
     *end = 0;
     return (tok_t) { .tag = str ? TOK_STR : TOK_CHR, .str = beg, .loc = make_loc(lexer, brow, bcol) };
 }
