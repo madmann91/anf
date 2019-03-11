@@ -1,3 +1,6 @@
+#include <float.h>
+#include <stdint.h>
+
 #include "check.h"
 
 static inline uint32_t default_fp_flags() {
@@ -65,6 +68,44 @@ static inline void invalid_member_or_param(checker_t* checker, ast_t* ast, const
 
 static inline void unreachable_code(checker_t* checker, ast_t* ast) {
     log_error(checker->log, &ast->loc, "unreachable code after this statement");
+}
+
+static inline const type_t* check_lit(checker_t* checker, ast_t* ast, const type_t* expected) {
+    assert(ast->tag == AST_LIT);
+    if (ast->data.lit.tag == LIT_INT) {
+        uint64_t max;
+        switch (expected->tag) {
+            case TYPE_I8:  max = INT8_MAX;   break;
+            case TYPE_I16: max = INT16_MAX;  break;
+            case TYPE_I32: max = INT32_MAX;  break;
+            case TYPE_I64: max = INT64_MAX;  break;
+            case TYPE_U8:  max = UINT8_MAX;  break;
+            case TYPE_U16: max = UINT16_MAX; break;
+            case TYPE_U32: max = UINT32_MAX; break;
+            default:
+                return expected;
+        }
+        if (ast->data.lit.value.ival > max) {
+            log_error(checker->log, &ast->loc, "constant '{0:u64}' cannot be represented with type '{1:t}'",
+                { .u64 = ast->data.lit.value.ival },
+                { .t = expected });
+        }
+    } else if (ast->data.lit.tag == LIT_FLT) {
+        double fmin, fmax;
+        switch (expected->tag) {
+            case TYPE_F32: fmax = FLT_MAX, fmin = FLT_MIN; break;
+            default:
+                return expected;
+        }
+        if (ast->data.lit.value.fval > fmax || ast->data.lit.value.fval < fmin) {
+            log_error(checker->log, &ast->loc, "constant '{0:f64}' cannot be represented with type '{1:t}'",
+                { .u64 = ast->data.lit.value.fval },
+                { .t = expected });
+        }
+    } else {
+        assert(false);
+    }
+    return expected;
 }
 
 static const type_t* infer_ptrn(checker_t* checker, ast_t* ptrn, ast_t* value) {
@@ -413,8 +454,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
             return type_unit(checker->mod);
         case AST_LIT:
             switch (ast->data.lit.tag) {
-                case LIT_INT:  return type_i32(checker->mod);
-                case LIT_FLT:  return type_f32(checker->mod, default_fp_flags());
+                case LIT_INT:  return check_lit(checker, ast, type_i32(checker->mod));
+                case LIT_FLT:  return check_lit(checker, ast, type_f32(checker->mod, default_fp_flags()));
                 case LIT_STR:  return type_array(checker->mod, type_u8(checker->mod));
                 case LIT_CHR:  return type_u8(checker->mod);
                 case LIT_BOOL: return type_bool(checker->mod);
@@ -511,11 +552,11 @@ static const type_t* check_internal(checker_t* checker, ast_t* ast, const type_t
             switch (ast->data.lit.tag) {
                 case LIT_INT:
                     if (type_is_i(expected) || type_is_u(expected) || type_is_f(expected))
-                        return expected;
+                        return check_lit(checker, ast, expected);
                     return expect(checker, ast, "integer literal", NULL, expected);
                 case LIT_FLT:
                     if (type_is_f(expected))
-                        return expected;
+                        return check_lit(checker, ast, expected);
                     return expect(checker, ast, "floating point literal", NULL, expected);
                 case LIT_STR:
                     return expect(checker, ast, "string literal", type_array(checker->mod, type_u8(checker->mod)), expected);

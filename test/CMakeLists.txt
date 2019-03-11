@@ -29,6 +29,7 @@ add_test(NAME valid_lambda     COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/lamb
 add_test(NAME valid_annots     COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/annots.anf)
 add_test(NAME valid_structs    COMMAND anf ${PROJECT_SOURCE_DIR}/test/valid/structs.anf)
 
+add_test(NAME invalid_literals  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/literals.anf)
 add_test(NAME invalid_functions COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/functions.anf)
 add_test(NAME invalid_structs1  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/structs1.anf)
 add_test(NAME invalid_structs2  COMMAND anf --must-fail ${PROJECT_SOURCE_DIR}/test/invalid/structs2.anf)

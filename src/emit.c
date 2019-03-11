@@ -1,6 +1,3 @@
-#include <float.h>
-#include <stdint.h>
-
 #include "emit.h"
 
 static inline const dbg_t* make_dbg(emitter_t* emitter, const char* name, loc_t loc) {
@@ -74,24 +71,6 @@ static inline void always_inline(emitter_t* emitter, const node_t* fn) {
 
 static inline const node_t* mem_param(emitter_t* emitter, const node_t* fn) {
     return node_extract(emitter->mod, node_param(emitter->mod, fn, NULL), node_i32(emitter->mod, 0), NULL);
-}
-
-static inline void check_int_lit(emitter_t* emitter, ast_t* ast, uint64_t max) {
-    assert(ast->tag == AST_LIT && ast->data.lit.tag == LIT_INT);
-    if (ast->data.lit.value.ival > max) {
-        log_error(emitter->log, &ast->loc, "constant '{0:u64}' cannot be represented with type '{1:t}'",
-            { .u64 = ast->data.lit.value.ival },
-            { .t = ast->type });
-    }
-}
-
-static inline void check_flt_lit(emitter_t* emitter, ast_t* ast, double min, double max) {
-    assert(ast->tag == AST_LIT && ast->data.lit.tag == LIT_FLT);
-    if (ast->data.lit.value.fval > max || ast->data.lit.value.fval < min) {
-        log_error(emitter->log, &ast->loc, "constant '{0:f64}' cannot be represented with type '{1:t}'",
-            { .u64 = ast->data.lit.value.fval },
-            { .t = ast->type });
-    }
 }
 
 static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool var) {
@@ -444,14 +423,14 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 case LIT_FLT:
                 case LIT_BOOL:
                     switch (ast->type->tag) {
-                        case TYPE_I8:   check_int_lit(emitter, ast, INT8_MAX);         return node_i8(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_I16:  check_int_lit(emitter, ast, INT16_MAX);        return node_i16(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_I32:  check_int_lit(emitter, ast, INT32_MAX);        return node_i32(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_I64:  check_int_lit(emitter, ast, INT64_MAX);        return node_i64(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_U8:   check_int_lit(emitter, ast, UINT8_MAX);        return node_u8(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_U16:  check_int_lit(emitter, ast, UINT16_MAX);       return node_u16(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_U32:  check_int_lit(emitter, ast, UINT32_MAX);       return node_u32(emitter->mod, ast->data.lit.value.ival);
-                        case TYPE_F32:  check_flt_lit(emitter, ast, FLT_MIN, FLT_MAX); return node_f32(emitter->mod, ast->data.lit.value.fval, ast->type->data.fp_flags);
+                        case TYPE_I8:   return node_i8(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_I16:  return node_i16(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_I32:  return node_i32(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_I64:  return node_i64(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_U8:   return node_u8(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_U16:  return node_u16(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_U32:  return node_u32(emitter->mod, ast->data.lit.value.ival);
+                        case TYPE_F32:  return node_f32(emitter->mod, ast->data.lit.value.fval, ast->type->data.fp_flags);
                         case TYPE_BOOL: return node_bool(emitter->mod, ast->data.lit.value.bval);
                         case TYPE_U64:  return node_u64(emitter->mod, ast->data.lit.value.ival);
                         case TYPE_F64:  return node_f64(emitter->mod, ast->data.lit.value.fval, ast->type->data.fp_flags);

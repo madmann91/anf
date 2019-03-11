@@ -1,0 +1,8 @@
+mod literals {
+    val a : u8 = 256
+    val b : i8 = 128
+    val c : u16 = 65536
+    val d : i16 = 32768
+    val e : u32 = 4294967296
+    val f : i32 = 2147483648
+}
