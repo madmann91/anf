@@ -7,14 +7,19 @@
 #include "ast.h"
 
 typedef struct emitter_s emitter_t;
+typedef struct emitter_state_s emitter_state_t;
+
+struct emitter_state_s {
+    const node_t* mem;
+    const node_t* cur;
+    const node_t* brk;
+    const node_t* cnt;
+    const node_t* ret;
+};
 
 struct emitter_s {
     mod_t* mod;
-    const node_t* mem;
-    const node_t* cur;
-    const node_t* break_;
-    const node_t* continue_;
-    const node_t* return_;
+    emitter_state_t state;
     type2type_t* types;
     const char* file;
 };

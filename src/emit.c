@@ -1,5 +1,14 @@
 #include "emit.h"
 
+#define SAVE_STATE(emitter, ...) \
+    { \
+        emitter_state_t state = emitter->state; \
+        { \
+            __VA_ARGS__ \
+        } \
+        emitter->state = state; \
+    }
+
 static inline const dbg_t* make_dbg(emitter_t* emitter, const char* name, loc_t loc) {
     dbg_t* dbg = mpool_alloc(&emitter->mod->pool, sizeof(dbg_t));
     dbg->file = emitter->file;
@@ -49,28 +58,51 @@ static const type_t* convert(emitter_t* emitter, const type_t* type) {
     return converted;
 }
 
+static inline const node_t* enter_bb(emitter_t* emitter, const node_t* bb, bool tuple) {
+    const node_t* param = node_param(emitter->mod, bb, NULL);
+    emitter->state.cur = bb;
+    if (tuple) {
+        emitter->state.mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), make_dbg(emitter, "mem", bb->dbg->loc));
+        return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, "res", bb->dbg->loc));
+    } else {
+        emitter->state.mem = param;
+        return NULL;
+    }
+}
+
+static inline const node_t* enter_fn(emitter_t* emitter, const node_t* fn) {
+    const node_t* param = node_param(emitter->mod, fn, NULL);
+    assert(param->type->tag == TYPE_TUPLE);
+    assert(param->type->nops == 3);
+    emitter->state.cur = fn;
+    emitter->state.mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), make_dbg(emitter, "mem", fn->dbg->loc));
+    emitter->state.ret = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), make_dbg(emitter, "ret", fn->dbg->loc));
+    return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, fn->dbg->loc));
+}
+
 static inline void jump_from(emitter_t* emitter, const node_t* from, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
-    bool cond = fn->tag == NODE_SELECT; // Always inline selections
-    node_bind(emitter->mod, from, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, cond), dbg));
+    assert(from);
+    bool always_inline = fn->tag == NODE_SELECT;
+    node_bind(emitter->mod, from, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, always_inline), dbg));
 }
 
 static inline void jump(emitter_t* emitter, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
-    assert(emitter->cur);
-    jump_from(emitter, emitter->cur, fn, arg, dbg);
+    if (emitter->state.cur)
+        jump_from(emitter, emitter->state.cur, fn, arg, dbg);
 }
 
-static inline void return_from(emitter_t* emitter, const node_t* ret, const node_t* value) {
-    if (emitter->cur)
-        jump(emitter, ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, value), ret->dbg);
+static inline void branch(emitter_t* emitter, const node_t* cond, const node_t* if_true, const node_t* if_false, const node_t* mem, const dbg_t* dbg) {
+    const node_t* select = node_select(emitter->mod, cond, if_true, if_false, dbg);
+    jump(emitter, select, mem, dbg);
+}
+
+static inline void return_(emitter_t* emitter, const node_t* value, const dbg_t* dbg) {
+    jump(emitter, emitter->state.ret, node_tuple_from_args(emitter->mod, 2, NULL, emitter->state.mem, value), dbg);
 }
 
 static inline void always_inline(emitter_t* emitter, const node_t* fn) {
     assert(fn->tag == NODE_FN);
     node_bind(emitter->mod, fn, 1, node_bool(emitter->mod, true));
-}
-
-static inline const node_t* mem_param(emitter_t* emitter, const node_t* fn) {
-    return node_extract(emitter->mod, node_param(emitter->mod, fn, NULL), node_i32(emitter->mod, 0), NULL);
 }
 
 static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool var) {
@@ -92,10 +124,10 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
             break;
         case AST_ID:
             if (var) {
-                const node_t* alloc = node_alloc(emitter->mod, emitter->mem, node->type, NULL);
-                emitter->mem = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 0), NULL);
+                const node_t* alloc = node_alloc(emitter->mod, emitter->state.mem, node->type, NULL);
+                emitter->state.mem = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 0), NULL);
                 ast->node = node_extract(emitter->mod, alloc, node_i32(emitter->mod, 1), NULL);
-                emitter->mem = node_store(emitter->mod, emitter->mem, ast->node, node, NULL);
+                emitter->state.mem = node_store(emitter->mod, emitter->state.mem, ast->node, node, NULL);
             } else {
                 ast->node = node;
             }
@@ -113,14 +145,8 @@ static void emit_ptrn(emitter_t* emitter, ast_t* ast, const node_t* node, bool v
 
 static inline const node_t* emit_fn(emitter_t* emitter, const type_t* fn_type, ast_t* ast_param, const char* name, loc_t loc) {
     const node_t* fn = node_fn(emitter->mod, fn_type, 0, make_dbg(emitter, name, loc));
-    const node_t* param = node_param(emitter->mod, fn, NULL);
-    const node_t* mem  = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-    const node_t* ptrn = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
-    const node_t* ret  = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
-    emit_ptrn(emitter, ast_param, ptrn, false);
-    emitter->cur = fn;
-    emitter->return_ = ret;
-    emitter->mem = mem;
+    const node_t* param = enter_fn(emitter, fn);
+    emit_ptrn(emitter, ast_param, param, false);
     return fn;
 }
 
@@ -128,8 +154,8 @@ static const node_t* emit_curried_fn(emitter_t* emitter, const type_t* fn_type, 
     const node_t* fn = emit_fn(emitter, fn_type, params->ast, name, loc);
     if (params->next) {
         const type_t* child_type = continuation_return_type(fn_type);
-        const node_t* ret = emitter->return_;
-        const node_t* mem = emitter->mem;
+        const node_t* ret = emitter->state.ret;
+        const node_t* mem = emitter->state.mem;
         const node_t* child = emit_curried_fn(emitter, child_type, params->next, name, loc);
         jump_from(emitter, fn, ret, node_tuple_from_args(emitter->mod, 2, NULL, mem, child), make_dbg(emitter, NULL, loc));
     }
@@ -140,22 +166,20 @@ static const node_t* emit_call(emitter_t* emitter, const node_t* callee, const n
     if (type_is_cn(callee->type)) {
         const type_t* from = callee->type->ops[0];
         assert(from->tag == TYPE_TUPLE);
+        assert(from->nops == 2 || from->nops == 3);
         if (from->nops == 2) {
             // Call to a continuation (like break, continue, or return)
-            jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, arg), make_dbg(emitter, NULL, loc));
-            emitter->cur = NULL;
+            jump(emitter, callee, node_tuple_from_args(emitter->mod, 2, NULL, emitter->state.mem, arg), make_dbg(emitter, NULL, loc));
+            emitter->state.cur = NULL;
             return node_bottom(emitter->mod, type_bottom(emitter->mod));
         } else {
             // Standard call
             const node_t* cont = node_fn(emitter->mod, from->ops[2], 0, make_dbg(emitter, "call_cont", loc));
-            jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->mem, arg, cont), make_dbg(emitter, NULL, loc));
-
-            const node_t* param = node_param(emitter->mod, cont, NULL);
-            emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-            emitter->cur = cont;
+            jump(emitter, callee, node_tuple_from_args(emitter->mod, 3, NULL, emitter->state.mem, arg, cont), make_dbg(emitter, NULL, loc));
+            const node_t* res = enter_bb(emitter, cont, true);
             if (cont_ptr)
                 *cont_ptr = cont;
-            return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), NULL);
+            return res;
         }
     } else {
         assert(callee->type->tag == TYPE_ARRAY);
@@ -178,12 +202,9 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 assert(ast->type->tag == TYPE_STRUCT);
                 const type_t* constr_type = continuation_type(emitter, ast->type->data.struct_def->type, ast->type);
                 const node_t* constr = node_fn(emitter->mod, constr_type, 0, make_dbg(emitter, ast->data.struct_.id->data.id.str, ast->loc));
-                const node_t* param = node_param(emitter->mod, constr, NULL);
-                const node_t* mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-                const node_t* arg = node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast->data.struct_.members->loc));
-                const node_t* ret = node_extract(emitter->mod, param, node_i32(emitter->mod, 2), NULL);
                 always_inline(emitter, constr);
-                jump_from(emitter, constr, ret, node_tuple_from_args(emitter->mod, 2, NULL, mem, node_struct(emitter->mod, arg, ast->type, constr->dbg)), NULL);
+                const node_t* arg = enter_fn(emitter, constr);
+                return_(emitter, node_struct(emitter->mod, arg, ast->type, constr->dbg), make_dbg(emitter, NULL, ast->loc));
                 return constr;
             }
         case AST_ID:
@@ -191,22 +212,14 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 assert(ast->data.id.to);
                 if (!ast->data.id.to->node) {
                     // If the identifier is referring to a function, we need to save the current state
-                    const node_t* cur = emitter->cur;
-                    const node_t* mem = emitter->mem;
-                    const node_t* break_ = emitter->break_;
-                    const node_t* continue_ = emitter->continue_;
-                    const node_t* return_ = emitter->return_;
-                    emit(emitter, (ast_t*)ast->data.id.to);
-                    emitter->cur = cur;
-                    emitter->mem = mem;
-                    emitter->break_ = break_;
-                    emitter->continue_ = continue_;
-                    emitter->return_ = return_;
+                    SAVE_STATE(emitter, {
+                        emit(emitter, (ast_t*)ast->data.id.to);
+                    })
                 }
                 const node_t* node = ast->data.id.to->node;
                 if (node->type->tag == TYPE_PTR) {
-                    const node_t* load = node_load(emitter->mod, emitter->mem, node, NULL);
-                    emitter->mem = node_extract(emitter->mod, load, node_i32(emitter->mod, 0), NULL);
+                    const node_t* load = node_load(emitter->mod, emitter->state.mem, node, NULL);
+                    emitter->state.mem = node_extract(emitter->mod, load, node_i32(emitter->mod, 0), NULL);
                     return node_extract(emitter->mod, load, node_i32(emitter->mod, 1), make_dbg(emitter, ast->data.id.str, ast->loc));
                 }
                 return node;
@@ -261,96 +274,81 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             }
         case AST_FN:
             {
-                const node_t* mem = emitter->mem;
-                const node_t* cur = emitter->cur;
-                const node_t* ret = emitter->return_;
-                const node_t* fn = emit_fn(emitter, ast->type, ast->data.fn.param, NULL, ast->loc);
-                const node_t* value = emit(emitter, ast->data.fn.body);
-                return_from(emitter, emitter->return_, value);
-                emitter->mem = mem;
-                emitter->cur = cur;
-                emitter->return_ = ret;
+                const node_t* fn = NULL;
+                SAVE_STATE(emitter, {
+                    fn = emit_fn(emitter, ast->type, ast->data.fn.param, NULL, ast->loc);
+                    const node_t* value = emit(emitter, ast->data.fn.body);
+                    return_(emitter, value, make_dbg(emitter, NULL, ast->data.fn.body->loc));
+                })
                 return fn;
             }
         case AST_IF:
             {
-                const type_t* branch_type = type_cn(emitter->mod, type_unit(emitter->mod));
-                const type_t* join_type = type_cn(emitter->mod, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), ast->type));
-                const node_t* if_true = node_fn(emitter->mod, branch_type, 0, make_dbg(emitter, "if_true", ast->data.if_.if_true->loc));
+                const type_t* branch_type = type_cn(emitter->mod, type_mem(emitter->mod));
+                const type_t* join_type   = type_cn(emitter->mod, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), ast->type));
+                const node_t* if_true  = node_fn(emitter->mod, branch_type, 0, make_dbg(emitter, "if_true", ast->data.if_.if_true->loc));
                 const node_t* if_false = node_fn(emitter->mod, branch_type, 0, make_dbg(emitter, "if_false", ast->data.if_.if_false ? ast->data.if_.if_false->loc : ast->loc));
-                const node_t* if_join = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "if_join", ast->loc));
+                const node_t* if_join  = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "if_join", ast->loc));
 
                 // Enter the conditional
                 const node_t* cond = emit(emitter, ast->data.if_.cond);
-                const node_t* next = node_select(emitter->mod, cond, if_true, if_false, NULL);
-                jump(emitter, next, node_unit(emitter->mod), NULL);
+                branch(emitter, cond, if_true, if_false, emitter->state.mem, make_dbg(emitter, NULL, ast->data.if_.cond->loc));
 
                 // Emit true branch
-                const node_t* mem = emitter->mem;
-                emitter->cur  = if_true;
+                enter_bb(emitter, if_true, false);
                 const node_t* true_val = emit(emitter, ast->data.if_.if_true);
-                jump(emitter, if_join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, true_val), NULL);
+                jump(emitter, if_join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->state.mem, true_val), NULL);
 
                 // Emit false branch
-                emitter->mem = mem;
-                emitter->cur  = if_false;
+                enter_bb(emitter, if_false, false);
                 const node_t* false_val = ast->data.if_.if_false ? emit(emitter, ast->data.if_.if_false) : node_unit(emitter->mod);
-                jump(emitter, if_join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->mem, false_val), NULL);
+                jump(emitter, if_join, node_tuple_from_args(emitter->mod, 2, NULL, emitter->state.mem, false_val), NULL);
 
                 // Emit join block
-                const node_t* param = node_param(emitter->mod, if_join, NULL);
-                emitter->cur = if_join;
-                emitter->mem = node_extract(emitter->mod, param, node_i32(emitter->mod, 0), NULL);
-                return node_extract(emitter->mod, param, node_i32(emitter->mod, 1), make_dbg(emitter, NULL, ast->loc));
+                return enter_bb(emitter, if_join, true);
             }
         case AST_WHILE:
             {
-                const type_t* branch_type = type_cn(emitter->mod, type_unit(emitter->mod));
-                const type_t* join_type = type_cn(emitter->mod, type_mem(emitter->mod));
-                const type_t* cont_type = type_cn(emitter->mod, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), type_unit(emitter->mod)));
-                const node_t* while_head = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "while_head", ast->data.while_.cond->loc));
-                const node_t* while_exit = node_fn(emitter->mod, branch_type, 0, make_dbg(emitter, "while_exit", ast->loc));
-                const node_t* while_body = node_fn(emitter->mod, branch_type, 0, make_dbg(emitter, "while_body", ast->data.while_.body->loc));
-                const node_t* while_break = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "while_break", ast->loc));
-                const node_t* while_continue = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "while_continue", ast->loc));
-                const node_t* while_join = node_fn(emitter->mod, join_type, 0, make_dbg(emitter, "while_join", ast->loc));
+                const type_t* bb_type    = type_cn(emitter->mod, type_mem(emitter->mod));
+                const type_t* cont_type  = type_cn(emitter->mod, type_tuple_from_args(emitter->mod, 2, type_mem(emitter->mod), type_unit(emitter->mod)));
+                const node_t* while_head = node_fn(emitter->mod, bb_type,   0, make_dbg(emitter, "while_head",     ast->data.while_.cond->loc));
+                const node_t* while_exit = node_fn(emitter->mod, bb_type,   0, make_dbg(emitter, "while_exit",     ast->loc));
+                const node_t* while_body = node_fn(emitter->mod, bb_type,   0, make_dbg(emitter, "while_body",     ast->data.while_.body->loc));
+                const node_t* while_join = node_fn(emitter->mod, bb_type,   0, make_dbg(emitter, "while_join",     ast->loc));
+                const node_t* while_brk  = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "while_break",    ast->loc));
+                const node_t* while_cnt  = node_fn(emitter->mod, cont_type, 0, make_dbg(emitter, "while_continue", ast->loc));
 
                 // Enter the loop
-                jump(emitter, while_head, emitter->mem, NULL);
+                jump(emitter, while_head, emitter->state.mem, NULL);
 
                 // Link break/continue to join/head
-                const node_t* break_mem = node_extract(emitter->mod, node_param(emitter->mod, while_break, NULL), node_i32(emitter->mod, 0), NULL);
-                const node_t* continue_mem = node_extract(emitter->mod, node_param(emitter->mod, while_continue, NULL), node_i32(emitter->mod, 0), NULL);
-                jump_from(emitter, while_break, while_join, break_mem, NULL);
-                jump_from(emitter, while_continue, while_head, continue_mem, NULL);
-                always_inline(emitter, while_break);
-                always_inline(emitter, while_continue);
+                enter_bb(emitter, while_brk, true);
+                jump(emitter, while_join, emitter->state.mem, while_brk->dbg);
+                enter_bb(emitter, while_cnt, true);
+                jump(emitter, while_head, emitter->state.mem, while_cnt->dbg);
+                always_inline(emitter, while_brk);
+                always_inline(emitter, while_cnt);
 
                 // Emit while head
-                emitter->mem = node_param(emitter->mod, while_head, NULL);
-                emitter->cur = while_head;
+                enter_bb(emitter, while_head, false);
                 const node_t* cond = emit(emitter, ast->data.while_.cond);
-                const node_t* next = node_select(emitter->mod, cond, while_body, while_exit, NULL);
-                jump(emitter, next, node_unit(emitter->mod), NULL);
+                branch(emitter, cond, while_body, while_exit, emitter->state.mem, make_dbg(emitter, NULL, ast->data.while_.cond->loc));
 
                 // Emit while_exit
-                jump_from(emitter, while_exit, while_join, emitter->mem, NULL);
+                enter_bb(emitter, while_exit, false);
+                jump(emitter, while_join, emitter->state.mem, NULL);
 
                 // Emit while_body
-                emitter->cur = while_body;
-                const node_t* break_ = emitter->break_;
-                const node_t* continue_ = emitter->continue_;
-                emitter->break_ = while_break;
-                emitter->continue_ = while_continue;
-                emit(emitter, ast->data.while_.body);
-                if (emitter->cur)
-                    jump(emitter, while_head, emitter->mem, NULL);
-                emitter->break_ = break_;
-                emitter->continue_ = continue_;
+                enter_bb(emitter, while_body, false);
+                SAVE_STATE(emitter, {
+                    emitter->state.brk = while_brk;
+                    emitter->state.cnt = while_cnt;
+                    emit(emitter, ast->data.while_.body);
+                    jump(emitter, while_head, emitter->state.mem, NULL);
+                })
 
                 // Emit while_join
-                emitter->cur = while_join;
-                emitter->mem = node_param(emitter->mod, while_join, NULL);
+                enter_bb(emitter, while_join, false);
                 return node_unit(emitter->mod);
             }
         case AST_FOR:
@@ -360,43 +358,35 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                 ast_t* fn = args->ast->data.tuple.args->ast;
 
                 // Emit a function for the loop body
-                const node_t* cur = emitter->cur;
-                const node_t* mem = emitter->mem;
-                const node_t* return_ = emitter->return_;
-                fn->type = convert(emitter, fn->type);
-                fn->node = emit_fn(emitter, fn->type, fn->data.fn.param, "for_body", fn->loc);
-                const node_t* fn_cur = emitter->cur;
-                const node_t* fn_mem = emitter->mem;
-                const node_t* for_continue = emitter->return_;
-                emitter->cur = cur;
-                emitter->mem = mem;
-                emitter->return_ = return_;
+                SAVE_STATE(emitter, {
+                    fn->type = convert(emitter, fn->type);
+                    fn->node = emit_fn(emitter, fn->type, fn->data.fn.param, "for_body", fn->loc);
+                })
 
                 // Emit call to iteration function
-                const node_t* for_break = NULL;
+                const node_t* for_brk = NULL;
                 FORALL_AST(args, arg, {
                     const node_t* arg_node = emit(emitter, arg);
-                    callee = emit_call(emitter, callee, arg_node, &for_break, ast->loc);
+                    callee = emit_call(emitter, callee, arg_node, &for_brk, ast->loc);
                 })
-                cur = emitter->cur;
-                mem = emitter->mem;
-                const node_t* continue_ = emitter->continue_;
-                const node_t* break_ = emitter->break_;
 
                 // Emit the body of the function
-                emitter->cur = fn_cur;
-                emitter->mem = fn_mem;
-                emitter->break_ = for_break;
-                emitter->continue_ = for_continue;
-                const node_t* value = emit(emitter, fn->data.fn.body);
-                return_from(emitter, for_continue, value);
-                ((node_t*)for_break)->dbg = make_dbg(emitter, "for_break", ast->loc);
-                ((node_t*)for_continue)->dbg = make_dbg(emitter, "for_continue", ast->loc);
+                const node_t* for_cnt = NULL;
+                SAVE_STATE(emitter, {
+                    const node_t* ret = emitter->state.ret;
+                    enter_fn(emitter, fn->node);
+                    for_cnt = emitter->state.ret;
+                    emitter->state.ret = ret;
+                    emitter->state.brk = for_brk;
+                    emitter->state.cnt = for_cnt;
+                    const node_t* value = emit(emitter, fn->data.fn.body);
+                    return_(emitter, value, make_dbg(emitter, NULL, fn->data.fn.body->loc));
+                })
 
-                emitter->cur = cur;
-                emitter->mem = mem;
-                emitter->break_ = break_;
-                emitter->continue_ = continue_;
+                // Set sebug information on break and continue
+                ((node_t*)for_brk)->dbg = make_dbg(emitter, "for_break",    ast->loc);
+                ((node_t*)for_cnt)->dbg = make_dbg(emitter, "for_continue", ast->loc);
+
                 return callee;
             }
         case AST_VAL:
@@ -405,17 +395,12 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             return node_unit(emitter->mod);
         case AST_DEF:
             {
-                const node_t* mem = emitter->mem;
-                const node_t* cur = emitter->cur;
-                const node_t* ret = emitter->return_;
-                const node_t* fn = emit_curried_fn(emitter, ast->type, ast->data.def.params, ast->data.def.id->data.id.str, ast->loc);
-                ast->node = fn; // Allow recursive calls
-                const node_t* value = emit(emitter, ast->data.def.value);
-                return_from(emitter, emitter->return_, value);
-                emitter->mem = mem;
-                emitter->cur = cur;
-                emitter->return_ = ret;
-                return fn;
+                SAVE_STATE(emitter, {
+                    ast->node = emit_curried_fn(emitter, ast->type, ast->data.def.params, ast->data.def.id->data.id.str, ast->loc);
+                    const node_t* value = emit(emitter, ast->data.def.value);
+                    return_(emitter, value, make_dbg(emitter, NULL, ast->data.def.value->loc));
+                })
+                return ast->node;
             }
         case AST_LIT:
             switch (ast->data.lit.tag) {
@@ -448,9 +433,9 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
             }
         case AST_CONT:
             switch (ast->data.cont.tag) {
-                case CONT_BREAK:    return emitter->break_;
-                case CONT_CONTINUE: return emitter->continue_;
-                case CONT_RETURN:   return emitter->return_;
+                case CONT_BREAK:    return emitter->state.brk;
+                case CONT_CONTINUE: return emitter->state.cnt;
+                case CONT_RETURN:   return emitter->state.ret;
                 default:
                     assert(false);
                     return NULL;
