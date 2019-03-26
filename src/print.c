@@ -116,6 +116,10 @@ static void print_node(printer_t* printer, const node_t* node) {
                     print(printer, ", ");
             }
         }
+        if (node->tag == NODE_TAPP) {
+            print(printer, ", ");
+            print_type(printer, node->data.map->ops[1]);
+        }
     }
 }
 

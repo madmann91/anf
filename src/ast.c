@@ -1,5 +1,14 @@
 #include "ast.h"
 
+ast_list_t* ast_tvars(const ast_t* ast) {
+    switch (ast->tag) {
+        case AST_STRUCT: return ast->data.struct_.tvars;
+        case AST_DEF:    return ast->data.def.tvars;
+        default:
+            return NULL;
+    }
+}
+
 bool ast_is_ptrn(const ast_t* ast) {
     switch (ast->tag) {
         case AST_ANNOT: return ast_is_ptrn(ast->data.annot.arg);

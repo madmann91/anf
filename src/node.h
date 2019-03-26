@@ -42,6 +42,7 @@
     f(NODE_FN,      "fn") \
     f(NODE_PARAM,   "param") \
     f(NODE_APP,     "app") \
+    f(NODE_TAPP,    "tapp") \
     f(NODE_KNOWN,   "known")
 
 typedef union  box_u box_t;
@@ -99,8 +100,9 @@ struct node_s {
     size_t   nops;
     use_t*   uses;
     union {
-        box_t    box;
+        box_t box;
         uint32_t fn_flags;
+        const type_t* map;
     } data;
     size_t dsize;
     const node_t*  rep;
@@ -186,6 +188,7 @@ const node_t* node_select(mod_t*, const node_t*, const node_t*, const node_t*, c
 const node_t* node_fn(mod_t*, const type_t*, uint32_t, const dbg_t*);
 const node_t* node_param(mod_t*, const node_t*, const dbg_t*);
 const node_t* node_app(mod_t*, const node_t*, const node_t*, const node_t*, const dbg_t*);
+const node_t* node_tapp(mod_t*, const node_t*, const type_t*, const type_t*, const dbg_t*);
 
 const node_t* node_rebuild(mod_t*, const node_t*, const node_t**, const type_t*);
 const node_t* node_rewrite(mod_t*, const node_t*, node2node_t*, type2type_t*, uint32_t);

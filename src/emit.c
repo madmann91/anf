@@ -217,6 +217,23 @@ static const node_t* emit_internal(emitter_t* emitter, ast_t* ast) {
                     })
                 }
                 const node_t* node = ast->data.id.to->node;
+                if (ast->data.id.types) {
+                    size_t ntypes = ast_list_length(ast->data.id.types);
+                    TMP_BUF_ALLOC(from_types, const type_t*, ntypes)
+                    TMP_BUF_ALLOC(to_types,   const type_t*, ntypes)
+                    ntypes = 0;
+                    for (ast_list_t* types = ast->data.id.types,
+                                   * tvars = ast_tvars(ast->data.id.to);
+                                     types; types = types->next, tvars = tvars->next, ntypes++) {
+                        from_types[ntypes] = tvars->ast->type;
+                        to_types  [ntypes] = types->ast->type;
+                    }
+                    const type_t* from = type_tuple(emitter->mod, ntypes, from_types);
+                    const type_t* to   = type_tuple(emitter->mod, ntypes, to_types);
+                    TMP_BUF_FREE(from_types)
+                    TMP_BUF_FREE(to_types)
+                    node = node_tapp(emitter->mod, node, from, to, NULL);
+                }
                 if (node->type->tag == TYPE_PTR) {
                     const node_t* load = node_load(emitter->mod, emitter->state.mem, node, NULL);
                     emitter->state.mem = node_extract(emitter->mod, load, node_i32(emitter->mod, 0), NULL);

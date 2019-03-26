@@ -1431,12 +1431,39 @@ const node_t* node_param(mod_t* mod, const node_t* fn, const dbg_t* dbg) {
 const node_t* node_app(mod_t* mod, const node_t* callee, const node_t* arg, const node_t* cond, const dbg_t* dbg) {
     assert(callee->type->tag == TYPE_FN);
     assert(callee->type->ops[0] == arg->type);
+    assert(!cond || cond->type->tag == TYPE_BOOL);
+    // TODO: instantiate filter in cond when NULL
     const node_t* ops[] = { callee, arg, cond };
     return make_node(mod, (node_t) {
         .tag  = NODE_APP,
-        .nops = 3,
+        .nops = cond ? 3 : 2,
         .ops  = ops,
         .type = callee->type->ops[1],
+        .dbg  = dbg
+    });
+}
+
+const node_t* node_tapp(mod_t* mod, const node_t* value, const type_t* from, const type_t* to, const dbg_t* dbg) {
+    assert(!((from->tag == TYPE_TUPLE) ^ (to->tag == TYPE_TUPLE)));
+    if (type_is_unit(from))
+        return value;
+    type2type_t type2type = type2type_create();
+    if (from->tag == TYPE_TUPLE) {
+        for (size_t i = 0; i < from->nops; ++i)
+            type2type_insert(&type2type, from->ops[i], to->ops[i]);
+    } else {
+        type2type_insert(&type2type, from, to);
+    }
+    const type_t* type = type_rewrite(mod, value->type, &type2type);
+    type2type_destroy(&type2type);
+    const type_t* map = type_tuple_from_args(mod, 2, from, to);
+    return make_node(mod, (node_t) {
+        .tag  = NODE_TAPP,
+        .nops = 1,
+        .ops  = &value,
+        .type = type,
+        .data = { .map = map },
+        .dsize = sizeof(type_t*),
         .dbg  = dbg
     });
 }
@@ -1477,7 +1504,7 @@ const node_t* node_rebuild(mod_t* mod, const node_t* node, const node_t** ops, c
         case NODE_RSHFT:   return node_rshft(mod, ops[0], ops[1], node->dbg);
         case NODE_SELECT:  return node_select(mod, ops[0], ops[1], ops[2], node->dbg);
         case NODE_PARAM:   return node_param(mod, ops[0], node->dbg);
-        case NODE_APP:     return node_app(mod, ops[0], ops[1], ops[2], node->dbg);
+        case NODE_APP:     return node_app(mod, ops[0], ops[1], node->nops == 3 ? ops[2] : NULL, node->dbg);
         case NODE_KNOWN:   return node_known(mod, ops[0], node->dbg);
         case NODE_ALLOC:
             assert(type->tag == TYPE_TUPLE);

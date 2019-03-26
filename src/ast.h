@@ -230,6 +230,8 @@ struct ast_list_s {
 
 HSET_DEFAULT(ast_set, ast_t*)
 
+ast_list_t* ast_tvars(const ast_t*);
+
 bool ast_is_ptrn(const ast_t*);
 bool ast_is_refutable(const ast_t*);
 

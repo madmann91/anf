@@ -344,23 +344,18 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 ast_t* to = (ast_t*)ast->data.id.to;
                 const type_t* type = to->type ? to->type : infer(checker, to);
                 // Instantiate the type according to type arguments
-                ast_list_t* params = NULL;
-                switch (to->tag) {
-                    case AST_DEF:    params = to->data.def.tvars;     break;
-                    case AST_STRUCT: params = to->data.struct_.tvars; break;
-                    default:
-                        if (ast->data.id.types) {
-                            log_error(checker->log, &ast->loc, "type arguments are not allowed here");
-                            return type;
-                        }
-                        break;
-                }
+                ast_list_t* tvars = ast_tvars(to);
                 if (ast->data.id.types) {
-                    FORALL_AST(ast->data.id.types, type, {
-                        infer(checker, type);
-                    })
-                    type = instantiate(checker, ast, type, params, ast->data.id.types);
-                } else if (params) {
+                    if (tvars) {
+                        FORALL_AST(ast->data.id.types, type, {
+                            infer(checker, type);
+                        })
+                        type = instantiate(checker, ast, type, tvars, ast->data.id.types);
+                    } else {
+                        log_error(checker->log, &ast->loc, "type arguments are not allowed here");
+                        return type;
+                    }
+                } else if (tvars) {
                     log_error(checker->log, &ast->loc, "missing type arguments after '{0:s}'", { .s = ast->data.id.str });
                     return type_top(checker->mod);
                 }

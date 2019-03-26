@@ -68,7 +68,7 @@ enum type_tag_e {
 
 struct type_s {
     uint32_t tag;
-    size_t   nops;
+    size_t nops;
     const type_t** ops;
     union {
         uint32_t      fp_flags;
