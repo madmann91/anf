@@ -333,9 +333,14 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                     strcpy((char*)struct_def->members[nmembers], member);
                     nmembers++;
                 })
-                ast->type = type_struct(checker->mod, struct_def, 0, NULL);
+                size_t nvars = ast_list_length(ast->data.struct_.tvars);
+                struct_def->vars = mpool_alloc(&checker->mod->pool, sizeof(const type_t*) * nvars);
+                nvars = 0;
+                FORALL_AST(ast->data.struct_.tvars, tvar, {
+                    struct_def->vars[nvars++] = infer(checker, tvar);
+                })
+                ast->type = type_struct(checker->mod, struct_def, nvars, struct_def->vars);
                 struct_def->type = infer(checker, ast->data.struct_.members);
-                infer_tvars(checker, ast->data.struct_.tvars);
                 return ast->type;
             }
         case AST_ID:
