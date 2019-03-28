@@ -84,25 +84,24 @@ void mod_opt(mod_t** mod) {
 
 void mod_dump(mod_t* mod) {
     scope_t scope = { .entry = NULL, .nodes = node_set_create() };
-    node_set_t fvs = node_set_create();
     node_set_t seen = node_set_create();
     node_vec_t stack = node_vec_create();
     FORALL_FNS(mod, fn, {
         node_set_clear(&scope.nodes);
-        node_set_clear(&fvs);
         node_set_clear(&seen);
         node_vec_clear(&stack);
 
         scope.entry = fn;
         scope_compute(mod, &scope);
-        scope_compute_fvs(&scope, &fvs);
 
         node_dump(fn);
         node_vec_push(&stack, fn->ops[0]);
         // Post order walk over the body of the function
         while (stack.nelems > 0) {
             const node_t* node = stack.elems[stack.nelems - 1];
-            if (node->nops == 0 || node->tag == NODE_FN || node_set_lookup(&fvs, node))
+            // Do not print nodes outside the scope except TAPPs
+            if (node->tag != NODE_TAPP &&
+                (node->nops == 0 || node->tag == NODE_FN || !node_set_lookup(&scope.nodes, node)))
                 goto done;
             bool all_seen = true;
             for (size_t i = 0; i < node->nops; ++i) {
@@ -125,7 +124,6 @@ void mod_dump(mod_t* mod) {
     });
     node_vec_destroy(&stack);
     node_set_destroy(&seen);
-    node_set_destroy(&fvs);
     node_set_destroy(&scope.nodes);
 }
 

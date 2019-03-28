@@ -324,6 +324,8 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                 struct_def->byref = ast->data.struct_.byref;
                 struct_def->name = mpool_alloc(&checker->mod->pool, strlen(name) + 1);
                 strcpy((char*)struct_def->name, name);
+
+                // Members
                 size_t nmembers = ast_list_length(ast->data.struct_.members->data.tuple.args);
                 struct_def->members = mpool_alloc(&checker->mod->pool, sizeof(const char**) * nmembers);
                 nmembers = 0;
@@ -333,12 +335,15 @@ static const type_t* infer_internal(checker_t* checker, ast_t* ast) {
                     strcpy((char*)struct_def->members[nmembers], member);
                     nmembers++;
                 })
+
+                // Type parameters
                 size_t nvars = ast_list_length(ast->data.struct_.tvars);
                 struct_def->vars = mpool_alloc(&checker->mod->pool, sizeof(const type_t*) * nvars);
                 nvars = 0;
                 FORALL_AST(ast->data.struct_.tvars, tvar, {
                     struct_def->vars[nvars++] = infer(checker, tvar);
                 })
+
                 ast->type = type_struct(checker->mod, struct_def, nvars, struct_def->vars);
                 struct_def->type = infer(checker, ast->data.struct_.members);
                 return ast->type;
