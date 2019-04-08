@@ -83,7 +83,7 @@ static inline const node_t* enter_fn(emitter_t* emitter, const node_t* fn) {
 static inline void jump_from(emitter_t* emitter, const node_t* from, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
     assert(from);
     bool always_inline = fn->tag == NODE_SELECT;
-    node_bind(emitter->mod, from, 0, node_app(emitter->mod, fn, arg, node_bool(emitter->mod, always_inline), dbg));
+    node_bind(emitter->mod, from, 0, node_app(emitter->mod, fn, arg, always_inline ? node_bool(emitter->mod, true) : NULL, dbg));
 }
 
 static inline void jump(emitter_t* emitter, const node_t* fn, const node_t* arg, const dbg_t* dbg) {
